@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { geoModeSchema } from "../geo/schema";
 
 // Single canonical attendance engine (P2/P3 contracts). One path for employees,
 // interns, and event participants — group membership lives in person_assignments,
@@ -9,7 +10,7 @@ export const createPolicyInput = z.object({
   graceMin: z.number().int().min(0).max(480).default(10),
   lateThresholdMin: z.number().int().min(0).max(480).default(15),
   duplicateWindowSec: z.number().int().min(10).max(3600).default(120),
-  geoMode: z.string().min(1).max(20).default("flag"),
+  geoMode: geoModeSchema.default("flag"),
   evidenceRequired: z.array(z.unknown()).default([]),
   approvalSteps: z.array(z.unknown()).default([]),
 });
