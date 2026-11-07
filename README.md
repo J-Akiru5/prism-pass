@@ -116,14 +116,32 @@ Typecheck, tests and build are the enforced checks.
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`:
+`.github/workflows/ci.yml` runs on every push to `main`, `staging` and `develop`, and on pull
+requests:
 
 ```
-pnpm install --frozen-lockfile → pnpm typecheck → pnpm test → pnpm build
+pnpm install --frozen-lockfile → pnpm prisma:generate → pnpm typecheck → pnpm test → pnpm build
 ```
 
 It uses a throwaway `DATABASE_URL`; nothing in the pipeline touches a live database. Lint joins the
 gate once an ESLint config exists.
+
+## Branches and deployment
+
+| Branch | Role | Deploys |
+| --- | --- | --- |
+| `main` | Production | Yes — production |
+| `staging` | Preview | Yes — preview |
+| `develop` | Integration / reconciliation | No |
+| `feat/*`, `fix/*`, `chore/*`, `agent/*` | Task work | No |
+
+Task branches merge directly into `develop` (no pull request). `develop` promotes to `staging` at
+each phase exit, and `staging` promotes to `main` once the preview is verified. Only `main` and
+`staging` are deploy-eligible; everything else is refused before a build by the allowlist in
+`vercel.json`. Full detail: `docs/ops/branching-and-deployment.md`.
+
+Releases are tagged `vX.Y.Z` on `main`, one minor per phase exit, with the version surfaced by
+`GET /api/v1/health`. See `docs/ops/release-and-versioning.md` and `CHANGELOG.md`.
 
 ## Conventions
 
