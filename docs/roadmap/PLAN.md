@@ -85,3 +85,13 @@ Out of scope: P3 attendance writes, P4 geo PostGIS, P5 e-sign, P6 offline sync, 
 - Brand: new inline-SVG `PrismPassLogo` (prism mark + wordmark, `components/brand/`); `SyntaxureCredit` "Powered by Syntaxure Labs" on nav-adjacent hero, demo, login, consoles, footer. No logo file was attached — credit auto-upgrades from `public/syntaxure-labs-logo.svg` when you drop it in (fallback "S" monogram verified; fixed a prerender hydration race where the broken-img swap never fired).
 - Validation: typecheck PASS, 36/36 tests PASS, `next build` PASS; browser QA light+dark, form submit + mailto flow verified in-page, screenshots in `screenshots/site-*`.
 - Open: demo requests send via the visitor's email client (no server endpoint/ticketing yet); full-desktop screenshots limited by the capture viewport (desktop layout verified via DOM metrics: 1440px, no overflow, desktop nav); signed-in walkthrough still needs a session.
+
+## 10. Environments, deployment and live state - 2026-11-08
+- **Branch model live:** `main` (production), `staging` (preview), `develop` (integration). Direct merges, no PRs. Rules: `docs/ops/branching-and-deployment.md`.
+- **Release process:** `docs/ops/release-and-versioning.md`; `CHANGELOG.md`; version surfaced by `GET /api/v1/health`.
+- **Vercel:** project `prism-pass` in team `j-akiru5s-projects`, production branch `main`, Node 22, env vars set for production + preview, domain `pass.syntaxure.dev` verified. Production serves v0.1.0 (health returns `version`).
+- **Allowlist verified by probe:** an empty commit pushed to `chore/allowlist-probe` produced no deployment; only `main` (production) and `staging` (preview) have deployments. Probe branch deleted.
+- **First deploy blocked:** `VULNERABLE_NEXTJS_VERSION` on Next 15.3.4 - Vercel refuses to build flagged versions. Upgraded to 15.5.29 (15.x security backport line). CI green on all three branches after the upgrade.
+- **Live database audit** (Supabase `cgtcpwqfaqxcnpavkxas`, PostgreSQL 17.6): 40 public tables - 24 PascalCase (Prisma) + 16 snake_case (SQL migrations). RLS is enabled on 15 snake_case tables only. `postgis` is not installed, so P4 must enable it.
+- **Pooler caveat confirmed:** `DATABASE_URL` points at the transaction pooler (`:6543`); DDL/session work must use the session pooler (`:5432`, same host/user).
+- **Open architectural inconsistency:** the app's Prisma path uses the service role against the PascalCase tables, where no RLS applies. The documented "RLS + server authz" model currently covers only the snake_case tables. Resolve by consolidating on one schema and enabling RLS there (P4/P9).
