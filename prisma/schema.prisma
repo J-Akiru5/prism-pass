@@ -316,6 +316,7 @@ model AttendanceEvent {
   lng            Float?
   accuracyM      Float? @map("accuracy_m")
   geoResult      GeoResult @default(NOT_CAPTURED) @map("geo_result")
+  geofenceId     String? @map("geofence_id")
   deviceId       String? @map("device_id")
   networkState   String  @default("online") @map("network_state")
   source         String
@@ -324,6 +325,7 @@ model AttendanceEvent {
   status         String  @default("accepted")
   organization   Organization @relation(fields: [organizationId], references: [id])
   session        AttendanceSession @relation(fields: [sessionId], references: [id])
+  geofence       Geofence? @relation(fields: [geofenceId], references: [id], onDelete: SetNull)
   @@unique([organizationId, idempotencyKey])
   @@index([organizationId, sessionId, personId, serverTs])
 
@@ -358,6 +360,8 @@ model Geofence {
   radiusM        Int @map("radius_m")
   organization   Organization @relation(fields: [organizationId], references: [id])
   campus         Campus? @relation(fields: [campusId], references: [id])
+  events         AttendanceEvent[]
+  @@index([organizationId])
 
   @@map("geofences")
 }

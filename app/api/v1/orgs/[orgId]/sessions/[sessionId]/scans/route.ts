@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { parseQrPayload, verifyPassStatus } from "@/modules/passes/verify";
 import { hashCredential } from "@/modules/passes/service";
 import { scanInput, reconcileRecord, resolveDirection } from "@/modules/attendance/engine";
+import { evaluateGeo } from "@/modules/geo/evaluate";
 
 type P = { params: Promise<{ orgId: string; sessionId: string }> };
 
@@ -52,10 +53,34 @@ export async function POST(req: Request, { params }: P) {
     const existingKey = await prisma.attendanceEvent.findUnique({
       where: { organizationId_idempotencyKey: { organizationId: ctx.organizationId, idempotencyKey } },
     });
-    if (existingKey) return ok({ event: existingKey, dedupe: true, key: "idempotencyKey" });
+    if (existingKey) return ok({ event: existingKey, dedupe: true, key: "idempotencyKey", geoResult: existingKey.geoResult });
 
     const clientTs = new Date(input.clientTs);
     const serverTs = new Date();
+
+    // 2b. Geo verification is derived server-side from raw coordinates + configured
+    // fences. A client-supplied "inside" boolean is never trusted. `off` skips the
+    // fence lookup entirely; missing coordinates are recorded, never auto-rejected.
+    const geoMode = session.policy.geoMode;
+    const geofences =
+      geoMode !== "off" && input.geo
+        ? await prisma.geofence.findMany({
+            where: { organizationId: ctx.organizationId },
+            select: { id: true, centerLat: true, centerLng: true, radiusM: true },
+          })
+        : [];
+    const geo = evaluateGeo(
+      { lat: input.geo?.lat, lng: input.geo?.lng, accuracyM: input.geo?.accuracyM },
+      geofences,
+      geoMode,
+    );
+    const geoEvidence = {
+      lat: input.geo?.lat ?? null,
+      lng: input.geo?.lng ?? null,
+      accuracyM: input.geo?.accuracyM ?? null,
+      geoResult: geo.geoResult,
+      geofenceId: geo.matchedGeofenceId,
+    };
 
     // 3. Duplicate window: same pass re-scan → DUPLICATE_DETECTED, record untouched
     const windowSince = new Date(serverTs.getTime() - session.policy.duplicateWindowSec * 1000);
@@ -68,14 +93,40 @@ export async function POST(req: Request, { params }: P) {
         data: {
           organizationId: ctx.organizationId, sessionId: session.id, personId: pass.personId,
           passId: pass.id, passVersion: pass.version, type: "DUPLICATE_DETECTED",
-          clientTs, lat: input.geo?.lat ?? null, lng: input.geo?.lng ?? null, accuracyM: input.geo?.accuracyM ?? null,
+          clientTs, ...geoEvidence,
           deviceId: input.deviceId ?? null, networkState: input.networkState, source: "scanner",
           idempotencyKey, status: "accepted",
         },
       });
-      await prisma.auditLog.create({ data: { organizationId: ctx.organizationId, actorUserId: ctx.internalUserId, action: "attendance.scan", resource: `event:${dup.id}`, result: "valid_duplicate", meta: { sessionId, personId: pass.personId } as never } });
+      await prisma.auditLog.create({ data: { organizationId: ctx.organizationId, actorUserId: ctx.internalUserId, action: "attendance.scan", resource: `event:${dup.id}`, result: "valid_duplicate", meta: { sessionId, personId: pass.personId, geoResult: geo.geoResult } as never } });
       const record = await prisma.attendanceRecord.findUnique({ where: { organizationId_sessionId_personId: { organizationId: ctx.organizationId, sessionId: session.id, personId: pass.personId } } });
-      return ok({ event: dup, record, duplicate: true });
+      return ok({ event: dup, record, duplicate: true, geoResult: geo.geoResult });
+    }
+
+    // 3b. Enforce mode: a reliable out-of-fence scan is rejected, audited and never
+    // reaches the attendance record. Duplicates above are recorded but not rejected,
+    // so duplicate-window behaviour is unchanged.
+    if (geo.reject) {
+      const rejected = await prisma.attendanceEvent.create({
+        data: {
+          organizationId: ctx.organizationId, sessionId: session.id, personId: pass.personId,
+          passId: pass.id, passVersion: pass.version, type: "REJECTED",
+          clientTs, ...geoEvidence,
+          deviceId: input.deviceId ?? null, networkState: input.networkState, source: "scanner",
+          idempotencyKey, status: "rejected",
+        },
+      });
+      await prisma.auditLog.create({
+        data: {
+          organizationId: ctx.organizationId, actorUserId: ctx.internalUserId, action: "attendance.scan",
+          resource: `event:${rejected.id}`, result: "geo_outside",
+          meta: { sessionId, personId: pass.personId, geoResult: geo.geoResult, distanceM: geo.distanceM, direction: input.direction } as never,
+        },
+      });
+      return fail(422, "GEO_OUTSIDE", "Scan is outside the organization's geofence", {
+        geoResult: geo.geoResult,
+        distanceM: geo.distanceM,
+      });
     }
 
     // 4. Resolve direction + append event
@@ -87,7 +138,7 @@ export async function POST(req: Request, { params }: P) {
       data: {
         organizationId: ctx.organizationId, sessionId: session.id, personId: pass.personId,
         passId: pass.id, passVersion: pass.version, type: eventType,
-        clientTs, lat: input.geo?.lat ?? null, lng: input.geo?.lng ?? null, accuracyM: input.geo?.accuracyM ?? null,
+        clientTs, ...geoEvidence,
         deviceId: input.deviceId ?? null, networkState: input.networkState, source: "scanner",
         idempotencyKey, status: "accepted",
       },
@@ -119,8 +170,8 @@ export async function POST(req: Request, { params }: P) {
         : { checkOutEventId: event.id, durationMin: checkInAt ? Math.max(0, Math.round((serverTs.getTime() - checkInAt.getTime()) / 60000)) : null },
     });
     await prisma.auditLog.create({
-      data: { organizationId: ctx.organizationId, actorUserId: ctx.internalUserId, action: "attendance.scan", resource: `event:${event.id}`, result: "accepted", meta: { sessionId, personId: pass.personId, direction: eventType } as never },
+      data: { organizationId: ctx.organizationId, actorUserId: ctx.internalUserId, action: "attendance.scan", resource: `event:${event.id}`, result: "accepted", meta: { sessionId, personId: pass.personId, direction: eventType, geoResult: geo.geoResult } as never },
     });
-    return ok({ event, record, duplicate: false });
+    return ok({ event, record, duplicate: false, geoResult: geo.geoResult });
   } catch (e) { return handleRouteError(e); }
 }

@@ -18,3 +18,19 @@ Denied permission / indoor / poor GPS → NEEDS_REVIEW path, alternative evidenc
 
 ## 5. Anti-spoof (Phase 1+ tests)
 Record accuracy, mock-location flag where available, drift vs last known, impossible-travel heuristic → flag, not silent reject.
+
+## 6. Server evaluation (P4 implementation)
+Normative for `modules/geo/evaluate.ts`; the client never supplies an "inside" boolean.
+
+- `AttendancePolicy.geoMode` is exactly `off` | `flag` | `enforce` (unknown values fail safe as `flag`).
+- Precedence:
+  1. `off` → `NOT_CAPTURED` (verification disabled; location may still be stored).
+  2. Missing/invalid coordinates → `NOT_CAPTURED`; never auto-rejected.
+  3. No geofences configured → `NEEDS_REVIEW`; **never rejected**, even under `enforce`.
+  4. Accuracy missing or worse than 100 m → `NEEDS_REVIEW` (approximate evidence).
+  5. Inside any circular fence (distance ≤ radius) → `VERIFIED`, closest containing fence recorded.
+  6. Outside all fences → `OUTSIDE_BOUNDARY`.
+- Under `enforce`, only a reliable `OUTSIDE_BOUNDARY` scan is rejected: `422 GEO_OUTSIDE`, a `REJECTED` event with the geo evidence, and an audit row (`result=geo_outside`). The attendance record is untouched.
+- Under `flag`, an out-of-fence scan is accepted and flagged via `geoResult`.
+- Duplicate-window scans persist geo evidence but are never geo-rejected; they do not alter the attendance record.
+- The closest containing fence (`attendance_events.geofence_id`) is stored as per-event evidence.
