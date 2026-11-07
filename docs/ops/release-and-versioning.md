@@ -5,8 +5,9 @@
 Semantic versioning, `MAJOR.MINOR.PATCH`, in `package.json` (`version`).
 
 - **MAJOR** — only after public release; pre-release stays `0`.
-- **MINOR** — one increment per phase exit (P4 → `0.4.0`, P5 → `0.5.0`, …).
-- **PATCH** — fixes released between phase exits (`0.4.1`).
+- **MINOR** — one increment per production release, i.e. per phase exit (P4 → `0.2.0`,
+  P5 → `0.3.0`, …). The phase number and the version number are deliberately independent.
+- **PATCH** — fixes released between phase exits (`0.2.1`).
 
 The version is surfaced at runtime by `GET /api/v1/health` (`version` field, injected from
 `package.json` through `next.config.js`) so a deployment can be identified without reading git.
