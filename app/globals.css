@@ -1,0 +1,115 @@
+/* Prism Pass design tokens — enterprise navy/gold/paper language adapted from
+   the inspected USC Attendance reference (see docs/design/extracted-tokens.md).
+   Semantic shadcn-style names; light + dark are independently designed. */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Surfaces: warm paper background, white panels, warm gray dividers */
+  --background: 40 25% 95%;
+  --foreground: 240 4% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 4% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 4% 11%;
+
+  /* Brand: navy primary, gold accent */
+  --primary: 222 60% 20%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 222 30% 92%;
+  --secondary-foreground: 222 60% 20%;
+  --accent: 41 54% 54%;
+  --accent-foreground: 222 60% 13%;
+  --gold-soft: 41 55% 78%;
+  --gold-dark: 41 54% 32%;
+
+  --muted: 40 18% 90%;
+  --muted-foreground: 215 12% 40%;
+  --border: 40 20% 82%;
+  --input: 40 20% 82%;
+  --ring: 222 60% 20%;
+
+  --destructive: 0 45% 44%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 152 33% 37%;
+  --success-foreground: 0 0% 100%;
+  --warning: 41 54% 45%;
+  --warning-foreground: 222 60% 13%;
+  --info: 222 60% 35%;
+  --info-foreground: 0 0% 100%;
+
+  /* Sidebar stays deep navy in both themes (reference pattern) */
+  --sidebar: 222 60% 13%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-accent: 41 54% 54%;
+  --sidebar-border: 0 0% 100%;
+
+  --radius: 0.625rem;
+
+  --shadow-sm: 0 1px 2px rgb(12 27 54 / 0.06);
+  --shadow-md: 0 4px 12px rgb(12 27 54 / 0.08);
+  --shadow-lg: 0 8px 24px rgb(12 27 54 / 0.12);
+}
+
+.dark {
+  /* Deliberate dark: deep navy surfaces, gold primary actions */
+  --background: 222 60% 5%;
+  --foreground: 40 20% 95%;
+  --card: 222 55% 10%;
+  --card-foreground: 40 20% 95%;
+  --popover: 222 55% 12%;
+  --popover-foreground: 40 20% 95%;
+
+  --primary: 41 54% 54%;
+  --primary-foreground: 222 60% 10%;
+  --secondary: 222 40% 16%;
+  --secondary-foreground: 40 20% 95%;
+  --accent: 41 54% 54%;
+  --accent-foreground: 222 60% 10%;
+  --gold-soft: 41 55% 72%;
+  --gold-dark: 41 55% 72%;
+
+  --muted: 222 40% 14%;
+  --muted-foreground: 215 15% 68%;
+  --border: 222 30% 20%;
+  --input: 222 30% 20%;
+  --ring: 41 54% 54%;
+
+  --destructive: 0 60% 68%;
+  --destructive-foreground: 222 60% 8%;
+  --success: 152 35% 62%;
+  --success-foreground: 222 60% 8%;
+  --warning: 41 60% 62%;
+  --warning-foreground: 222 60% 8%;
+  --info: 217 70% 68%;
+  --info-foreground: 222 60% 8%;
+
+  --sidebar: 222 65% 7%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-accent: 41 54% 54%;
+  --sidebar-border: 0 0% 100%;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.45);
+  --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.5);
+}
+
+* { border-color: hsl(var(--border)); }
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Visible focus indicator: navy ring + gold halo (reference pattern), readable on both themes */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid hsl(var(--ring));
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px hsl(var(--accent) / 0.55);
+}
+
+.font-display { font-family: Georgia, "Times New Roman", serif; }

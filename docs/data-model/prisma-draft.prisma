@@ -1,0 +1,318 @@
+// Prism Pass — Prisma draft (Phase 0, normative for field list; NOT applied)
+// Phase 1 will split into migrations + RLS policies.
+
+enum OrganizationStatus { ACTIVE SUSPENDED PENDING_DELETION }
+enum MembershipRole { OWNER ADMIN MANAGER SUPERVISOR SCANNER MEMBER VIEWER }
+enum MembershipStatus { ACTIVE REVOKED }
+enum PassStatus { ACTIVE REVOKED EXPIRED }
+enum SessionType { EVENT OJT SHIFT CLASS VISITOR TRAINING }
+enum AttendanceEventType { SCAN CHECK_IN CHECK_OUT OFFLINE_RECEIVED MANUAL_ADJUST APPROVED REJECTED DUPLICATE_DETECTED }
+enum RecordStatus { PRESENT LATE ABSENT EXCUSED PARTIAL }
+enum ApprovalStatus { NONE PENDING APPROVED REJECTED }
+enum GeoResult { VERIFIED NEEDS_REVIEW OUTSIDE_BOUNDARY MANUAL_EXCEPTION NOT_CAPTURED }
+enum DocumentStatus { DRAFT SEALED SUPERSEDED REVOKED }
+
+model User {
+  id        String   @id @default(cuid())
+  authId    String   @unique // Supabase auth.users.id
+  email     String?
+  createdAt DateTime @default(now())
+  memberships Membership[]
+  peopleLinks Person[] @relation("PersonIdentity")
+}
+
+model Organization {
+  id        String             @id @default(cuid())
+  slug      String             @unique
+  name      String
+  status    OrganizationStatus @default(ACTIVE)
+  timezone  String             @default("Asia/Manila")
+  createdAt DateTime           @default(now())
+  memberships Membership[]
+  settings  OrganizationSetting?
+  subscription OrganizationSubscription?
+  campuses  Campus[]
+  departments Department[]
+  programs  Program[]
+  people    Person[]
+  passes    Pass[]
+  policies  AttendancePolicy[]
+  sessions  AttendanceSession[]
+  events    AttendanceEvent[]
+  records   AttendanceRecord[]
+  geofences Geofence[]
+  documents Document[]
+  signatureRequests SignatureRequest[]
+  devices   Device[]
+  syncBatches OfflineSyncBatch[]
+  auditLogs AuditLog[]
+}
+
+model Membership {
+  id             String           @id @default(cuid())
+  userId         String
+  organizationId String
+  role           MembershipRole   @default(MEMBER)
+  status         MembershipStatus @default(ACTIVE)
+  revokedAt      DateTime?
+  user           User         @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  overrides      MembershipPermission[]
+  @@unique([organizationId, userId])
+}
+
+model MembershipPermission {
+  id           String     @id @default(cuid())
+  membershipId String
+  permission   String // e.g. attendance.scan
+  allow        Boolean
+  membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  @@unique([membershipId, permission])
+}
+
+model OrganizationSetting {
+  organizationId String @id
+  branding       Json?
+  retentionDays  Int    @default(365)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+}
+
+model OrganizationSubscription {
+  organizationId String @id
+  plan         String @default("pilot")
+  entitlements Json   @default("{}")
+  organization Organization @relation(fields: [organizationId], references: [id])
+}
+
+model Campus {
+  id             String @id @default(cuid())
+  organizationId String
+  slug           String
+  name           String
+  timezone       String?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  departments  Department[]
+  geofences    Geofence[]
+  @@unique([organizationId, slug])
+}
+
+model Department {
+  id             String @id @default(cuid())
+  organizationId String
+  campusId       String?
+  name           String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  campus         Campus? @relation(fields: [campusId], references: [id])
+}
+
+model Program {
+  id             String @id @default(cuid())
+  organizationId String
+  name           String
+  kind           String // OJT | CLASS | WORKFORCE | EVENT_COHORT
+  organization   Organization @relation(fields: [organizationId], references: [id])
+}
+
+model Person {
+  id             String @id @default(cuid())
+  organizationId String
+  userId         String? // nullable: login-less allowed
+  displayName    String
+  externalId     String?
+  status         String  @default("active")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  identity       User? @relation("PersonIdentity", fields: [userId], references: [id])
+  passes         Pass[]
+  assignments    PersonAssignment[]
+  @@unique([organizationId, externalId])
+}
+
+model PersonAssignment {
+  id             String @id @default(cuid())
+  organizationId String
+  personId       String
+  programId      String?
+  role           String  @default("participant")
+  startsAt       DateTime?
+  endsAt         DateTime?
+  person         Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+}
+
+model Pass {
+  id             String @id @default(cuid())
+  organizationId String
+  personId       String
+  passPublicId   String // opaque QR reference, NOT PII
+  version        Int    @default(1)
+  status         PassStatus @default(ACTIVE)
+  credentialHash String // hash of secret; QR holds passPublicId + secret
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  person         Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, passPublicId])
+  @@unique([organizationId, credentialHash])
+}
+
+model AttendancePolicy {
+  id             String @id @default(cuid())
+  organizationId String
+  name           String
+  graceMin       Int @default(10)
+  lateThresholdMin Int @default(15)
+  duplicateWindowSec Int @default(120)
+  geoMode        String @default("flag") // enforce | flag | off
+  evidenceRequired Json @default("[]")
+  approvalSteps  Json @default("[]")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  sessions       AttendanceSession[]
+}
+
+model AttendanceSession {
+  id             String @id @default(cuid())
+  organizationId String
+  policyId       String
+  type           SessionType
+  title          String
+  startsAt       DateTime
+  endsAt         DateTime
+  timezone       String
+  geofenceIds    String[] @default([])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  policy         AttendancePolicy @relation(fields: [policyId], references: [id])
+  events         AttendanceEvent[]
+  records        AttendanceRecord[]
+}
+
+model AttendanceEvent {
+  id             String @id @default(uuid())
+  organizationId String
+  sessionId      String
+  personId       String
+  passId         String?
+  passVersion    Int?
+  type           AttendanceEventType
+  clientTs       DateTime
+  serverTs       DateTime @default(now())
+  lat            Float?
+  lng            Float?
+  accuracyM      Float?
+  geoResult      GeoResult @default(NOT_CAPTURED)
+  deviceId       String?
+  networkState   String  @default("online")
+  source         String  // qr_scan | kiosk | manual_override | offline_sync
+  idempotencyKey String
+  payloadHash    String?
+  status         String  @default("accepted") // accepted | flagged | duplicate | revoked | conflict
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  session        AttendanceSession @relation(fields: [sessionId], references: [id])
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, sessionId, personId, serverTs])
+}
+
+model AttendanceRecord {
+  id             String @id @default(cuid())
+  organizationId String
+  sessionId      String
+  personId       String
+  checkInEventId String?
+  checkOutEventId String?
+  durationMin    Int?
+  status         RecordStatus @default(PRESENT)
+  approvalStatus ApprovalStatus @default(NONE)
+  exceptionFlags String[] @default([])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  session        AttendanceSession @relation(fields: [sessionId], references: [id])
+  @@unique([organizationId, sessionId, personId])
+}
+
+model Geofence {
+  id             String @id @default(cuid())
+  organizationId String
+  campusId       String?
+  label          String
+  centerLat      Float
+  centerLng      Float
+  radiusM        Int // e.g. 100
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  campus         Campus? @relation(fields: [campusId], references: [id])
+}
+
+model Document {
+  id             String @id @default(cuid())
+  organizationId String
+  template       String // ojt_timesheet | attendance_cert | completion | approval_form
+  version        Int @default(1)
+  sha256         String
+  storageRef     String // private bucket path
+  status         DocumentStatus @default(DRAFT)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  signatures     SignatureRequest[]
+}
+
+model SignatureRequest {
+  id             String @id @default(cuid())
+  organizationId String
+  documentId     String
+  order          Json // [{userId/personId, role, order}]
+  status         String @default("pending")
+  expiresAt      DateTime?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  document       Document @relation(fields: [documentId], references: [id])
+  events         SignatureEvent[]
+}
+
+model SignatureEvent {
+  id             String @id @default(cuid())
+  organizationId String
+  requestId      String
+  signerUserId   String?
+  signerPersonId String?
+  docVersion     Int
+  docHash        String
+  method         String // drawn | typed | credential
+  consentVersion String
+  serverTs       DateTime @default(now())
+  authEvidence   Json
+  deviceId       String?
+  prevHash       String?
+  currHash       String
+  request        SignatureRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
+model Device {
+  id             String @id @default(cuid())
+  organizationId String
+  devicePublicId String
+  role           String @default("scanner")
+  keyRef         String? // device public key / credential ref
+  lastSeenAt     DateTime?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  @@unique([organizationId, devicePublicId])
+}
+
+model OfflineSyncBatch {
+  id             String @id @default(cuid())
+  organizationId String
+  deviceId       String
+  batchId        String
+  receivedAt     DateTime @default(now())
+  accepted       Int @default(0)
+  rejected       Int @default(0)
+  errors         Json?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  @@unique([organizationId, batchId])
+}
+
+model AuditLog {
+  id             String @id @default(cuid())
+  organizationId String? // null = platform action
+  actorUserId    String?
+  action         String
+  resource       String
+  result         String // allowed | denied
+  meta           Json?
+  createdAt      DateTime @default(now())
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  @@index([organizationId, createdAt])
+}

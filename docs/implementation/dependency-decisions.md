@@ -1,0 +1,12 @@
+# Dependency decisions
+- next 15.3 + react 19: App Router, matches OptiFeed major stack without Next 16 risk.
+- tailwind 3.4: stable config, proven in CICT-QR/OJT.
+- @supabase/ssr + @supabase/supabase-js: server/browser clients, mirrors OptiFeed.
+- prisma 6.6: matches OptiFeed; single schema per ADR-02.
+- zod + react-hook-form + resolvers: validation standard.
+- html5-qrcode 2.3.8: proven in both QR sources; maintained enough for P1 scanner.
+- qrcode.react: QR display (no PII payload).
+- dexie: offline queue abstraction (installed, wiring deferred to P6).
+- recharts, date-fns, tanstack table/query: reports + data presentation.
+- next-themes, lucide-react, framer-motion, clsx, tailwind-merge, cva: design system.
+- vitest: unit/isolation tests.

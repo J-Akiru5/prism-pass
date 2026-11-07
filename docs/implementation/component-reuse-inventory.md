@@ -1,0 +1,12 @@
+# Component reuse inventory (P1 foundation)
+| Source | Component / capability | Strategy | Prism Pass destination | Notes |
+|---|---|---|---|---|
+| OptiFeed apps/web | pnpm monorepo, Next+Supabase SSR, Prisma, Zod, CI gates, proxy.ts auth refresh | Adapt conventions | package.json, middleware.ts, lib/supabase/*, prisma/* | No farm/pond domain copied; permission-union NOT copied — explicit org context per ADR-04 |
+| CICT-QR src/components/AdminScanner.jsx | html5-qrcode init, feedback/success/duplicate/error states | Port + refactor | components/scanner-viewport.tsx | Data layer replaced with secure service boundary; no legacy admin auth copied |
+| CICT-QR src/components/Dashboard.jsx, LogbookPage.jsx | attendance list + filter presentation | Adapt layout only | (org)/attendance shell | Reimplemented with tenant-scoped services |
+| OJT-Qr-Pass src/app/intern + components | digital pass display, DTR presentation | Adapt | components/qr-display.tsx, member portal | QR payload now opaque PRISM1:public:secret, hash-only storage (ADR-07) |
+| OJT-Qr-Pass src/app/admin scanner + ManageAttendanceModal | scanner + approval modal UX | Adapt UX, rebuild authz | scan page, attendance routes | No plaintext auth / localStorage admin copied |
+| (P2 validated) CICT-QR AdminScanner | camera init + fps/qrbox + duplicate set | Reused via shared component | `components/scanner-viewport.tsx` + `onDecode` prop, consumed by `(scanner)/scan` | Security validated: component holds NO auth, NO fetch, NO storage — pure decode callback; server verify/scan authoritative; duplicate guard provisional only |
+| (P2 validated) OJT-Qr-Pass digital pass | pass card + show/hide + status | Reused presentation | `components/digital-pass-card.tsx` (supersedes `qr-display.tsx`, removed), `(member)/member` self-service via `my-pass` API | Security validated: QR payload opaque `PRISM1:public:secret`, hash-only storage, secret shown once at issuance, list endpoints strip `credentialHash`; member endpoint returns own records only |
+| (Design) USC Attendance `Button/Badge/Card` language | variants, tones, radius rhythm | Adapted, not copied | `components/ui/*` on Prism semantic tokens | No USC identity carried over; API unchanged |
+| (Design) USC Attendance `dashboard/auth` layouts | sidebar shell, auth card, outcome banners | Adapted | `components/app-shell.tsx`, login page, `components/scan-result.tsx` | Auth flow unchanged (Supabase); tenant gates untouched |

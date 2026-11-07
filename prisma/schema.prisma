@@ -1,0 +1,455 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_DELETION
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  MANAGER
+  SUPERVISOR
+  SCANNER
+  MEMBER
+  VIEWER
+}
+
+enum MembershipStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum PassStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum SessionType {
+  EVENT
+  OJT
+  SHIFT
+  CLASS
+  VISITOR
+  TRAINING
+}
+
+enum AttendanceEventType {
+  SCAN
+  CHECK_IN
+  CHECK_OUT
+  OFFLINE_RECEIVED
+  MANUAL_ADJUST
+  APPROVED
+  REJECTED
+  DUPLICATE_DETECTED
+}
+
+enum RecordStatus {
+  PRESENT
+  LATE
+  ABSENT
+  EXCUSED
+  PARTIAL
+}
+
+enum ApprovalStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum GeoResult {
+  VERIFIED
+  NEEDS_REVIEW
+  OUTSIDE_BOUNDARY
+  MANUAL_EXCEPTION
+  NOT_CAPTURED
+}
+
+enum DocumentStatus {
+  DRAFT
+  SEALED
+  SUPERSEDED
+  REVOKED
+}
+
+// P1: live tables use lowercase snake_case (0001 + P1-Completion).
+// Prisma models map to live names via @@map/@map. Do NOT rename live tables.
+
+model User {
+  id        String   @id @default(cuid())
+  authId    String   @unique @map("auth_id")
+  email     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  memberships Membership[]
+  peopleLinks Person[] @relation("PersonIdentity")
+
+  @@map("users")
+}
+
+model Organization {
+  id        String             @id @default(cuid())
+  slug      String             @unique
+  name      String
+  status    OrganizationStatus @default(ACTIVE)
+  timezone  String             @default("Asia/Manila")
+  createdAt DateTime           @default(now()) @map("created_at")
+  memberships Membership[]
+  settings  OrganizationSetting?
+  subscription OrganizationSubscription?
+  campuses  Campus[]
+  departments Department[]
+  programs  Program[]
+  people    Person[]
+  passes    Pass[]
+  policies  AttendancePolicy[]
+  sessions  AttendanceSession[]
+  events    AttendanceEvent[]
+  records   AttendanceRecord[]
+  geofences Geofence[]
+  documents Document[]
+  signatureRequests SignatureRequest[]
+  devices   Device[]
+  syncBatches OfflineSyncBatch[]
+  auditLogs AuditLog[]
+  platformAdmins PlatformAdmin[]
+
+  @@map("organizations")
+}
+
+model PlatformAdmin {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  organizationId String? @map("organization_id")
+  @@unique([userId])
+
+  @@map("platform_admins")
+}
+
+model Membership {
+  id             String           @id @default(cuid())
+  userId         String           @map("user_id")
+  organizationId String           @map("organization_id")
+  role           MembershipRole   @default(MEMBER)
+  status         MembershipStatus @default(ACTIVE)
+  revokedAt      DateTime?        @map("revoked_at")
+  user           User         @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  overrides      MembershipPermission[]
+  @@unique([organizationId, userId])
+  @@index([userId])
+
+  @@map("memberships")
+}
+
+model MembershipPermission {
+  id           String     @id @default(cuid())
+  membershipId String     @map("membership_id")
+  permission   String
+  allow        Boolean
+  membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  @@unique([membershipId, permission])
+
+  @@map("membership_permissions")
+}
+
+model OrganizationSetting {
+  organizationId String @id @map("organization_id")
+  branding       Json?
+  retentionDays  Int    @default(365) @map("retention_days")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("organization_settings")
+}
+
+model OrganizationSubscription {
+  organizationId String @id @map("organization_id")
+  plan         String @default("pilot")
+  entitlements Json   @default("{}")
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("organization_subscriptions")
+}
+
+model Campus {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  slug           String
+  name           String
+  timezone       String?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  departments  Department[]
+  geofences    Geofence[]
+  @@unique([organizationId, slug])
+
+  @@map("campuses")
+}
+
+model Department {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  campusId       String? @map("campus_id")
+  name           String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  campus         Campus? @relation(fields: [campusId], references: [id])
+
+  @@map("departments")
+}
+
+model Program {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  name           String
+  kind           String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("programs")
+}
+
+model Person {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  userId         String? @map("user_id")
+  displayName    String @map("display_name")
+  externalId     String? @map("external_id")
+  status         String  @default("active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  identity       User? @relation("PersonIdentity", fields: [userId], references: [id])
+  passes         Pass[]
+  assignments    PersonAssignment[]
+  @@index([organizationId, displayName])
+
+  @@map("people")
+}
+
+model PersonAssignment {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  personId       String @map("person_id")
+  programId      String? @map("program_id")
+  role           String  @default("participant")
+  startsAt       DateTime? @map("starts_at")
+  endsAt         DateTime? @map("ends_at")
+  person         Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@map("person_assignments")
+}
+
+model Pass {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  personId       String @map("person_id")
+  passPublicId   String @map("pass_public_id")
+  version        Int    @default(1)
+  status         PassStatus @default(ACTIVE)
+  credentialHash String @map("credential_hash")
+  expiresAt      DateTime? @map("expires_at")
+  revokedAt      DateTime? @map("revoked_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  person         Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, passPublicId])
+  @@unique([organizationId, credentialHash])
+
+  @@map("passes")
+}
+
+model AttendancePolicy {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  name           String
+  graceMin       Int @default(10) @map("grace_min")
+  lateThresholdMin Int @default(15) @map("late_threshold_min")
+  duplicateWindowSec Int @default(120) @map("duplicate_window_sec")
+  geoMode        String @default("flag") @map("geo_mode")
+  evidenceRequired Json @default("[]") @map("evidence_required")
+  approvalSteps  Json @default("[]") @map("approval_steps")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  sessions       AttendanceSession[]
+
+  @@map("attendance_policies")
+}
+
+model AttendanceSession {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  policyId       String @map("policy_id")
+  type           SessionType
+  title          String
+  startsAt       DateTime @map("starts_at")
+  endsAt         DateTime @map("ends_at")
+  timezone       String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  policy         AttendancePolicy @relation(fields: [policyId], references: [id])
+  events         AttendanceEvent[]
+  records        AttendanceRecord[]
+  @@index([organizationId, startsAt])
+
+  @@map("attendance_sessions")
+}
+
+model AttendanceEvent {
+  id             String @id @default(uuid())
+  organizationId String @map("organization_id")
+  sessionId      String @map("session_id")
+  personId       String @map("person_id")
+  passId         String? @map("pass_id")
+  passVersion    Int? @map("pass_version")
+  type           AttendanceEventType
+  clientTs       DateTime @map("client_ts")
+  serverTs       DateTime @default(now()) @map("server_ts")
+  lat            Float?
+  lng            Float?
+  accuracyM      Float? @map("accuracy_m")
+  geoResult      GeoResult @default(NOT_CAPTURED) @map("geo_result")
+  deviceId       String? @map("device_id")
+  networkState   String  @default("online") @map("network_state")
+  source         String
+  idempotencyKey String @map("idempotency_key")
+  payloadHash    String? @map("payload_hash")
+  status         String  @default("accepted")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  session        AttendanceSession @relation(fields: [sessionId], references: [id])
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, sessionId, personId, serverTs])
+
+  @@map("attendance_events")
+}
+
+model AttendanceRecord {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  sessionId      String @map("session_id")
+  personId       String @map("person_id")
+  checkInEventId String? @map("check_in_event_id")
+  checkOutEventId String? @map("check_out_event_id")
+  durationMin    Int? @map("duration_min")
+  status         RecordStatus @default(PRESENT)
+  approvalStatus ApprovalStatus @default(NONE) @map("approval_status")
+  exceptionFlags String[] @default([]) @map("exception_flags")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  session        AttendanceSession @relation(fields: [sessionId], references: [id])
+  @@unique([organizationId, sessionId, personId])
+
+  @@map("attendance_records")
+}
+
+model Geofence {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  campusId       String? @map("campus_id")
+  label          String
+  centerLat      Float @map("center_lat")
+  centerLng      Float @map("center_lng")
+  radiusM        Int @map("radius_m")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  campus         Campus? @relation(fields: [campusId], references: [id])
+
+  @@map("geofences")
+}
+
+model Document {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  template       String
+  version        Int @default(1)
+  sha256         String
+  storageRef     String @map("storage_ref")
+  status         DocumentStatus @default(DRAFT)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  signatures     SignatureRequest[]
+
+  @@map("documents")
+}
+
+model SignatureRequest {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  documentId     String @map("document_id")
+  order          Json
+  status         String @default("pending")
+  expiresAt      DateTime? @map("expires_at")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  document       Document @relation(fields: [documentId], references: [id])
+  events         SignatureEvent[]
+
+  @@map("signature_requests")
+}
+
+model SignatureEvent {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  requestId      String @map("request_id")
+  signerUserId   String? @map("signer_user_id")
+  signerPersonId String? @map("signer_person_id")
+  docVersion     Int @map("doc_version")
+  docHash        String @map("doc_hash")
+  method         String
+  consentVersion String @map("consent_version")
+  serverTs       DateTime @default(now()) @map("server_ts")
+  authEvidence   Json @map("auth_evidence")
+  deviceId       String? @map("device_id")
+  prevHash       String? @map("prev_hash")
+  currHash       String @map("curr_hash")
+  request        SignatureRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  @@index([organizationId, requestId])
+
+  @@map("signature_events")
+}
+
+model Device {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  devicePublicId String @map("device_public_id")
+  role           String @default("scanner")
+  keyRef         String? @map("key_ref")
+  lastSeenAt     DateTime? @map("last_seen_at")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  @@unique([organizationId, devicePublicId])
+
+  @@map("devices")
+}
+
+model OfflineSyncBatch {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  deviceId       String @map("device_id")
+  batchId        String @map("batch_id")
+  receivedAt     DateTime @default(now()) @map("received_at")
+  accepted       Int @default(0)
+  rejected       Int @default(0)
+  errors         Json?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  @@unique([organizationId, batchId])
+
+  @@map("offline_sync_batches")
+}
+
+model AuditLog {
+  id             String @id @default(cuid())
+  organizationId String? @map("organization_id")
+  actorUserId    String? @map("actor_user_id")
+  action         String
+  resource       String
+  result         String
+  meta           Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  @@index([organizationId, createdAt])
+
+  @@map("audit_logs")
+}

@@ -1,0 +1,1 @@
+export default function Loading(){return(<main className="p-8"><div className="h-8 w-48 animate-pulse rounded bg-muted" /><div className="mt-4 grid gap-3"><div className="h-20 animate-pulse rounded-xl bg-muted" /><div className="h-20 animate-pulse rounded-xl bg-muted" /></div></main>);}

@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function Layout({children}:{children:React.ReactNode}){return(<div className="min-h-screen"><header className="border-b"><div className="mx-auto flex max-w-6xl items-center gap-4 px-6 py-3"><Link href="/" className="font-bold">Prism Pass</Link><span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">PLATFORM</span><nav className="ml-auto flex gap-4 text-sm text-muted-foreground"><Link href="/platform">Overview</Link><Link href="/login">Sign in</Link></nav></div></header>{children}</div>);}
