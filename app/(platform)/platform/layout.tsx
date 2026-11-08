@@ -1,28 +1,57 @@
 import Link from "next/link";
+import { AuthError, ForbiddenError, requirePlatformAdmin } from "@/lib/tenant";
 import { PrismPassLogo } from "@/components/brand/prism-pass-logo";
+import { PlatformShell } from "@/components/platform/platform-shell";
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+// The gate needs cookies, so nothing under /platform is static.
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Platform console" };
+
+function AccessDenied() {
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-30 border-b bg-card/90 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6">
-          <Link href="/" aria-label="Prism Pass home" className="rounded-lg">
-            <PrismPassLogo size={30} />
-          </Link>
-          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
-            Platform
-          </span>
-          <nav aria-label="Platform" className="ml-auto flex items-center gap-1 text-sm text-muted-foreground">
-            <Link href="/platform" className="rounded-lg px-3 py-2 font-medium transition-colors hover:bg-muted hover:text-foreground">
-              Overview
-            </Link>
-            <Link href="/consoles" className="rounded-lg px-3 py-2 font-medium transition-colors hover:bg-muted hover:text-foreground">
-              Consoles
-            </Link>
-          </nav>
-        </div>
-      </header>
-      {children}
-    </div>
+    <main className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center px-6 py-16">
+      <Link href="/" aria-label="Prism Pass home" className="w-fit rounded-lg">
+        <PrismPassLogo size={34} />
+      </Link>
+      <p className="mt-12 font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-gold-dark">
+        Platform · Access control
+      </p>
+      <h1 className="mt-2 font-display text-3xl font-bold leading-tight">Platform access required</h1>
+      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+        This console is limited to platform administrators. An organization OWNER — even of every tenant —
+        does not inherit platform access (ADR-11). Ask an existing platform admin for a grant.
+      </p>
+      <div className="mt-8 flex flex-wrap gap-3">
+        <Link
+          href="/consoles"
+          className="inline-flex h-11 items-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+        >
+          Back to consoles
+        </Link>
+        <Link
+          href="/login"
+          className="inline-flex h-11 items-center rounded-lg border border-input px-5 text-sm font-medium transition hover:bg-muted"
+        >
+          Sign in with another account
+        </Link>
+      </div>
+    </main>
   );
+}
+
+/**
+ * Server-side gate for every page in the console.
+ *
+ * Route handlers re-check `requirePlatformAdmin` independently, so removing a
+ * page or hiding a control is never an authorization change. The shell is only
+ * mounted for a verified platform admin.
+ */
+export default async function PlatformLayout({ children }: { children: React.ReactNode }) {
+  try {
+    await requirePlatformAdmin();
+  } catch (error) {
+    if (error instanceof AuthError || error instanceof ForbiddenError) return <AccessDenied />;
+    throw error;
+  }
+  return <PlatformShell>{children}</PlatformShell>;
 }

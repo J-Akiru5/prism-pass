@@ -1,18 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { RefreshCw, Search, ShieldCheck } from "lucide-react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import Link from "next/link";
+import { ArrowUpRight, Plus, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ConfirmationDialog } from "@/components/confirmation-dialog";
+import { Modal, ReasonDialog } from "@/components/ui/modal";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui-states";
+import { errorMessage, platformRequest } from "@/lib/platform-client";
+import { formatDate, formatDateTime, orgStatusLabel, orgStatusTone } from "@/lib/platform-format";
+import {
+  createPlatformOrgInput,
+  PLATFORM_PLANS,
+  PLATFORM_PLAN_LABELS,
+  suggestOrgSlug,
+  type PlatformPlan,
+} from "@/modules/platform/console";
 import {
   LAST_ADMIN_SUSPEND_RULE,
   PLATFORM_PAGE_SIZE_DEFAULT,
   buildPageMeta,
-  statusTone,
   type OrgStatusValue,
   type PageMeta,
   type PlatformOrgRow,
@@ -21,48 +30,9 @@ import {
 
 type Filters = { page: number; pageSize: number; status: "" | OrgStatusValue; q: string };
 
-type ApiEnvelope<T> = { data: T; meta?: { total?: number; page?: number; pageSize?: number } };
-
 type PendingChange = { row: PlatformOrgRow; nextStatus: PlatformOrgStatus };
 
-async function request<T>(path: string, init?: RequestInit): Promise<ApiEnvelope<T>> {
-  const res = await fetch(path, {
-    ...init,
-    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
-  });
-  const json = (await res.json().catch(() => null)) as ApiEnvelope<T> | { error?: { message?: string } } | null;
-  if (!res.ok) {
-    const message = (json as { error?: { message?: string } } | null)?.error?.message;
-    throw new Error(message ?? `Request failed (${res.status})`);
-  }
-  if (!json) throw new Error("Empty response from the platform API");
-  return json as ApiEnvelope<T>;
-}
-
-function statusLabel(status: OrgStatusValue): string {
-  if (status === "PENDING_DELETION") return "Pending deletion";
-  return status === "ACTIVE" ? "Active" : "Suspended";
-}
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "2-digit" });
-}
-
-function formatDateTime(iso: string | null): string {
-  if (!iso) return "—";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+type CreatedOrg = { id: string; name: string };
 
 const EMPTY_META: PageMeta = buildPageMeta({ page: 1, pageSize: PLATFORM_PAGE_SIZE_DEFAULT, total: 0 });
 
@@ -74,60 +44,69 @@ export function OrgLedger() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [created, setCreated] = useState<CreatedOrg | null>(null);
   const [pendingChange, setPendingChange] = useState<PendingChange | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   // `silent` refreshes the aggregates after a mutation without flashing the
   // loading state over an already-rendered ledger.
-  const load = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    try {
-      const params = new URLSearchParams({ page: String(filters.page), pageSize: String(filters.pageSize) });
-      if (filters.status) params.set("status", filters.status);
-      if (filters.q) params.set("q", filters.q);
+  const load = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      try {
+        const params = new URLSearchParams({ page: String(filters.page), pageSize: String(filters.pageSize) });
+        if (filters.status) params.set("status", filters.status);
+        if (filters.q) params.set("q", filters.q);
 
-      const json = await request<PlatformOrgRow[]>(`/api/v1/platform/orgs?${params.toString()}`);
-      const nextRows = Array.isArray(json.data) ? json.data : [];
-      const nextMeta = buildPageMeta({ page: filters.page, pageSize: filters.pageSize, total: json.meta?.total ?? 0 });
-      setRows(nextRows);
-      setMeta(nextMeta);
-      setError(null);
+        const json = await platformRequest<PlatformOrgRow[]>(`/api/v1/platform/orgs?${params.toString()}`);
+        const nextRows = Array.isArray(json.data) ? json.data : [];
+        const nextMeta = buildPageMeta({
+          page: filters.page,
+          pageSize: filters.pageSize,
+          total: typeof json.meta?.total === "number" ? json.meta.total : 0,
+        });
+        setRows(nextRows);
+        setMeta(nextMeta);
+        setError(null);
 
-      // A filter change while paging past the end lands on an empty page; fall
-      // back to the first page instead of showing "no matches" for real data.
-      if (nextRows.length === 0 && nextMeta.total > 0 && filters.page > 1) {
-        setFilters((f) => ({ ...f, page: 1 }));
+        // A filter change while paging past the end lands on an empty page; fall
+        // back to the first page instead of showing "no matches" for real data.
+        if (nextRows.length === 0 && nextMeta.total > 0 && filters.page > 1) {
+          setFilters((f) => ({ ...f, page: 1 }));
+        }
+      } catch (e) {
+        setError(errorMessage(e));
+      } finally {
+        if (!silent) setLoading(false);
       }
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, [filters]);
+    },
+    [filters],
+  );
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   function applySearch(event: React.FormEvent) {
     event.preventDefault();
     setFilters((f) => ({ ...f, page: 1, q: searchDraft.trim() }));
   }
 
-  async function confirmStatusChange() {
+  async function confirmStatusChange(reason: string) {
     if (!pendingChange || submitting) return;
     const { row, nextStatus } = pendingChange;
-    const previousStatus = row.status;
-
     setSubmitting(true);
-    setError(null);
+    setStatusError(null);
     setNotice(null);
-    // Optimistic: show the intended state immediately, then reconcile with the
-    // server response. Any failure restores the previous status.
-    setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, status: nextStatus } : r)));
-
     try {
-      const json = await request<{ id: string; status: OrgStatusValue; changed: boolean }>(
+      const json = await platformRequest<{ id: string; status: OrgStatusValue; changed: boolean }>(
         `/api/v1/platform/orgs/${row.id}/status`,
-        { method: "POST", body: JSON.stringify({ status: nextStatus }) },
+        {
+          method: "POST",
+          body: JSON.stringify({ status: nextStatus, ...(reason ? { reason } : {}) }),
+        },
       );
       const authoritative = json.data.status;
       setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, status: authoritative } : r)));
@@ -139,39 +118,56 @@ export function OrgLedger() {
       );
       void load(true);
     } catch (e) {
-      setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, status: previousStatus } : r)));
-      setPendingChange(null);
-      setError(`${row.name}: ${(e as Error).message}`);
+      setStatusError(`${row.name}: ${errorMessage(e)}`);
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function handleCreated(org: CreatedOrg) {
+    setCreateOpen(false);
+    setCreated(org);
+    setNotice(`${org.name} was provisioned. Plan defaults were applied and the action is audited.`);
+    setFilters((f) => ({ ...f, page: 1 }));
+    void load(true);
   }
 
   const filtered = Boolean(filters.q) || Boolean(filters.status);
   const dialogSuspended = pendingChange?.nextStatus === "SUSPENDED";
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+    <>
       <PageHeader
-        eyebrow="Platform · Syntaxure Labs"
-        title="Organization ledger"
+        eyebrow="Platform · Tenants"
+        title="Organizations"
         description="Every tenant on this deployment. Suspension is a platform action, audited with actor and previous status; an organization OWNER never inherits it (ADR-11)."
         actions={
-          <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-primary">
-            <ShieldCheck className="size-3.5" aria-hidden="true" />
-            Platform admin
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-primary">
+              <ShieldCheck className="size-3.5" aria-hidden="true" />
+              Platform admin
+            </span>
+            <Button className="h-11" onClick={() => setCreateOpen(true)}>
+              <Plus aria-hidden="true" /> New organization
+            </Button>
+          </div>
         }
       />
 
       <div className="mt-6 flex flex-col gap-3 border-y border-border py-3 sm:flex-row sm:items-end">
         <form role="search" onSubmit={applySearch} className="flex flex-1 items-end gap-2">
           <div className="min-w-0 flex-1">
-            <label htmlFor="org-search" className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <label
+              htmlFor="org-search"
+              className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+            >
               Find tenant
             </label>
             <div className="relative mt-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
               <Input
                 id="org-search"
                 value={searchDraft}
@@ -181,11 +177,16 @@ export function OrgLedger() {
               />
             </div>
           </div>
-          <Button type="submit" variant="outline" className="h-11">Search</Button>
+          <Button type="submit" variant="outline" className="h-11">
+            Search
+          </Button>
         </form>
 
         <div>
-          <label htmlFor="org-status-filter" className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <label
+            htmlFor="org-status-filter"
+            className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+          >
             Status
           </label>
           <select
@@ -201,7 +202,7 @@ export function OrgLedger() {
           </select>
         </div>
 
-        <Button variant="ghost" className="h-11" onClick={() => void load()} aria-label="Refresh ledger">
+        <Button variant="ghost" className="h-11" onClick={() => void load()} aria-label="Refresh organization ledger">
           <RefreshCw className="size-4" aria-hidden="true" />
           Refresh
         </Button>
@@ -214,8 +215,13 @@ export function OrgLedger() {
       )}
 
       {notice && (
-        <p role="status" className="mt-4 border-l-4 border-success bg-success/10 px-4 py-3 text-sm text-success">
+        <p role="status" aria-live="polite" className="mt-4 border-l-4 border-success bg-success/10 px-4 py-3 text-sm text-success">
           {notice}
+          {created && (
+            <Link href={`/platform/orgs/${created.id}`} className="ml-2 font-medium underline underline-offset-4">
+              Open {created.name}
+            </Link>
+          )}
         </p>
       )}
 
@@ -228,33 +234,42 @@ export function OrgLedger() {
             description={
               filtered
                 ? "Clear the search or status filter to see every tenant."
-                : "Tenants appear here once provisioned through the platform or bootstrap path."
+                : "Provision the first tenant with New organization. It starts on the pilot plan."
             }
             action={
               filtered ? (
                 <Button
                   variant="outline"
                   className="h-11"
-                  onClick={() => { setSearchDraft(""); setFilters((f) => ({ ...f, page: 1, q: "", status: "" })); }}
+                  onClick={() => {
+                    setSearchDraft("");
+                    setFilters((f) => ({ ...f, page: 1, q: "", status: "" }));
+                  }}
                 >
                   Clear filters
                 </Button>
-              ) : undefined
+              ) : (
+                <Button className="h-11" onClick={() => setCreateOpen(true)}>
+                  <Plus aria-hidden="true" /> New organization
+                </Button>
+              )
             }
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[880px] border-collapse text-sm">
+            <table className="w-full min-w-[960px] border-collapse text-sm">
               <caption className="sr-only">
-                Organizations on this platform: name and slug, status, active members, active passes, creation date, last audited activity, and the suspend/reactivate control.
+                Organizations on this platform: name and slug, status, active members, active passes, creation date,
+                last audited activity, and links to detail or the suspend/reactivate control.
               </caption>
               <thead>
                 <tr className="border-b border-border text-left">
-                  {["Organization", "Status"].map((label) => (
-                    <th key={label} scope="col" className="pb-2.5 pr-4 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      {label}
-                    </th>
-                  ))}
+                  <th scope="col" className="pb-2.5 pr-4 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                    Organization
+                  </th>
+                  <th scope="col" className="pb-2.5 pr-4 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                    Status
+                  </th>
                   <th scope="col" className="pb-2.5 pr-4 text-right font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                     Members
                   </th>
@@ -268,7 +283,7 @@ export function OrgLedger() {
                     Last activity
                   </th>
                   <th scope="col" className="pb-2.5 text-right">
-                    <span className="sr-only">Status control</span>
+                    <span className="sr-only">Actions</span>
                   </th>
                 </tr>
               </thead>
@@ -279,31 +294,46 @@ export function OrgLedger() {
                   return (
                     <tr key={row.id} className="align-top transition-colors hover:bg-muted/40">
                       <th scope="row" className="py-3 pr-4 text-left font-normal">
-                        <span className="block font-medium text-foreground">{row.name}</span>
+                        <Link href={`/platform/orgs/${row.id}`} className="block font-medium text-foreground hover:underline">
+                          {row.name}
+                        </Link>
                         <span className="mt-0.5 block font-mono text-[11px] text-muted-foreground">{row.slug}</span>
                       </th>
                       <td className="py-3 pr-4">
-                        <Badge variant={statusTone(row.status)}>{statusLabel(row.status)}</Badge>
+                        <Badge variant={orgStatusTone(row.status)}>{orgStatusLabel(row.status)}</Badge>
                       </td>
                       <td className="py-3 pr-4 text-right font-mono text-xs tabular-nums text-foreground">{row.memberCount}</td>
                       <td className="py-3 pr-4 text-right font-mono text-xs tabular-nums text-foreground">{row.passCount}</td>
                       <td className="py-3 pr-4 font-mono text-[11px] tabular-nums text-muted-foreground">{formatDate(row.createdAt)}</td>
                       <td className="py-3 pr-4 font-mono text-[11px] tabular-nums text-muted-foreground">{formatDateTime(row.lastActivityAt)}</td>
-                      <td className="py-3 text-right">
-                        <Button
-                          size="sm"
-                          variant={nextStatus === "SUSPENDED" ? "outline" : "default"}
-                          className={
-                            nextStatus === "SUSPENDED"
-                              ? "h-11 border-destructive/40 text-destructive hover:bg-destructive/10"
-                              : "h-11"
-                          }
-                          aria-label={`${actionLabel} ${row.name}`}
-                          onClick={() => setPendingChange({ row, nextStatus })}
-                          disabled={submitting}
-                        >
-                          {actionLabel}
-                        </Button>
+                      <td className="py-3">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            href={`/platform/orgs/${row.id}`}
+                            className="inline-flex h-11 items-center gap-1 rounded-lg px-3 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                            aria-label={`Open ${row.name}`}
+                          >
+                            Open <ArrowUpRight className="size-3" aria-hidden="true" />
+                          </Link>
+                          <Button
+                            size="sm"
+                            variant={nextStatus === "SUSPENDED" ? "outline" : "default"}
+                            className={
+                              nextStatus === "SUSPENDED"
+                                ? "h-11 border-destructive/40 text-destructive hover:bg-destructive/10"
+                                : "h-11"
+                            }
+                            aria-label={`${actionLabel} ${row.name}`}
+                            onClick={() => {
+                              setCreated(null);
+                              setStatusError(null);
+                              setPendingChange({ row, nextStatus });
+                            }}
+                            disabled={submitting}
+                          >
+                            {actionLabel}
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -341,20 +371,178 @@ export function OrgLedger() {
       </div>
 
       {pendingChange && (
-        <ConfirmationDialog
+        <ReasonDialog
           title={`${dialogSuspended ? "Suspend" : "Reactivate"} ${pendingChange.row.name}?`}
-          body={
+          description={
             dialogSuspended
               ? `Members and scanners of ${pendingChange.row.slug} are refused immediately, including pass verification, until the tenant is reactivated. ${LAST_ADMIN_SUSPEND_RULE}`
               : `Access for ${pendingChange.row.slug} resumes on the next request. The reactivation is recorded in the platform audit log.`
           }
           confirmLabel={dialogSuspended ? "Suspend tenant" : "Reactivate tenant"}
           tone={dialogSuspended ? "destructive" : "default"}
+          minLength={3}
+          requireReason={false}
+          placeholder={dialogSuspended ? "e.g. Non-payment since 2026-02" : "e.g. Payment reconciled"}
           busy={submitting}
-          onConfirm={() => void confirmStatusChange()}
-          onClose={() => { if (!submitting) setPendingChange(null); }}
+          error={statusError}
+          onConfirm={(reason) => void confirmStatusChange(reason)}
+          onClose={() => {
+            if (!submitting) setPendingChange(null);
+          }}
         />
       )}
-    </main>
+
+      {createOpen && (
+        <CreateOrgDialog
+          onClose={() => setCreateOpen(false)}
+          onCreated={handleCreated}
+        />
+      )}
+    </>
+  );
+}
+
+function CreateOrgDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (org: CreatedOrg) => void }) {
+  const formId = useId();
+  const nameId = useId();
+  const slugId = useId();
+  const timezoneId = useId();
+  const planId = useId();
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [timezone, setTimezone] = useState("Asia/Manila");
+  const [plan, setPlan] = useState<PlatformPlan>("pilot");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const effectiveSlug = slugTouched ? slug : suggestOrgSlug(name || "org");
+  const parsed = useMemo(
+    () =>
+      createPlatformOrgInput.safeParse({
+        name,
+        slug: effectiveSlug,
+        timezone,
+        plan,
+      }),
+    [name, effectiveSlug, timezone, plan],
+  );
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!parsed.success) {
+      setError("Check the name and slug: lowercase letters, numbers and single hyphens.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const envelope = await platformRequest<CreatedOrg>("/api/v1/platform/orgs", {
+        method: "POST",
+        body: JSON.stringify(parsed.data),
+      });
+      onCreated({ id: envelope.data.id, name: envelope.data.name });
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      title="New organization"
+      description="Provisions a tenant, its subscription and the audit entry in one transaction. The caller must be a platform admin."
+      onClose={() => {
+        if (!busy) onClose();
+      }}
+      footer={
+        <>
+          <Button variant="ghost" type="button" className="h-11" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} className="h-11" disabled={busy}>
+            {busy ? "Provisioning…" : "Create organization"}
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={submit} className="space-y-4">
+        <div>
+          <label htmlFor={nameId} className="block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            Display name
+          </label>
+          <Input
+            id={nameId}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="e.g. San Pablo Fish Farmers Coop"
+            className="mt-1 h-11"
+            maxLength={120}
+          />
+        </div>
+
+        <div>
+          <label htmlFor={slugId} className="block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            Slug
+          </label>
+          <Input
+            id={slugId}
+            value={effectiveSlug}
+            onChange={(event) => {
+              setSlugTouched(true);
+              setSlug(event.target.value.toLowerCase());
+            }}
+            placeholder="san-pablo-coop"
+            className="mt-1 h-11 font-mono"
+            maxLength={64}
+            aria-describedby={`${slugId}-hint`}
+          />
+          <p id={`${slugId}-hint`} className="mt-1 text-xs text-muted-foreground">
+            Lowercase letters, numbers and single hyphens. Unique across the platform.
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor={timezoneId} className="block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              Timezone
+            </label>
+            <Input
+              id={timezoneId}
+              value={timezone}
+              onChange={(event) => setTimezone(event.target.value)}
+              className="mt-1 h-11 font-mono"
+              maxLength={64}
+            />
+          </div>
+          <div>
+            <label htmlFor={planId} className="block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              Plan
+            </label>
+            <select
+              id={planId}
+              value={plan}
+              onChange={(event) => setPlan(event.target.value as PlatformPlan)}
+              className="mt-1 h-11 w-full rounded-lg border border-input bg-card px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+            >
+              {PLATFORM_PLANS.map((value) => (
+                <option key={value} value={value}>
+                  {PLATFORM_PLAN_LABELS[value]}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div aria-live="polite" className="min-h-5">
+          {error && (
+            <p role="alert" className="text-xs font-medium text-destructive">
+              {error}
+            </p>
+          )}
+        </div>
+      </form>
+    </Modal>
   );
 }
