@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, CalendarCheck, Download, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
@@ -27,14 +27,19 @@ const CONTRACT = [
 // and mono labels, no KPI card grid, no placeholder numbers.
 export default function ReportsPage({ params }: { params: Promise<{ orgId: string }> }) {
   const { orgId } = use(params);
-  const [from, setFrom] = useState(() => {
-    const now = new Date();
-    return toDateInput(new Date(now.getFullYear(), now.getMonth(), 1));
-  });
-  const [to, setTo] = useState(() => toDateInput(new Date()));
+  // Defaults are resolved after mount so server and client markup never disagree
+  // about "today" across timezones (a hydration mismatch).
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
 
-  const parsed = useMemo(() => parseDtrRange(from, to), [from, to]);
-  const href = parsed.ok
+  useEffect(() => {
+    const now = new Date();
+    setFrom(toDateInput(new Date(now.getFullYear(), now.getMonth(), 1)));
+    setTo(toDateInput(now));
+  }, []);
+
+  const parsed = useMemo(() => (from && to ? parseDtrRange(from, to) : null), [from, to]);
+  const href = parsed?.ok
     ? `/api/v1/orgs/${orgId}/reports/dtr?from=${encodeURIComponent(parsed.range.from)}&to=${encodeURIComponent(parsed.range.to)}&format=csv`
     : null;
 
@@ -96,15 +101,17 @@ export default function ReportsPage({ params }: { params: Promise<{ orgId: strin
           </div>
         </div>
 
-        {parsed.ok ? (
+        {parsed?.ok ? (
           <p role="status" className="mt-3 font-mono text-xs tabular-nums text-muted-foreground">
             {parsed.range.days} {parsed.range.days === 1 ? "day" : "days"} · inclusive · {parsed.range.from} to{" "}
             {parsed.range.to}
           </p>
-        ) : (
+        ) : parsed ? (
           <p role="alert" className="mt-3 text-sm font-medium text-destructive">
             {parsed.message}
           </p>
+        ) : (
+          <p className="mt-3 text-xs text-muted-foreground">Choose a start and end date to enable the export.</p>
         )}
       </section>
 
