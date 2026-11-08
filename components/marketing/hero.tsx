@@ -29,7 +29,7 @@ export function Hero() {
                 <BadgeCheck className="size-3.5" />
               </span>
               <div className="min-w-0">
-                <p className="truncate text-[10.5px] font-semibold leading-tight text-slate-900">Check-in verified</p>
+                <p className="truncate text-[10.5px] font-semibold leading-tight text-slate-900">Check-in saved</p>
                 <p className="truncate text-[9.5px] text-slate-500">Maria Santos · 8:02 AM</p>
               </div>
             </div>
@@ -42,7 +42,7 @@ export function Hero() {
 
           <div className="absolute right-0 top-[238px] w-[172px] rotate-[4deg] rounded-xl border border-amber-200 bg-amber-50/95 p-2.5 shadow-[0_20px_45px_-20px_rgba(120,53,15,0.3)] backdrop-blur-sm">
             <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-amber-700">Late · 08:42</p>
-            <p className="mt-0.5 text-[9.5px] leading-tight text-amber-900/70">Grace is 10 minutes. Flagged, not blocked.</p>
+            <p className="mt-0.5 text-[9.5px] leading-tight text-amber-900/70">10-minute grace. Marked late, not blocked.</p>
           </div>
 
           <div className="absolute right-2 top-[438px] grid grid-cols-6 gap-[7px] opacity-45">
@@ -66,14 +66,14 @@ export function Hero() {
         <div className="mx-auto max-w-3xl text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-1.5 text-[13px] font-semibold text-blue-800">
             <ShieldCheck className="size-3.5 text-blue-600" aria-hidden="true" />
-            Verified attendance for offices and schools
+            Simple attendance for offices and schools
           </div>
           <h1 className="mt-6 text-balance text-4xl font-bold leading-[1.05] tracking-tight text-slate-900 sm:text-6xl">
             Attendance you can prove, not just record.
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-pretty text-[17px] leading-relaxed text-slate-600 sm:text-lg">
-            One list of people. One QR pass each. Every check-in verified, so your
-            attendance record holds up when it is reviewed.
+            One list of people. One QR pass each. Every check-in is checked by the
+            system, so the record is ready when someone asks to see it.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
@@ -86,7 +86,7 @@ export function Hero() {
               href="/login"
               className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-7 text-[15px] font-semibold text-slate-900 shadow-sm transition hover:border-blue-300 hover:bg-blue-50/60 hover:text-blue-800 sm:w-auto"
             >
-              <ScanLine className="size-4" aria-hidden="true" /> Sign in to your org
+              <ScanLine className="size-4" aria-hidden="true" /> Sign in to your office
             </Link>
           </div>
           <div className="mt-7 flex items-center justify-center">
@@ -105,7 +105,7 @@ export function Hero() {
           </div>
 
           <p className="mt-3 text-center text-[12.5px] text-slate-500 lg:mt-24">
-            Officer console and the member pass — the same record, two places it has to be right.
+            The staff screen and the pass your people carry — the same record in two places.
           </p>
         </div>
 

@@ -1,35 +1,20 @@
-"use client";
-
-import { motion, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 interface RevealProps {
   children: ReactNode;
   className?: string;
-  /** stagger index for grids */
-  delay?: number;
-  y?: number;
 }
 
 /**
- * Reusable scroll-triggered fade-up. Fires once when the block enters view.
- * With reduced motion the same element renders, but `initial={false}` and a
- * zero duration mean the block simply appears — no branching tree, so SSR
- * and hydration stay identical.
+ * Wrapper for a marketing section.
+ *
+ * It used to fade the block in on scroll. That made every section depend on an
+ * animation running: with the effect stalled — a background tab, a throttled
+ * compositor, a missed observer callback — the copy stayed at opacity 0 and the
+ * page showed empty bands. The block is now plain markup, so the page always
+ * reads in full; the section wrappers keep their layout classes.
  */
-export function Reveal({ children, className, delay = 0, y = 28 }: RevealProps) {
-  const reduce = useReducedMotion();
-  return (
-    <motion.div
-      data-motion=""
-      className={cn(className)}
-      initial={reduce ? false : { opacity: 0, y }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: reduce ? 0 : 0.7, delay: reduce ? 0 : delay, ease: [0.22, 1, 0.36, 1] }}
-    >
-      {children}
-    </motion.div>
-  );
+export function Reveal({ children, className }: RevealProps) {
+  return <div className={cn(className)}>{children}</div>;
 }

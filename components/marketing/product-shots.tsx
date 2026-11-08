@@ -125,7 +125,7 @@ export function ConsoleShot({ compact = false }: { compact?: boolean }) {
               {[
                 { k: "Present today", v: "7", tone: "text-slate-900" },
                 { k: "Late", v: "2", tone: "text-amber-700" },
-                { k: "Awaiting approval", v: "1", tone: "text-slate-900" },
+                { k: "To approve", v: "1", tone: "text-slate-900" },
               ].map((s) => (
                 <div key={s.k} className="px-2.5 py-2">
                   <p className={["text-[15px] font-semibold leading-none tracking-tight", s.tone].join(" ")}>{s.v}</p>
@@ -163,7 +163,7 @@ export function ConsoleShot({ compact = false }: { compact?: boolean }) {
               <div className="rounded-lg border border-slate-200 bg-white">
                 <div className="flex items-center justify-between border-b border-slate-100 px-2.5 py-1.5">
                   <p className="text-[8.5px] font-semibold text-slate-900">Recent sessions</p>
-                  <p className="text-[7.5px] text-slate-400">Phase 2</p>
+                  <p className="text-[7.5px] text-slate-400">Today</p>
                 </div>
                 <div className="divide-y divide-slate-100">
                   {AGENDA.map((s) => (
@@ -243,13 +243,13 @@ export function ProductShowcase() {
     <section id="product-shots" className="scroll-mt-20 border-y border-slate-100 bg-slate-50 py-16 md:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-blue-600">Inside the product</p>
+          <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-blue-600">What it looks like</p>
           <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            The same record, on the desk and at the gate.
+            The same record, on the desk and at the door.
           </h2>
           <p className="mt-4 text-pretty text-slate-500">
-            Officers work from the console. People carry their pass. The scanner writes to
-            one attendance engine, so what the desk sees is what actually happened.
+            Staff work from one screen. Each person carries a pass. The scanner saves to the
+            same record, so what the office sees is what really happened.
           </p>
         </div>
 
@@ -268,9 +268,9 @@ export function ProductShowcase() {
 
         <div className="mx-auto mt-16 grid max-w-4xl gap-3 sm:grid-cols-3 lg:mt-10">
           {[
-            { k: "Console", v: "Directory, passes, sessions, reports — one workspace per organisation." },
-            { k: "Pass", v: "A QR that verifies against live membership, not a printed picture." },
-            { k: "Scanner", v: "Server-checked outcomes at the gate, with an offline queue for dead spots." },
+            { k: "Staff screen", v: "Your people, their passes, the sessions and the reports, all in one place." },
+            { k: "Pass", v: "A QR code that is checked against the real list, not just a picture." },
+            { k: "Scanner", v: "Answers at the door you can trust, even when the internet drops." },
           ].map((c) => (
             <div key={c.k} className="rounded-xl border border-slate-200 bg-white p-4">
               <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-slate-400">{c.k}</p>

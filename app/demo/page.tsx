@@ -14,8 +14,8 @@ const SIZES = ["1–50 people", "51–200 people", "201–1,000 people", "1,000+
 
 const NEXT_STEPS = [
   { Icon: Mail, text: "We reply within one business day with a plan for your demo." },
-  { Icon: Building2, text: "We set up a private workspace, so your data never sits in a shared demo." },
-  { Icon: CalendarCheck2, text: "We import a sample roster and run a live scanning session with your team." },
+  { Icon: Building2, text: "You get your own space, so your data is never mixed into a shared demo." },
+  { Icon: CalendarCheck2, text: "We add a sample list of people and try a live scan with your team." },
 ];
 
 interface Errors {
@@ -87,8 +87,8 @@ export default function DemoPage() {
               Book a guided demo
             </h1>
             <p className="mt-3 max-w-md text-pretty text-[15.5px] leading-relaxed text-white/70">
-              Thirty minutes on your own use case — directory, passes, scanning and reports — then a
-              private workspace you can pilot with real people.
+              Thirty minutes on how you take attendance today — your people, your ID cards, scanning
+              and reports — then your own space to try it with real people.
             </p>
 
             <ul className="mt-8 space-y-5">
@@ -105,7 +105,7 @@ export default function DemoPage() {
             <div className="mt-8 flex items-start gap-2.5 rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3">
               <ShieldCheck className="size-5 shrink-0 text-emerald-400" aria-hidden="true" />
               <p className="text-[13.5px] leading-relaxed text-white/70">
-                Nothing is shared with other organizations. Your pilot data stays separate from day one.
+                Your records stay yours. Nothing is shared with other organizations, from day one.
               </p>
             </div>
 

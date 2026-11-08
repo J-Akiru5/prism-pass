@@ -15,39 +15,39 @@ import { Reveal } from "./reveal";
 const FEATURES = [
   {
     Icon: Users,
-    title: "One people directory",
+    title: "One list of people",
     tone: "violet",
-    body: "Employees, interns, and participants in a single roster with server-side membership checks. No duplicate lists across tools.",
+    body: "Staff, interns and participants in one list. No more separate spreadsheets that never match.",
   },
   {
     Icon: IdCard,
-    title: "Verifiable digital passes",
+    title: "A pass for each person",
     tone: "blue",
-    body: "Every member gets a printable QR identity pass bound to your organization. Passes verify against live membership — not a static image.",
+    body: "Every person gets a pass with a QR code they can print or show on a phone. A photo of someone else’s pass will not work.",
   },
   {
     Icon: ScanLine,
-    title: "Fast QR scanner console",
+    title: "Quick check-in at the door",
     tone: "teal",
-    body: "A purpose-built check-in/check-out scanner with clear outcomes — success, warning, error — so gate staff always know what happened.",
+    body: "Staff scan a pass and see straight away whether it worked: on time, late, or not valid.",
   },
   {
     Icon: CalendarCheck2,
-    title: "Canonical attendance engine",
+    title: "One attendance record",
     tone: "amber",
-    body: "Policies, sessions, scans, and records flow through one engine with corrections and approvals. One source of truth for every program.",
+    body: "Sessions, scans and corrections all go into the same record, so every report comes from the same place.",
   },
   {
     Icon: ShieldCheck,
-    title: "Tenant isolation + audit trail",
+    title: "Your office sees only its own data",
     tone: "rose",
-    body: "Every read and write is scoped to your organization and verified on the server. Sensitive actions land in an audit log.",
+    body: "Another office can never see your people. Every change is saved with who made it and when.",
   },
   {
     Icon: ArrowLeftRight,
-    title: "Corrections without chaos",
+    title: "Fixing mistakes is allowed",
     tone: "indigo",
-    body: "Adjustments and approvals are first-class: fix a missed scan through review, keep the original record, and stay compliant.",
+    body: "If someone forgets to scan, a supervisor can add the entry with a reason. The original stays, so nothing quietly disappears.",
   },
 ];
 
@@ -64,17 +64,17 @@ const AUDIENCES = [
   {
     k: "National agencies",
     title: "Agencies and central offices",
-    body: "Plantilla and contractual staff across head office and field units, with attendance that matches what the HRMO already files.",
+    body: "Permanent and contract staff across the head office and field offices, matching what the HR office already keeps.",
   },
   {
     k: "State universities",
     title: "SUCs, colleges and OJT",
-    body: "Class, laboratory and on-the-job attendance across colleges, exported in a form the registrar can accept.",
+    body: "Class, laboratory and on-the-job attendance in one place, ready to hand to the registrar.",
   },
   {
     k: "Local government",
     title: "LGUs and community programs",
-    body: "Trainings, aid distribution and events checked in with a pass instead of a paper list at the door.",
+    body: "Trainings, aid distribution and events, checked in with a pass instead of a paper list at the door.",
   },
 ];
 
@@ -89,14 +89,14 @@ export function Features() {
               Everything attendance needs. Nothing it doesn&apos;t.
             </h2>
             <p className="mt-4 max-w-md text-pretty text-[16px] leading-relaxed text-slate-500">
-              Three consoles — directory, identity and scanning — sitting on one attendance
-              engine. Each part exists because the record has to survive review.
+              Three simple screens — your people, their passes and the scanner — all feeding
+              one record that has to hold up later.
             </p>
             <Link
               href="#product-shots"
               className="mt-6 inline-flex min-h-[44px] items-center gap-1.5 text-[14.5px] font-semibold text-slate-900 underline decoration-slate-300 underline-offset-4 transition hover:decoration-slate-900"
             >
-              See it inside the product <ArrowRight className="size-4" aria-hidden="true" />
+              See what it looks like <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
           </Reveal>
 
@@ -129,9 +129,9 @@ export function Features() {
 
 export function HowItWorks() {
   const steps = [
-    { n: "01", title: "Provision your organization", body: "Syntaxure Labs sets up your tenant, roles, and programs. Your data lives in its own isolated scope from day one." },
-    { n: "02", title: "Issue identity passes", body: "Import or enroll your people, then issue QR passes they can print or carry on their phones." },
-    { n: "03", title: "Scan, verify, report", body: "Gate staff scan with instant server verification. Corrections flow through approvals; reports export anytime." },
+    { n: "01", title: "We set up your office", body: "We make a private space for your office, with your staff list and programs. From day one, nobody else can see it." },
+    { n: "02", title: "Give each person a pass", body: "Add your people, then give each one a QR pass they can print or keep on their phone." },
+    { n: "03", title: "Scan and keep the record", body: "Staff scan at the door. Mistakes can be corrected with approval. Reports can be downloaded any time." },
   ];
   return (
     <section id="how" className="scroll-mt-20 border-y border-slate-100 bg-slate-50 py-16 md:py-24">
@@ -144,7 +144,7 @@ export function HowItWorks() {
         </Reveal>
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           {steps.map((s, i) => (
-            <Reveal key={s.n} delay={i * 0.1}>
+            <Reveal key={s.n}>
               <div className="h-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <span className="inline-flex size-11 items-center justify-center rounded-xl bg-blue-50 text-[13px] font-bold text-blue-700 ring-1 ring-blue-100 tnum">
                   {s.n}
@@ -167,11 +167,11 @@ export function Audiences() {
         <Reveal className="mx-auto max-w-2xl text-center">
           <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-blue-600">Who it&apos;s for</p>
           <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            Offices that sign for attendance.
+            Who uses Prism Pass.
           </h2>
           <p className="mt-4 text-pretty text-[16px] leading-relaxed text-slate-500">
-            Three kinds of office, one requirement: the record has to be defensible long after
-            the session ends.
+            Three kinds of office with the same problem: the record still has to make sense
+            months later.
           </p>
         </Reveal>
 

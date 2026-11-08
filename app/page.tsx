@@ -6,13 +6,13 @@ import { ProductShowcase } from "@/components/marketing/product-shots";
 import { SiteFooter } from "@/components/marketing/site-footer";
 
 export const metadata = {
-  title: "Unified attendance + verification",
+  title: "Simple attendance for offices and schools",
   description:
-    "One people directory, one QR pass per person, and one attendance record your office can verify. Powered by Syntaxure Labs.",
+    "One list of people, one QR pass each, and an attendance record your office can show when someone asks. Powered by Syntaxure Labs.",
   openGraph: {
     title: "Prism Pass — Attendance you can prove, not just record",
     description:
-      "One people directory, one QR pass per person, and one attendance record your office can verify.",
+      "One list of people, one QR pass each, and an attendance record your office can show when someone asks.",
     url: "/",
   },
 };
