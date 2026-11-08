@@ -1,4 +1,4 @@
-import { ok, fail, handleRouteError } from "@/lib/api";
+import { ok, fail, handleRouteError, readJson, BODY_LIMITS } from "@/lib/api";
 import { requirePlatformAdmin } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { decideOrgStatusChange, setOrgStatusInput } from "@/modules/platform/ledger";
@@ -20,7 +20,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ orgId: 
   try {
     const { orgId } = await params;
     const { userId } = await requirePlatformAdmin();
-    const input = setOrgStatusInput.parse(await req.json());
+    const input = setOrgStatusInput.parse(await readJson(req, BODY_LIMITS.tiny));
 
     // requirePlatformAdmin resolves the Supabase user; audit rows key on the
     // internal user id. Resolve here instead of widening that helper's contract.

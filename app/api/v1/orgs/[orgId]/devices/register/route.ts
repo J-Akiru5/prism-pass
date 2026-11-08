@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ok, fail, handleRouteError } from "@/lib/api";
+import { ok, fail, handleRouteError, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { deviceKeyHash, generateDeviceKey } from "@/modules/offline/crypto";
@@ -17,7 +17,7 @@ export async function POST(req: Request, { params }: P) {
   try {
     const { orgId } = await params;
     const ctx = await requireOrganizationPermission("devices.manage", orgId);
-    const input = registerInput.parse(await req.json().catch(() => ({})));
+    const input = registerInput.parse(await readJson(req, BODY_LIMITS.tiny).catch(() => ({})));
     const { devicePublicId, secret } = generateDeviceKey();
 
     const device = await prisma.device.create({

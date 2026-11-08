@@ -1,4 +1,4 @@
-import { ok, fail, handleRouteError } from "@/lib/api";
+import { ok, fail, handleRouteError, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { updatePersonInput } from "@/modules/identity/service";
@@ -22,7 +22,7 @@ export async function PATCH(req: Request, { params }: P) {
   try {
     const { orgId, personId } = await params;
     const ctx = await requireOrganizationPermission("members.manage", orgId);
-    const input = updatePersonInput.parse(await req.json());
+    const input = updatePersonInput.parse(await readJson(req, BODY_LIMITS.tiny));
     const existing = await prisma.person.findUnique({ where: { id: personId } });
     if (!existing || existing.organizationId !== ctx.organizationId) return fail(404, "NOT_FOUND", "Person not found in this organization");
     if (input.externalId) {

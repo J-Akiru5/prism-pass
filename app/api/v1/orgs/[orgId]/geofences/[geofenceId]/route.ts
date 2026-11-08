@@ -1,4 +1,4 @@
-import { ok, fail, handleRouteError } from "@/lib/api";
+import { ok, fail, handleRouteError, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { updateGeofenceInput } from "@/modules/geo/schema";
@@ -21,7 +21,7 @@ export async function PATCH(req: Request, { params }: P) {
   try {
     const { orgId, geofenceId } = await params;
     const ctx = await requireOrganizationPermission("geofences.manage", orgId);
-    const input = updateGeofenceInput.parse(await req.json());
+    const input = updateGeofenceInput.parse(await readJson(req, BODY_LIMITS.tiny));
     const existing = await prisma.geofence.findUnique({ where: { id: geofenceId } });
     if (!existing || existing.organizationId !== ctx.organizationId) {
       return fail(404, "NOT_FOUND", "Geofence not found in this organization");

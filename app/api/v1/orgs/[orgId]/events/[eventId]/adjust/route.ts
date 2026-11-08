@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ok, fail, handleRouteError } from "@/lib/api";
+import { ok, fail, handleRouteError, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 
@@ -12,7 +12,7 @@ export async function POST(req: Request, { params }: P) {
   try {
     const { orgId, eventId } = await params;
     const ctx = await requireOrganizationPermission("attendance.override", orgId);
-    const input = body.parse(await req.json());
+    const input = body.parse(await readJson(req, BODY_LIMITS.tiny));
     const target = await prisma.attendanceEvent.findUnique({ where: { id: eventId } });
     if (!target || target.organizationId !== ctx.organizationId) return fail(404, "NOT_FOUND", "Event not found in this organization");
     const adjustment = await prisma.attendanceEvent.create({

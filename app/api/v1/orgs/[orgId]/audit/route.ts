@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { fail, ok, handleRouteError, pagination } from "@/lib/api";
+import { fail, ok, handleRouteError, pagination, optionalQueryDate } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { MAX_AUDIT_RANGE_DAYS, parseDateRange } from "@/modules/reports/range";
@@ -9,8 +9,8 @@ type P = { params: Promise<{ orgId: string }> };
 const auditFilters = z.object({
   action: z.string().trim().min(1).max(100).optional(),
   result: z.string().trim().min(1).max(40).optional(),
-  from: z.string().trim().min(1).optional(),
-  to: z.string().trim().min(1).optional(),
+  from: optionalQueryDate,
+  to: optionalQueryDate,
 });
 
 // GET /api/v1/orgs/:orgId/audit?action&result&from&to&page&pageSize

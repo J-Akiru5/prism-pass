@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ok, fail, handleRouteError } from "@/lib/api";
+import { ok, fail, handleRouteError, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { applyApproval } from "@/modules/reports/approval";
@@ -13,7 +13,7 @@ export async function POST(req: Request, { params }: P) {
   try {
     const { orgId, recordId } = await params;
     const ctx = await requireOrganizationPermission("attendance.approve", orgId);
-    const input = body.parse(await req.json());
+    const input = body.parse(await readJson(req, BODY_LIMITS.tiny));
 
     const target = await prisma.attendanceRecord.findUnique({ where: { id: recordId } });
     if (!target || target.organizationId !== ctx.organizationId) {

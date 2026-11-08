@@ -1,9 +1,12 @@
-import { ok, fail, handleRouteError, pagination } from "@/lib/api";
+import { z } from "zod";
+import { ok, fail, handleRouteError, pagination, optionalQueryId, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { createAssignmentInput } from "@/modules/identity/service";
 
 type P = { params: Promise<{ orgId: string }> };
+
+const query = z.object({ personId: optionalQueryId });
 
 // One assignment model for employees, interns, and event participants alike.
 // Group identity comes from programs.kind, never from separate engines.
@@ -13,7 +16,7 @@ export async function GET(req: Request, { params }: P) {
     const ctx = await requireOrganizationPermission("members.manage", orgId);
     const { searchParams } = new URL(req.url);
     const { page, pageSize } = pagination.parse(Object.fromEntries(searchParams));
-    const personId = searchParams.get("personId") ?? undefined;
+    const { personId } = query.parse(Object.fromEntries(searchParams));
     const where = { organizationId: ctx.organizationId, ...(personId ? { personId } : {}) };
     const [rows, total] = await Promise.all([
       prisma.personAssignment.findMany({ where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { id: "asc" } }),
@@ -27,7 +30,7 @@ export async function POST(req: Request, { params }: P) {
   try {
     const { orgId } = await params;
     const ctx = await requireOrganizationPermission("members.manage", orgId);
-    const input = createAssignmentInput.parse(await req.json());
+    const input = createAssignmentInput.parse(await readJson(req, BODY_LIMITS.tiny));
     const person = await prisma.person.findUnique({ where: { id: input.personId } });
     if (!person || person.organizationId !== ctx.organizationId) return fail(404, "NOT_FOUND", "Person not found in this organization");
     if (input.programId) {

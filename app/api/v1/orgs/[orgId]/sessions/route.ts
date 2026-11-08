@@ -1,4 +1,4 @@
-import { ok, fail, handleRouteError, pagination } from "@/lib/api";
+import { ok, fail, handleRouteError, pagination, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { createSessionInput } from "@/modules/attendance/engine";
@@ -23,7 +23,7 @@ export async function POST(req: Request, { params }: P) {
   try {
     const { orgId } = await params;
     const ctx = await requireOrganizationPermission("organization.manage", orgId);
-    const input = createSessionInput.parse(await req.json());
+    const input = createSessionInput.parse(await readJson(req, BODY_LIMITS.tiny));
     const policy = await prisma.attendancePolicy.findUnique({ where: { id: input.policyId } });
     if (!policy || policy.organizationId !== ctx.organizationId) return fail(404, "NOT_FOUND", "Policy not found in this organization");
     const session = await prisma.attendanceSession.create({

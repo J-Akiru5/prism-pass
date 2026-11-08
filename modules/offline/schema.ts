@@ -13,9 +13,9 @@ export const MAX_OFFLINE_AGE_MS = 30 * 24 * 60 * 60_000;
 export const MAX_CLIENT_FUTURE_MS = 5 * 60_000;
 
 export const offlineGeoInput = z.object({
-  lat: z.number(),
-  lng: z.number(),
-  accuracyM: z.number().optional(),
+  lat: z.number().finite().min(-90).max(90),
+  lng: z.number().finite().min(-180).max(180),
+  accuracyM: z.number().finite().min(0).max(100_000).optional(),
 });
 
 export const offlineEventSchema = z.object({

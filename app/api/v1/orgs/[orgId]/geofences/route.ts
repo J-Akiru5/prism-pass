@@ -1,4 +1,4 @@
-import { ok, fail, handleRouteError, pagination } from "@/lib/api";
+import { ok, fail, handleRouteError, pagination, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { createGeofenceInput } from "@/modules/geo/schema";
@@ -24,7 +24,7 @@ export async function POST(req: Request, { params }: P) {
   try {
     const { orgId } = await params;
     const ctx = await requireOrganizationPermission("geofences.manage", orgId);
-    const input = createGeofenceInput.parse(await req.json());
+    const input = createGeofenceInput.parse(await readJson(req, BODY_LIMITS.tiny));
     if (input.campusId) {
       const campus = await prisma.campus.findUnique({ where: { id: input.campusId } });
       if (!campus || campus.organizationId !== ctx.organizationId) {

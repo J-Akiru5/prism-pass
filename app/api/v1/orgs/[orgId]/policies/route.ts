@@ -1,4 +1,4 @@
-import { ok, handleRouteError, pagination } from "@/lib/api";
+import { ok, handleRouteError, pagination, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { createPolicyInput } from "@/modules/attendance/engine";
@@ -23,7 +23,7 @@ export async function POST(req: Request, { params }: P) {
   try {
     const { orgId } = await params;
     const ctx = await requireOrganizationPermission("organization.manage", orgId);
-    const input = createPolicyInput.parse(await req.json());
+    const input = createPolicyInput.parse(await readJson(req, BODY_LIMITS.tiny));
     const policy = await prisma.attendancePolicy.create({
       data: {
         organizationId: ctx.organizationId,
