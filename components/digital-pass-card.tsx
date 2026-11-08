@@ -2,7 +2,7 @@
 
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
-import { CalendarClock, Eye, EyeOff, Printer, ShieldCheck } from "lucide-react";
+import { CalendarClock, Eye, EyeOff, Printer, ShieldCheck, ShieldOff } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
@@ -16,15 +16,16 @@ export type PassInfo = {
   expiresAt: string | null;
 };
 
-// Digital pass card: navy identity header, QR panel, validity row.
-// Never renders the live credential — `qrValue` is a display placeholder or a
-// one-time payload passed explicitly at issuance.
+// Digital pass card: navy identity header, QR panel (when a one-time payload is
+// supplied), validity row. The credential secret is stored hashed, so this card
+// cannot synthesise a scannable code — when `qrValue` is absent it says so
+// instead of rendering a QR that would fail at a checkpoint.
 export function DigitalPassCard({ personName, externalId, orgName, pass, qrValue, showPrint }: {
   personName: string;
   externalId?: string | null;
   orgName?: string;
   pass: PassInfo;
-  qrValue: string;
+  qrValue?: string | null;
   showPrint?: boolean;
 }) {
   const [show, setShow] = useState(true);
@@ -48,22 +49,40 @@ export function DigitalPassCard({ personName, externalId, orgName, pass, qrValue
         </div>
       </div>
       <CardContent className="flex flex-col items-center p-5">
-        <div className="rounded-xl border bg-white p-4">
-          {show ? <QRCodeSVG value={qrValue} size={180} /> : (
-            <div className="flex h-[180px] w-[180px] items-center justify-center text-sm text-muted-foreground">Hidden</div>
-          )}
-        </div>
-        <p className="mt-2 font-mono text-xs text-muted-foreground">{pass.passPublicId} · v{pass.version}</p>
+        {qrValue ? (
+          <>
+            <div className="rounded-xl border bg-white p-4">
+              {show ? <QRCodeSVG value={qrValue} size={180} /> : (
+                <div className="flex h-[180px] w-[180px] items-center justify-center text-sm text-muted-foreground">Hidden</div>
+              )}
+            </div>
+            <p className="mt-2 font-mono text-xs text-muted-foreground">{pass.passPublicId} · v{pass.version}</p>
+          </>
+        ) : (
+          <div className="w-full rounded-xl border border-dashed p-5 text-center">
+            <ShieldOff className="mx-auto size-5 text-muted-foreground" aria-hidden="true" />
+            <p className="mt-2 text-sm font-medium">No scannable code on this device</p>
+            <p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">
+              The QR secret is shown once, when the pass is issued, and stored only as a hash. Ask an
+              administrator to re-issue this pass to get a new scannable code.
+            </p>
+            <p className="mt-2 font-mono text-[11px] text-muted-foreground">{pass.passPublicId} · v{pass.version}</p>
+          </div>
+        )}
         <div className="mt-3 flex w-full flex-col gap-1.5 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1.5"><ShieldCheck className="size-3.5" aria-hidden="true" /> Opaque credential — no personal data in QR</span>
           {pass.expiresAt && <span className="inline-flex items-center gap-1.5"><CalendarClock className="size-3.5" aria-hidden="true" /> Expires {new Date(pass.expiresAt).toLocaleString()}</span>}
         </div>
-        <div className="mt-4 flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShow((s) => !s)}>
-            {show ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />} {show ? "Hide" : "Show"}
-          </Button>
-          {showPrint && <Button variant="outline" size="sm" onClick={() => window.print()}><Printer aria-hidden="true" /> Print</Button>}
-        </div>
+        {(qrValue || showPrint) && (
+          <div className="mt-4 flex gap-2">
+            {qrValue && (
+              <Button variant="outline" size="sm" onClick={() => setShow((s) => !s)}>
+                {show ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />} {show ? "Hide" : "Show"}
+              </Button>
+            )}
+            {showPrint && <Button variant="outline" size="sm" onClick={() => window.print()}><Printer aria-hidden="true" /> Print</Button>}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
