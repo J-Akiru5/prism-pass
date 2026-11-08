@@ -57,8 +57,9 @@ export default function LoginPage() {
             <PrismPassLogo onDark size={40} />
           </Link>
           <div className="max-w-md">
+            <span aria-hidden="true" className="mb-5 block h-px w-12 bg-gradient-to-r from-gold-soft to-transparent" />
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-gold-soft">Welcome back</p>
-            <h1 className="mt-3 font-display text-4xl font-bold leading-tight xl:text-5xl">
+            <h1 className="mt-3 text-balance font-display text-4xl font-bold leading-tight xl:text-5xl">
               Attendance you can prove, not just record.
             </h1>
             <ul className="mt-8 space-y-4">
@@ -100,10 +101,10 @@ export default function LoginPage() {
         <main className="flex flex-1 items-center justify-center px-4 py-10 sm:px-8">
           <div className="w-full max-w-sm">
             <div className="mb-6 lg:hidden">
-              <h1 className="font-display text-3xl font-bold tracking-tight">Welcome back</h1>
+              <h1 className="text-balance font-display text-3xl font-bold tracking-tight">Welcome back</h1>
               <p className="mt-1.5 text-sm text-muted-foreground">Sign in to reach your organization consoles.</p>
             </div>
-            <Card>
+            <Card className="shadow-md">
               <CardHeader>
                 <CardTitle>Sign in</CardTitle>
                 <CardDescription>Use your organization-issued email account.</CardDescription>
