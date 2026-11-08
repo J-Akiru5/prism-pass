@@ -1,5 +1,8 @@
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "crypto";
+import { canonicalBatchPayload, DEVICE_KEY_PREFIX } from "./canonical";
 import type { BatchPayload } from "./schema";
+
+export { CANONICAL_VERSION, DEVICE_KEY_PREFIX, canonicalBatchPayload } from "./canonical";
 
 // P6 device signing (pure crypto, no Prisma).
 //
@@ -9,9 +12,6 @@ import type { BatchPayload } from "./schema";
 // it as the HMAC key; the raw secret is never stored or sent again. A database
 // disclosure therefore yields a signing verifier (inherent to HMAC without a
 // KMS), never the device-issued secret.
-
-export const DEVICE_KEY_PREFIX = "prism-device-key:v1:";
-export const CANONICAL_VERSION = "prism-sync-v1";
 
 export type DeviceKey = { devicePublicId: string; secret: string };
 
@@ -32,44 +32,7 @@ function hmacHex(key: string, message: string): string {
   return createHmac("sha256", key).update(message, "utf8").digest("hex");
 }
 
-const normalizedString = (value: unknown): string => (typeof value === "string" ? value : "");
-
-/**
- * Deterministic canonical form of the signed batch. Written explicitly rather
- * than `JSON.stringify` so key order, defaults and number formatting cannot
- * drift between the browser and the server.
- */
-export function canonicalBatchPayload(batch: BatchPayload): string {
-  const lines = [
-    CANONICAL_VERSION,
-    `org:${normalizedString(batch.organizationId)}`,
-    `device:${normalizedString(batch.deviceId)}`,
-    `batch:${normalizedString(batch.batchId)}`,
-    `client:${normalizedString(batch.clientVersion) || "1.0.0"}`,
-    `sent:${normalizedString(batch.sentAt)}`,
-    `count:${batch.events.length}`,
-  ];
-
-  for (const event of batch.events) {
-    const geo = event.geo
-      ? `${event.geo.lat},${event.geo.lng},${event.geo.accuracyM ?? ""}`
-      : "none";
-    lines.push(
-      [
-        normalizedString(event.idempotencyKey),
-        normalizedString(event.sessionId),
-        normalizedString(event.credential),
-        normalizedString(event.clientTs),
-        normalizedString(event.direction) || "auto",
-        geo,
-      ].join("|"),
-    );
-  }
-
-  return lines.join("\n");
-}
-
-/** Sign a batch with the one-time device secret (client side). */
+/** Sign a batch with the one-time device secret (server-side/Node callers). */
 export function signBatch(batch: BatchPayload, secret: string): string {
   return hmacHex(deviceKeyHash(secret), canonicalBatchPayload(batch));
 }

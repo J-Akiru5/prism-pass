@@ -52,16 +52,18 @@ export async function enqueue(input: {
 }
 
 /**
- * Return up to `limit` due items and mark them `inflight`. `fail()` owns the
+ * Return up to `limit` items and mark them `inflight`. `fail()` owns the
  * backoff schedule, so a failed item reappears only when `nextAttemptAt` passes.
+ * Pass `{ dueOnly: false }` for an explicit "Sync now" that overrides backoff.
  */
-export async function peek(limit = 25): Promise<OfflineQueueItem[]> {
+export async function peek(limit = 25, options: { dueOnly?: boolean } = {}): Promise<OfflineQueueItem[]> {
   const db = getDatabase();
   const now = Date.now();
+  const dueOnly = options.dueOnly ?? true;
   return db.transaction("rw", db.queue, async () => {
     const candidates = await db.queue.where("state").anyOf("pending", "failed").toArray();
     const due = candidates
-      .filter((item) => item.nextAttemptAt <= now)
+      .filter((item) => !dueOnly || item.nextAttemptAt <= now)
       .sort((a, b) => a.createdAt - b.createdAt)
       .slice(0, Math.max(0, limit));
 
@@ -94,6 +96,21 @@ export async function fail(id: number, reason: string): Promise<void> {
   });
 }
 
+/**
+ * Items still awaiting acknowledgement in capture order, for the scanner's
+ * queue panel (counts, failure reasons). Kept separate from `peek` so reading
+ * the UI never changes queue state.
+ */
+export async function list(): Promise<OfflineQueueItem[]> {
+  return getDatabase().queue.orderBy("createdAt").toArray();
+}
+
+/** Remove queued items outright (an explicit, confirmed user action). */
+export async function clear(ids: number[]): Promise<void> {
+  if (ids.length === 0) return;
+  await getDatabase().queue.bulkDelete(ids);
+}
+
 /** Items still awaiting acknowledgement (pending, inflight or failed). */
 export async function size(): Promise<number> {
   return getDatabase().queue.count();
@@ -105,5 +122,19 @@ export async function release(ids: number[]): Promise<void> {
   const db = getDatabase();
   await db.transaction("rw", db.queue, async () => {
     for (const id of ids) await db.queue.update(id, { state: "pending" });
+  });
+}
+
+/**
+ * Recover rows left `inflight` by a reload, crash or closed tab. Safe to call
+ * on mount: a duplicate send is resolved by the idempotency key, not silently
+ * dropped or double-counted.
+ */
+export async function releaseInflight(): Promise<number> {
+  const db = getDatabase();
+  return db.transaction("rw", db.queue, async () => {
+    const ids = await db.queue.where("state").equals("inflight").primaryKeys();
+    for (const id of ids) await db.queue.update(id, { state: "pending" });
+    return ids.length;
   });
 }
