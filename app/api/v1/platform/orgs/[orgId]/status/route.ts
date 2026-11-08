@@ -18,8 +18,8 @@ import { decideOrgStatusChange, setOrgStatusInput } from "@/modules/platform/led
  */
 export async function POST(req: Request, { params }: { params: Promise<{ orgId: string }> }) {
   try {
-    const { orgId } = await params;
     const { userId } = await requirePlatformAdmin();
+    const { orgId } = await params;
     const input = setOrgStatusInput.parse(await readJson(req, BODY_LIMITS.tiny));
 
     // requirePlatformAdmin resolves the Supabase user; audit rows key on the

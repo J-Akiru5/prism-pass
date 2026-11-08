@@ -1,11 +1,6 @@
 import { ok } from "@/lib/api";
+import { healthPayload } from "@/lib/health";
 
 export async function GET() {
-  return ok({
-    status: "ok",
-    service: "prism-pass",
-    phase: "p9-hardening",
-    version: process.env.APP_VERSION ?? "0.0.0",
-    time: new Date().toISOString(),
-  });
+  return ok(healthPayload());
 }
