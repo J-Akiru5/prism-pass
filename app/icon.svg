@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Prism Pass">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#142850"/>
+      <stop offset="1" stop-color="#0C1B36"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#E4CD8E"/>
+      <stop offset="0.55" stop-color="#C9A24B"/>
+      <stop offset="1" stop-color="#B08A36"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#C9A24B"/>
+      <stop offset="1" stop-color="#F3E3B4"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#tile)"/>
+  <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.25" fill="none" stroke="#E4CD8E" stroke-opacity="0.28" stroke-width="1.5"/>
+  <path d="M30 13 L48.5 45 L30 45 Z" fill="url(#gold)"/>
+  <path d="M30 13 L11.5 45 L30 45 Z" fill="#E4CD8E"/>
+  <path d="M30 13 L30 45" stroke="#0C1B36" stroke-opacity="0.22" stroke-width="1.4"/>
+  <path d="M4 37.4 H16.6" stroke="url(#beam)" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M15.9 37.4 L41.8 33.4" stroke="#F3E3B4" stroke-opacity="0.75" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M41.8 33.4 L60 23.4" stroke="#7FA3F0" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M41.8 33.4 L60 30" stroke="#F3E3B4" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M41.8 33.4 L60 37.4" stroke="#C9A24B" stroke-width="2.2" stroke-linecap="round"/>
+</svg>
