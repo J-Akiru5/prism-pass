@@ -16,7 +16,8 @@
     "test:isolation": "vitest run tests/tenancy-isolation.test.ts",
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "seed:syntaxure": "tsx prisma/seed/syntaxure.ts"
+    "seed:syntaxure": "tsx prisma/seed/syntaxure.ts",
+    "seed:demo": "tsx prisma/seed/demo.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.0",
