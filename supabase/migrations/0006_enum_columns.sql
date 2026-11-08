@@ -10,13 +10,13 @@
 -- afterwards. Values already match the enum labels, so the cast cannot lose data.
 -- Each block is guarded by the current column type, so the file is safe to re-run.
 
-drop constraint if exists organizations_status_check on organizations;
-drop constraint if exists memberships_status_check on memberships;
-drop constraint if exists attendance_sessions_type_check on attendance_sessions;
-drop constraint if exists attendance_events_geo_result_check on attendance_events;
-drop constraint if exists attendance_events_type_check on attendance_events;
-drop constraint if exists attendance_records_approval_status_check on attendance_records;
-drop constraint if exists attendance_records_status_check on attendance_records;
+alter table organizations drop constraint if exists organizations_status_check;
+alter table memberships drop constraint if exists memberships_status_check;
+alter table attendance_sessions drop constraint if exists attendance_sessions_type_check;
+alter table attendance_events drop constraint if exists attendance_events_geo_result_check;
+alter table attendance_events drop constraint if exists attendance_events_type_check;
+alter table attendance_records drop constraint if exists attendance_records_approval_status_check;
+alter table attendance_records drop constraint if exists attendance_records_status_check;
 
 do $$ begin
   if exists (select 1 from information_schema.columns
@@ -54,7 +54,9 @@ end $$;
 do $$ begin
   if exists (select 1 from information_schema.columns
               where table_schema='public' and table_name='attendance_sessions' and column_name='type' and udt_name='text') then
+    alter table attendance_sessions alter column type drop default;
     alter table attendance_sessions alter column type type "SessionType" using type::"SessionType";
+    alter table attendance_sessions alter column type set default 'EVENT'::"SessionType";
   end if;
 end $$;
 
