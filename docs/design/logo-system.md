@@ -234,7 +234,7 @@ navy, gold P); regenerate it with any SVG rasterizer if the mark changes.
   worktree. pnpm warns that the host runs Node 24 while `engines` asks for Node 22; that warning
   predates this work and did not block install or checks.
 - **Typecheck:** `pnpm typecheck` — clean, no TypeScript errors.
-- **Tests:** `pnpm test` — **10 files, 55/55 tests passed** (3.30 s).
+- **Tests:** `pnpm test` — **10 files, 55/55 tests passed**.
 - **Assets:** `pnpm brand:generate` wrote `app/icon.svg`, the five `public/brand` SVGs and
   `docs/design/logo-exploration.svg`. Every referenced file exists.
 - **OG:** `pnpm brand:og <path>` rendered the route through `ImageResponse` to a 1200 × 630 PNG
