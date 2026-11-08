@@ -4,32 +4,35 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [docs/ops/release-and-versioning.md](docs/ops/release-and-versioning.md).
 
-## [Unreleased]
+## [0.2.0] — 2026-11-08
+
+First slices of P4–P8 shipped in one batch (phase numbers and versions are independent).
 
 ### Added
-- **P4 geo verification:** pure `modules/geo` evaluation (haversine, accuracy handling, `off|flag|enforce`
-  policy semantics), server-side `geoResult` + `geofenceId` persisted on every scan event, `GEO_OUTSIDE`
-  rejection in enforce mode, tenant-scoped geofence CRUD API, migration `0004_geo.sql`, 19 new tests.
-- **Demo seed** (`pnpm seed:demo`): `admin@syntaxure.dev` (OWNER + platform admin) and
-  `user@syntaxure.dev` (MEMBER), password `password123`; Syntaxure Labs structure, geofence, device,
-  eight people with passes, three sessions and attendance covering PRESENT/LATE/ABSENT plus an
-  out-of-geofence exception.
-- Migration `0005_remaining_models.sql`: the eight Prisma models that had no live table (geofences,
-  organization settings/subscription, devices, documents, signature requests/events, offline batches).
-- Branch model `main` (production) / `staging` (preview) / `develop` (integration) with direct merges,
-  documented in `docs/ops/branching-and-deployment.md`.
-- `vercel.json` deployment allowlist: only `main` and `staging` deploy; every other branch and
-  pull-request preview is refused before build.
-- Release and versioning process (`docs/ops/release-and-versioning.md`); runtime version exposed by
-  `GET /api/v1/health`.
-- CI workflow: frozen-lockfile install, Prisma client generation, typecheck, tests and build on
-  pushes to `main`, `staging` and `develop`.
+- P4 geo verification: server-side `geoResult`/`geofenceId` on every scan, `off|flag|enforce` policies,
+  `GEO_OUTSIDE` rejection, geofence CRUD, migration `0004_geo.sql`.
+- P5 documents and e-signature: canonical hashing, hash-chained signature events, signing order,
+  consent version, sealed-on-final-sign, public minimal verify, migration `0007_documents.sql`.
+- P6 offline sync: HMAC device signing, replay-proof batches with per-item idempotency, versioned
+  sync bundle, Dexie queue, shared `scan-service` used by both online and offline writes,
+  migration `0008_offline.sql`.
+- P7 workflows: DTR aggregation with RFC4180 CSV export, formula-injection guard, VIEWER masking,
+  92-day cap, audit ledger endpoint and page, record-level approve/reject.
+- P8 platform console: aggregate org ledger, audited suspend/reactivate with a sole-admin guard.
+- Brand system: flat "Aperture P" mark, icon/apple-icon/OG assets, exploration sheet, usage doc.
+- UX: membership-driven console chooser, scanner and member portal without pasted org UUIDs,
+  editorial organization dashboard, console exits everywhere.
 
-### Changed
-- README rewritten to match the built state of the repository instead of the stale "spec only" text.
-- `package.json` gains the `seed:syntaxure` and `seed:demo` scripts.
-- `lib/db.ts` normalizes Supabase transaction-pooler URLs (`pgbouncer=true`, `connection_limit=1`) so
-  Prisma prepared statements stop colliding (`prepared statement "s0" already exists`).
+### Fixed
+- Enum columns stored as text broke every enum filter; migration `0006_enum_columns.sql` converts them.
+- Supabase pooler needed `pgbouncer=true` for Prisma prepared statements (`lib/db.ts`).
+- Functions ran in `iad1` against a Sydney database (seconds per request); pinned to `syd1`.
+- API routes never refreshed expired sessions; middleware now matches `/api/*`.
+- Demo QR payloads used a non-hex secret and could never verify; the seed now derives 64-hex secrets.
+
+## [Unreleased]
+
+Nothing yet.
 
 ## [0.1.0] — 2026-11-04
 
