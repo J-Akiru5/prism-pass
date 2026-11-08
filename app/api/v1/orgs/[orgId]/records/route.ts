@@ -1,7 +1,13 @@
 import { ok, handleRouteError, pagination } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
+import { loadReportScope } from "@/lib/report-scope";
+import { scopeLabel } from "@/modules/reports/scope";
 
+// GET /api/v1/orgs/:orgId/records?sessionId&personId&status
+// `attendance.scan` is the operational read permission. The same person scope as
+// the DTR report applies: OWNER/ADMIN see the org, MANAGER/SUPERVISOR see the
+// programs they are assigned to, SCANNER/MEMBER see only their own person row.
 export async function GET(req: Request, { params }: { params: Promise<{ orgId: string }> }) {
   try {
     const { orgId } = await params;
@@ -9,13 +15,28 @@ export async function GET(req: Request, { params }: { params: Promise<{ orgId: s
     const { searchParams } = new URL(req.url);
     const { page, pageSize } = pagination.parse(Object.fromEntries(searchParams));
     const sessionId = searchParams.get("sessionId") ?? undefined;
-    const personId = searchParams.get("personId") ?? undefined;
+    const personId = searchParams.get("personId") || undefined;
     const status = searchParams.get("status") ?? undefined;
-    const where = { organizationId: ctx.organizationId, ...(sessionId ? { sessionId } : {}), ...(personId ? { personId } : {}), ...(status ? { status: status as never } : {}) };
+
+    const scope = await loadReportScope(ctx);
+    const scopedPersonIds = scope.visibility === "people" ? scope.personIds : null;
+    const outOfScope = Boolean(
+      scopedPersonIds && (scopedPersonIds.length === 0 || (personId && !scopedPersonIds.includes(personId))),
+    );
+    if (outOfScope) {
+      return ok([], { page, pageSize, total: 0, scope: scopeLabel(scope) });
+    }
+
+    const where = {
+      organizationId: ctx.organizationId,
+      ...(sessionId ? { sessionId } : {}),
+      ...(scopedPersonIds ? { personId: personId ?? { in: scopedPersonIds } } : personId ? { personId } : {}),
+      ...(status ? { status: status as never } : {}),
+    };
     const [rows, total] = await Promise.all([
       prisma.attendanceRecord.findMany({ where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { id: "asc" } }),
       prisma.attendanceRecord.count({ where }),
     ]);
-    return ok(rows, { page, pageSize, total });
+    return ok(rows, { page, pageSize, total, scope: scopeLabel(scope) });
   } catch (e) { return handleRouteError(e); }
 }

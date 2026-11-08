@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { fail, handleRouteError } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
+import { loadReportScope } from "@/lib/report-scope";
 import { aggregateDtr } from "@/modules/reports/dtr";
 import { dtrToCsv } from "@/modules/reports/csv";
 import { maskDtrRows } from "@/modules/reports/masking";
 import { dayRangeUtc, parseDtrRange } from "@/modules/reports/range";
+import { scopeLabel } from "@/modules/reports/scope";
 
 type P = { params: Promise<{ orgId: string }> };
 
@@ -26,14 +28,29 @@ export async function GET(req: Request, { params }: P) {
     if (format !== "csv") return fail(400, "INVALID_INPUT", "Only format=csv is supported");
 
     const { from, to } = parsed.range;
-    const headers = {
+    const headers: Record<string, string> = {
       "content-type": "text/csv; charset=utf-8",
       "content-disposition": `attachment; filename="dtr-${from}_${to}.csv"`,
       "cache-control": "no-store",
     };
 
     // Offline/demo mode: keep the export shape usable without fabricating rows.
-    if (!process.env.DATABASE_URL) return new NextResponse(dtrToCsv([]), { headers });
+    if (!process.env.DATABASE_URL) {
+      headers["x-report-scope"] = "none";
+      headers["x-report-masked"] = "false";
+      return new NextResponse(dtrToCsv([]), { headers });
+    }
+
+    // The caller already passed `reports.export`; the pure scope decides *which*
+    // people that permission covers. MANAGER/SUPERVISOR are limited to the
+    // programs they are assigned to, MEMBER/SCANNER to themselves, VIEWER stays
+    // org-wide but masked (and only because the permission was explicitly granted).
+    const scope = await loadReportScope(ctx, { exportGranted: true });
+    headers["x-report-scope"] = scopeLabel(scope);
+    headers["x-report-masked"] = String(scope.masked);
+
+    const scopedPersonIds = scope.visibility === "people" ? scope.personIds : null;
+    const personFilter = scopedPersonIds ? { personId: { in: scopedPersonIds } } : {};
 
     const organization = await prisma.organization.findUnique({
       where: { id: ctx.organizationId },
@@ -58,7 +75,7 @@ export async function GET(req: Request, { params }: P) {
     const [records, events] = sessionIds.length
       ? await Promise.all([
           prisma.attendanceRecord.findMany({
-            where: { organizationId: ctx.organizationId, sessionId: { in: sessionIds } },
+            where: { organizationId: ctx.organizationId, sessionId: { in: sessionIds }, ...personFilter },
             select: {
               id: true,
               sessionId: true,
@@ -72,7 +89,7 @@ export async function GET(req: Request, { params }: P) {
             },
           }),
           prisma.attendanceEvent.findMany({
-            where: { organizationId: ctx.organizationId, sessionId: { in: sessionIds } },
+            where: { organizationId: ctx.organizationId, sessionId: { in: sessionIds }, ...personFilter },
             select: { id: true, sessionId: true, personId: true, type: true, clientTs: true, serverTs: true, status: true },
           }),
         ])
@@ -87,7 +104,7 @@ export async function GET(req: Request, { params }: P) {
       : [];
 
     const rows = aggregateDtr({ from, to, timezone, people, sessions, records, events });
-    const masked = maskDtrRows(rows, { role: ctx.role, organizationSalt: ctx.organizationId });
+    const masked = maskDtrRows(rows, { role: ctx.role, organizationSalt: ctx.organizationId, masked: scope.masked });
 
     await prisma.auditLog.create({
       data: {
@@ -96,7 +113,17 @@ export async function GET(req: Request, { params }: P) {
         action: "reports.export",
         resource: "report:dtr",
         result: "ok",
-        meta: { from, to, rows: masked.length, format, masked: ctx.role === "VIEWER" } as never,
+        meta: {
+          from,
+          to,
+          rows: masked.length,
+          format,
+          masked: scope.masked,
+          scope: scopeLabel(scope),
+          scopeReason: scope.reason,
+          scopedPrograms: scope.programIds.length,
+          scopedPeople: scope.visibility === "people" ? scope.personIds.length : null,
+        } as never,
       },
     });
 

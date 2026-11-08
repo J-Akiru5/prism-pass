@@ -45,9 +45,19 @@ export function pseudonymizeExternalId(externalId: string, organizationSalt: str
   return `ext_${digest}`;
 }
 
-/** Apply the export masking policy to DTR rows. Non-VIEWER roles pass through. */
-export function maskDtrRows(rows: readonly DtrRow[], options: { role: string; organizationSalt: string }): DtrRow[] {
-  if (!isMaskedRole(options.role)) return [...rows];
+/**
+ * Apply the export masking policy to DTR rows. Non-VIEWER roles pass through.
+ *
+ * `masked` lets a caller use the decision from `modules/reports/scope.ts`
+ * directly instead of re-deriving it from the role. When omitted, the role
+ * policy above is used (the historical behaviour).
+ */
+export function maskDtrRows(
+  rows: readonly DtrRow[],
+  options: { role?: string; organizationSalt: string; masked?: boolean },
+): DtrRow[] {
+  const shouldMask = options.masked ?? isMaskedRole(options.role);
+  if (!shouldMask) return [...rows];
   return rows.map((row) => ({
     ...row,
     displayName: initials(row.displayName),
