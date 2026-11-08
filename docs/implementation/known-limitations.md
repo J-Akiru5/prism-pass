@@ -6,8 +6,19 @@
   no data and are unused; dropping them needs a backup review first.
 - **Demo credentials are weak by design:** `admin@syntaxure.dev` and `user@syntaxure.dev` use
   `password123` for demos. The production URL is public, so these must be rotated or gated before any
-  real pilot. Tracked for P9 hardening.
+  real pilot. P9 adds an env-gated `DEMO_MODE` banner + startup warning but deliberately does not
+  change the password: see `docs/security/demo-accounts.md`.
 - Authenticated browser click-through not yet performed — protected routes correctly redirect to `/login`; needs a signed-in session (user handoff).
+- **CSP is Report-Only:** security headers are enforced (`middleware.ts`), but the nonce-based CSP
+  ships as `Content-Security-Policy-Report-Only` until a browser pass confirms Next and next-themes
+  inline scripts carry the nonce. See `docs/security/security-headers.md` for the promotion
+  checklist. Report-Only does not mitigate XSS.
+- **Rate limits are per instance:** `lib/rate-limit.ts` is an in-memory token bucket with bounded
+  keys. A multi-instance deployment enforces the limit per process, not globally; a shared Redis
+  store is the documented upgrade path (`docs/security/rate-limiting.md`).
+- **Secret scan is regex-based:** `pnpm security:secrets` is blocking in CI and clean today, but it
+  does not scan git history, dependencies or entropy-only secrets. Dependency audit remains
+  non-blocking-loud until triaged (`docs/security/secret-scanning.md`).
 - `prisma db push` still unusable on pooler (schema-engine); DDL via `pg` + reviewed SQL files (0003 applied this way). No destructive ops run.
 - Stray PascalCase tables from an early unmapped push remain in live DB (untouched, unused); future cleanup migration may drop them after backup review.
 - Scanner offline queue is UI-provisional (ADR-09); sync-batch API (P6) not built.
