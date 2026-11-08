@@ -1,11 +1,12 @@
 import { Prisma } from "@prisma/client";
-import { ok, fail, handleRouteError } from "@/lib/api";
+import { ok, fail, handleRouteError, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { performScan } from "@/modules/attendance/scan-service";
 import { classifyBatchItems, type ItemDecision, type ItemStatus } from "@/modules/offline/classify";
 import { verifyBatchSignature } from "@/modules/offline/crypto";
 import { batchEnvelopeSchema, validateBatch } from "@/modules/offline/schema";
+import { enforceRateLimits, ipCheck, limiters, orgCheck } from "@/lib/rate-limit-http";
 
 type Receipt = {
   idempotencyKey: string;
@@ -25,7 +26,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 // through the canonical attendance write path (`performScan`).
 export async function POST(req: Request) {
   try {
-    const raw: unknown = await req.json();
+    const denied = enforceRateLimits([ipCheck(limiters.syncBatchIp, req)]);
+    if (denied) return denied;
+    const raw: unknown = await readJson(req, BODY_LIMITS.batch);
     // The org is normally in the signed body; `X-Org-Id` is only a selector hint
     // that fills a missing field, never an authority (membership is checked below).
     const hintedOrg = req.headers.get("x-org-id");
@@ -34,6 +37,10 @@ export async function POST(req: Request) {
 
     const parsed = batchEnvelopeSchema.parse(payload);
     const ctx = await requireOrganizationPermission("attendance.scan", parsed.organizationId);
+    // Org bucket only after authorization: an unauthenticated caller must not be
+    // able to drain another tenant's bucket by naming its id in the body.
+    const orgDenied = enforceRateLimits([orgCheck(limiters.syncBatchOrg, ctx.organizationId)]);
+    if (orgDenied) return orgDenied;
 
     const device = await prisma.device.findFirst({
       where: {
