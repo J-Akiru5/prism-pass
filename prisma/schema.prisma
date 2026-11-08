@@ -370,13 +370,21 @@ model Document {
   id             String @id @default(cuid())
   organizationId String @map("organization_id")
   template       String
+  title          String?
   version        Int @default(1)
   sha256         String
+  // Inline canonical body for v1. Storage ref stays the seam for private-bucket
+  // PDFs later; payload is what the hash is computed over.
+  payload        Json?
   storageRef     String @map("storage_ref")
+  verifyToken    String? @unique @map("verify_token")
   status         DocumentStatus @default(DRAFT)
+  sealedAt       DateTime? @map("sealed_at")
+  createdAt      DateTime @default(now()) @map("created_at")
   organization   Organization @relation(fields: [organizationId], references: [id])
   signatures     SignatureRequest[]
 
+  @@index([organizationId, status])
   @@map("documents")
 }
 
@@ -386,11 +394,14 @@ model SignatureRequest {
   documentId     String @map("document_id")
   order          Json
   status         String @default("pending")
+  consentVersion String? @map("consent_version")
   expiresAt      DateTime? @map("expires_at")
+  createdAt      DateTime @default(now()) @map("created_at")
   organization   Organization @relation(fields: [organizationId], references: [id])
   document       Document @relation(fields: [documentId], references: [id])
   events         SignatureEvent[]
 
+  @@index([organizationId, documentId])
   @@map("signature_requests")
 }
 
@@ -398,6 +409,9 @@ model SignatureEvent {
   id             String @id @default(cuid())
   organizationId String @map("organization_id")
   requestId      String @map("request_id")
+  // Monotonic append position inside one request; the hash chain is verified in
+  // this order and the unique index prevents two concurrent signers colliding.
+  sequence       Int @default(0)
   signerUserId   String? @map("signer_user_id")
   signerPersonId String? @map("signer_person_id")
   docVersion     Int @map("doc_version")
@@ -407,9 +421,13 @@ model SignatureEvent {
   serverTs       DateTime @default(now()) @map("server_ts")
   authEvidence   Json @map("auth_evidence")
   deviceId       String? @map("device_id")
+  // Drawn/typed artifact reference (private bucket key). The image is not the
+  // certificate; the chain event is the integrity proof.
+  artifactRef    String? @map("artifact_ref")
   prevHash       String? @map("prev_hash")
   currHash       String @map("curr_hash")
   request        SignatureRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  @@unique([requestId, sequence])
   @@index([organizationId, requestId])
 
   @@map("signature_events")
