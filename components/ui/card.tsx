@@ -14,8 +14,12 @@ function CardEyebrow({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return <div className={twMerge(clsx("font-mono text-[11px] font-medium uppercase tracking-widest text-muted-foreground", className))} {...props} />;
 }
 
-function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={twMerge(clsx("font-display text-lg font-bold leading-tight", className))} {...props} />;
+// Cards sit directly under the page <h1>, so their title is an <h2> by default;
+// a caller whose card is the page title itself can opt into another level.
+function CardTitle({ className, as: Heading = "h2", ...props }: HTMLAttributes<HTMLHeadingElement> & {
+  as?: "h1" | "h2" | "h3" | "h4";
+}) {
+  return <Heading className={twMerge(clsx("font-display text-lg font-bold leading-tight", className))} {...props} />;
 }
 
 function CardDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {

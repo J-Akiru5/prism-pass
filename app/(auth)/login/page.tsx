@@ -59,9 +59,9 @@ export default function LoginPage() {
           <div className="max-w-md">
             <span aria-hidden="true" className="mb-5 block h-px w-12 bg-gradient-to-r from-gold-soft to-transparent" />
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-gold-soft">Welcome back</p>
-            <h1 className="mt-3 text-balance font-display text-4xl font-bold leading-tight xl:text-5xl">
+            <p className="mt-3 text-balance font-display text-4xl font-bold leading-tight xl:text-5xl">
               Attendance you can prove, not just record.
-            </h1>
+            </p>
             <ul className="mt-8 space-y-4">
               {PANEL_POINTS.map(({ Icon, text }) => (
                 <li key={text} className="flex items-center gap-3">
@@ -101,16 +101,21 @@ export default function LoginPage() {
         <main className="flex flex-1 items-center justify-center px-4 py-10 sm:px-8">
           <div className="w-full max-w-sm">
             <div className="mb-6 lg:hidden">
-              <h1 className="text-balance font-display text-3xl font-bold tracking-tight">Welcome back</h1>
+              <p className="text-balance font-display text-3xl font-bold tracking-tight">Welcome back</p>
               <p className="mt-1.5 text-sm text-muted-foreground">Sign in to reach your organization consoles.</p>
             </div>
             <Card className="shadow-md">
               <CardHeader>
-                <CardTitle>Sign in</CardTitle>
+                <CardTitle as="h1">Sign in</CardTitle>
                 <CardDescription>Use your organization-issued email account.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+                <form
+                  onSubmit={submit}
+                  className="flex flex-col gap-4"
+                  noValidate
+                  aria-describedby={err ? "login-error" : undefined}
+                >
                   <FormField label="Email" htmlFor="login-email" required error={err && !email ? "Enter your email address." : null}>
                     <Input id="login-email" placeholder="you@org.edu" value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="username" required autoFocus />
                   </FormField>
@@ -118,7 +123,7 @@ export default function LoginPage() {
                     <Input id="login-password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} type="password" autoComplete="current-password" required />
                   </FormField>
                   {err && (
-                    <p role="alert" className="rounded-lg border border-destructive bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    <p id="login-error" role="alert" className="rounded-lg border border-destructive bg-destructive/10 px-4 py-3 text-sm text-destructive">
                       Sign in failed — {err}
                     </p>
                   )}
