@@ -151,7 +151,7 @@ export function OrgLedger() {
   const dialogSuspended = pendingChange?.nextStatus === "SUSPENDED";
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+    <main id="platform-main" tabIndex={-1} className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <PageHeader
         eyebrow="Platform · Syntaxure Labs"
         title="Organization ledger"
@@ -243,7 +243,7 @@ export function OrgLedger() {
             }
           />
         ) : (
-          <div className="overflow-x-auto">
+          <div role="region" aria-label="Organization ledger" tabIndex={0} className="overflow-x-auto">
             <table className="w-full min-w-[880px] border-collapse text-sm">
               <caption className="sr-only">
                 Organizations on this platform: name and slug, status, active members, active passes, creation date, last audited activity, and the suspend/reactivate control.

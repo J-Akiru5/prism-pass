@@ -83,9 +83,9 @@ export default function PassesPage({ params }: { params: Promise<{ orgId: string
                   <TableCell><Badge variant={p.status === "ACTIVE" ? "success" : "danger"}>{p.status}</Badge></TableCell>
                   <TableCell>
                     <div className="flex gap-1.5">
-                      <Button variant="ghost" size="sm" onClick={() => setPrintPass(p)}><IdCard aria-hidden="true" /> ID card</Button>
-                      <Button variant="ghost" size="sm" onClick={() => setConfirm({ id: p.id, kind: "rotate" })}><RotateCw aria-hidden="true" /> Rotate</Button>
-                      <Button variant="ghost" size="sm" onClick={() => setConfirm({ id: p.id, kind: "revoke" })} className="text-destructive hover:text-destructive"><Ban aria-hidden="true" /> Revoke</Button>
+                      <Button variant="ghost" size="sm" aria-label={`ID card for ${p.passPublicId}`} onClick={() => setPrintPass(p)}><IdCard aria-hidden="true" /> ID card</Button>
+                      <Button variant="ghost" size="sm" aria-label={`Rotate pass ${p.passPublicId}`} onClick={() => setConfirm({ id: p.id, kind: "rotate" })}><RotateCw aria-hidden="true" /> Rotate</Button>
+                      <Button variant="ghost" size="sm" aria-label={`Revoke pass ${p.passPublicId}`} onClick={() => setConfirm({ id: p.id, kind: "revoke" })} className="text-destructive hover:text-destructive"><Ban aria-hidden="true" /> Revoke</Button>
                     </div>
                   </TableCell>
                 </TableRow>
