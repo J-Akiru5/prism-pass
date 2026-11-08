@@ -106,3 +106,12 @@ Out of scope: P3 attendance writes, P4 geo PostGIS, P5 e-sign, P6 offline sync, 
 - **Defects found by doing this:** enum columns were `text` (filters failed; `0006_enum_columns.sql` converts them), functions ran in `iad1` while Supabase is in `syd1` (pinned to `syd1`), API routes never refreshed expired sessions (middleware now matches `/api/*`), demo QR secrets were not 64-hex so they never verified.
 - **Gate:** 139 tests passing, typecheck clean, migrations 0004-0008 applied, production at `pass.syntaxure.dev` serving v0.2.0. Tag `v0.2.0`.
 - **Still open:** MANAGER/MEMBER scoped export rules, device revocation route, PostGIS (haversine used instead), offline UI wiring, authenticated click-through on every console, preview sharing behind Vercel auth.
+
+## 12. v0.3.0 - platform console, security, offline UI, a11y - 2026-11-08
+- **Super-admin console:** `/platform` overview stat rail, `/platform/orgs` ledger + create, `/platform/orgs/[orgId]` detail with plan/entitlement editor and member list, `/platform/admins` grant/revoke (reason required, last-admin + self-revoke guards), `/platform/audit` cross-tenant filters + CSV, `/platform/health` measured DB latency and migration inventory. All gated by `requirePlatformAdmin`; aggregate-only except org members and audit rows (documented).
+- **Security:** headers + nonce CSP (Report-Only, promotion checklist in `docs/security/security-headers.md`), rate limiting per IP/org, body ceilings via `readJson`, bounded query params, blocking secret scan, `DEMO_MODE` banner.
+- **Offline scanner:** queue on offline/fetch/5xx, explicit provisional state, signed batch flush, replay retry, backoff, queue panel.
+- **Scoping:** report/record person scopes by role/assignment; device revocation with sync rejection.
+- **A11y:** focus restored (14.6:1), dialog trap/restore, headings, error association, table semantics, success contrast.
+- **Gate:** 225 tests / 18 files, typecheck clean, CI green. Deployed and tagged v0.3.0.
+- **Open:** CSP enforcement (needs browser pass on every route), shared rate-limit store (per-instance today), impersonation, entitlement enforcement in tenant routes, MANAGER per-mentee scope (needs `supervisor_person_id`), offline queue encryption at rest, demo credential rotation.

@@ -4,7 +4,41 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [docs/ops/release-and-versioning.md](docs/ops/release-and-versioning.md).
 
-## [0.2.0] — 2026-11-08
+## [Unreleased]
+
+Nothing yet.
+
+## [0.3.0] - 2026-11-08
+
+Platform console, security hardening, offline scanner, accessibility and scoping.
+
+### Added
+- **Platform (super-admin) console:** overview stat rail, organization ledger with search/status/pagination,
+  organization detail with plan + entitlement editor, platform-admin grants/revokes with required reasons,
+  cross-tenant audit explorer with CSV export, and a health view with measured DB latency. Every route
+  gated by `requirePlatformAdmin`; last-admin and self-revoke guards.
+- **Security:** HSTS/nosniff/referrer/frame headers, nonce CSP in `Report-Only` with a promotion
+  checklist, token-bucket rate limiting (per IP and per org) on verify/scan/sync/public-verify,
+  `readJson` body ceilings on every JSON route, bounded query params, blocking secret scan in CI,
+  `DEMO_MODE` warning banner.
+- **Offline scanner:** queue on offline/fetch failure/transient 5xx, explicit "Queued offline — not
+  recorded" state, signed batch flush with replay retry and backoff, queue panel with per-item reasons.
+- **Reports/records scoping:** OWNER/ADMIN org-wide, MANAGER/SUPERVISOR program-scoped, MEMBER/SCANNER
+  self-only, VIEWER masked and only with an explicit grant.
+- **Device revocation:** idempotent, audited, clears the stored secret; revoked devices are rejected by
+  `sync/batches` with a distinct code.
+- **Error boundaries:** `app/error.tsx` and `app/global-error.tsx` with support references.
+
+### Changed
+- Accessibility: focus rings restored at 14.6:1, dialog focus trap + restore, single `h1` per page,
+  `aria-invalid`/`aria-describedby` on form errors, table captions and keyboard-scrollable regions,
+  success contrast raised to 4.85:1.
+
+### Fixed
+- API routes now refresh expired sessions (middleware matches `/api/*`).
+- Non-blocking dependency audit no longer raises a red CI annotation.
+
+## [0.2.0] - 2026-11-08
 
 First slices of P4–P8 shipped in one batch (phase numbers and versions are independent).
 
@@ -30,11 +64,7 @@ First slices of P4–P8 shipped in one batch (phase numbers and versions are ind
 - API routes never refreshed expired sessions; middleware now matches `/api/*`.
 - Demo QR payloads used a non-hex secret and could never verify; the seed now derives 64-hex secrets.
 
-## [Unreleased]
-
-Nothing yet.
-
-## [0.1.0] — 2026-11-04
+## [0.1.0] - 2026-11-04
 
 Foundation through P3, built and verified before this changelog existed; reconstructed from
 `docs/roadmap/PLAN.md`.
