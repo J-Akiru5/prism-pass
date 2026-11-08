@@ -113,3 +113,22 @@ body {
 }
 
 .font-display { font-family: Georgia, "Times New Roman", serif; }
+
+::selection {
+  background: hsl(var(--accent) / 0.32);
+  color: hsl(var(--foreground));
+}
+
+/* Honour the OS motion preference for both CSS and (via useReducedMotion)
+   the framer-motion layers. This is the safety net: any animation that slips
+   through still resolves instantly instead of moving content. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

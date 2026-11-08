@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Minus, Plus } from "lucide-react";
 import { Reveal } from "./reveal";
 
@@ -60,41 +60,46 @@ const FAQS = [
 
 export function Faq() {
   const [open, setOpen] = useState<number | null>(0);
+  const reduce = useReducedMotion();
   return (
     <section id="faq" className="scroll-mt-20 bg-muted/50 py-20 md:py-28">
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <Reveal className="text-center">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">FAQ</p>
-          <h2 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 className="mt-3 text-balance font-display text-3xl font-bold tracking-tight sm:text-4xl">
             Questions, answered.
           </h2>
         </Reveal>
         <div className="mt-10 space-y-3">
           {FAQS.map((f, i) => {
             const isOpen = open === i;
+            const panelId = `faq-panel-${i}`;
             return (
               <Reveal key={f.q} delay={i * 0.05}>
-                <div className={`overflow-hidden rounded-2xl border bg-card shadow-sm transition ${isOpen ? "ring-1 ring-accent/50" : ""}`}>
+                <div className={`overflow-hidden rounded-2xl border bg-card shadow-sm transition-colors ${isOpen ? "border-accent/50 ring-1 ring-accent/40" : ""}`}>
                   <button
                     type="button"
                     onClick={() => setOpen(isOpen ? null : i)}
                     aria-expanded={isOpen}
+                    aria-controls={panelId}
                     className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
                   >
-                    <span className="font-display text-[15px] font-bold sm:text-base">{f.q}</span>
-                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition ${isOpen ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                    <span className="text-pretty font-display text-[15px] font-bold sm:text-base">{f.q}</span>
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${isOpen ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
                       {isOpen ? <Minus className="size-4" aria-hidden="true" /> : <Plus className="size-4" aria-hidden="true" />}
                     </span>
                   </button>
                   <AnimatePresence initial={false}>
                     {isOpen && (
                       <motion.div
-                        initial={{ height: 0, opacity: 0 }}
+                        id={panelId}
+                        role="region"
+                        initial={reduce ? false : { height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                        exit={reduce ? { opacity: 1 } : { height: 0, opacity: 0 }}
+                        transition={{ duration: reduce ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
                       >
-                        <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">{f.a}</p>
+                        <p className="text-pretty px-5 pb-5 text-sm leading-relaxed text-muted-foreground">{f.a}</p>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -111,7 +116,7 @@ export function Faq() {
 export function CtaBand() {
   return (
     <section className="bg-background px-4 py-20 sm:px-6 md:py-28">
-      <Reveal className="relative mx-auto max-w-6xl overflow-hidden rounded-[2rem] bg-navy-deep px-6 py-16 text-center text-white shadow-2xl sm:px-12 md:py-20">
+      <Reveal className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl bg-navy-deep px-6 py-16 text-center text-white shadow-2xl sm:px-12 md:py-20">
         <div aria-hidden="true" className="absolute inset-0">
           <div className="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-[#2E5CB8]/40 blur-[110px]" />
           <div className="absolute -bottom-28 -right-20 h-80 w-80 rounded-full bg-[#C9A24B]/30 blur-[110px]" />
@@ -119,10 +124,10 @@ export function CtaBand() {
         </div>
         <div className="relative">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold-soft">Get started</p>
-          <h2 className="mx-auto mt-3 max-w-2xl font-display text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
+          <h2 className="mx-auto mt-3 max-w-2xl text-balance font-display text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
             See your organization&apos;s attendance, verified.
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-white/70">
+          <p className="mx-auto mt-4 max-w-xl text-pretty text-white/75">
             Tell us about your programs and we&apos;ll provision a tenant,
             import your roster, and have you scanning in days — not quarters.
           </p>

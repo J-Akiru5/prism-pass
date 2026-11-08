@@ -33,12 +33,13 @@ const COLS = [
 
 export function SiteFooter() {
   return (
-    <footer className="border-t bg-navy-deep text-white">
+    <footer className="relative bg-navy-deep text-white">
+      <div aria-hidden="true" className="h-px bg-gradient-to-r from-transparent via-accent/55 to-transparent" />
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
         <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
             <PrismPassLogo onDark size={38} />
-            <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/60">
+            <p className="mt-4 max-w-xs text-pretty text-sm leading-relaxed text-white/65">
               Unified attendance + verification. One directory, one identity
               pass, one attendance engine — scoped to your organization.
             </p>
@@ -52,7 +53,7 @@ export function SiteFooter() {
               <ul className="mt-4 space-y-2.5">
                 {col.links.map((l) => (
                   <li key={l.label}>
-                    <Link href={l.href} className="text-sm text-white/65 transition hover:text-white">
+                    <Link href={l.href} className="text-sm text-white/65 transition-colors hover:text-gold-soft">
                       {l.label}
                     </Link>
                   </li>
@@ -63,7 +64,7 @@ export function SiteFooter() {
         </div>
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 sm:flex-row">
           <p className="text-xs text-white/45">© {new Date().getFullYear()} Prism Pass. All rights reserved.</p>
-          <SyntaxureCredit onDark />
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">Identity · Attendance · Audit</p>
         </div>
       </div>
     </footer>

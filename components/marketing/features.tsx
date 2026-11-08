@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import {
   ArrowLeftRight,
   Building2,
@@ -70,28 +69,25 @@ export function Features() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <Reveal className="mx-auto max-w-2xl text-center">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">The platform</p>
-          <h2 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 className="mt-3 text-balance font-display text-3xl font-bold tracking-tight sm:text-4xl">
             Everything attendance needs. Nothing it doesn&apos;t.
           </h2>
-          <p className="mt-4 text-muted-foreground">
+          <p className="mt-4 text-pretty text-muted-foreground">
             Three consoles — directory, identity, and scanning — running on a single
             attendance engine your auditors will love.
           </p>
         </Reveal>
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(({ Icon, title, body }, i) => (
-            <Reveal key={title} delay={(i % 3) * 0.08}>
-              <motion.div
-                whileHover={{ y: -6 }}
-                transition={{ type: "spring", stiffness: 300, damping: 22 }}
-                className="group h-full rounded-2xl border bg-card p-6 shadow-sm transition-shadow hover:shadow-[0_16px_40px_-16px_rgba(20,40,80,0.35)]"
-              >
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-navy to-navy-light text-gold-soft shadow-sm transition-transform group-hover:scale-105">
+            <Reveal key={title} delay={(i % 3) * 0.08} className="h-full">
+              <div className="group relative h-full rounded-2xl border bg-card p-6 shadow-sm transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-accent/50 hover:shadow-lg motion-reduce:hover:translate-y-0">
+                <span className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-navy to-navy-light text-gold-soft shadow-sm">
                   <Icon className="size-5" aria-hidden="true" />
                 </span>
                 <h3 className="mt-4 font-display text-lg font-bold">{title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
-              </motion.div>
+                <p className="mt-2 text-pretty text-sm leading-relaxed text-muted-foreground">{body}</p>
+              </div>
             </Reveal>
           ))}
         </div>
@@ -112,7 +108,7 @@ export function HowItWorks() {
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
         <Reveal className="mx-auto max-w-2xl text-center">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">How it works</p>
-          <h2 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 className="mt-3 text-balance font-display text-3xl font-bold tracking-tight sm:text-4xl">
             Live in three steps.
           </h2>
         </Reveal>
@@ -124,7 +120,7 @@ export function HowItWorks() {
                   {s.n}
                 </span>
                 <h3 className="mt-3 font-display text-lg font-bold">{s.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
+                <p className="mt-2 text-pretty text-sm leading-relaxed text-muted-foreground">{s.body}</p>
                 {i < 2 && (
                   <span aria-hidden="true" className="absolute -right-3 top-1/2 hidden h-px w-6 bg-gradient-to-r from-accent to-transparent md:block" />
                 )}
@@ -143,7 +139,7 @@ export function Audiences() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <Reveal className="mx-auto max-w-2xl text-center">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Who it&apos;s for</p>
-          <h2 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 className="mt-3 text-balance font-display text-3xl font-bold tracking-tight sm:text-4xl">
             Built for teams that answer for attendance.
           </h2>
         </Reveal>
@@ -156,7 +152,7 @@ export function Audiences() {
                 </div>
                 <div className="p-6">
                   <h3 className="font-display text-lg font-bold">{title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
+                  <p className="mt-2 text-pretty text-sm leading-relaxed text-muted-foreground">{body}</p>
                 </div>
               </div>
             </Reveal>
