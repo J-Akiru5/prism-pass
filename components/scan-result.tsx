@@ -1,7 +1,7 @@
-import { AlertTriangle, CheckCircle2, Copy, Info, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CloudOff, Copy, Info, XCircle } from "lucide-react";
 import { clsx } from "clsx";
 
-export type ScanTone = "success" | "warning" | "info" | "danger" | "muted";
+export type ScanTone = "success" | "warning" | "info" | "danger" | "muted" | "queued";
 
 // Outcome banner modeled on the reference scanner: left accent border,
 // glyph + bold label + message, arm's-length readable.
@@ -11,6 +11,9 @@ const TONES: Record<ScanTone, { box: string; Icon: typeof CheckCircle2; label: s
   info: { box: "border-info bg-info/10 text-info", Icon: Info, label: "Notice" },
   danger: { box: "border-destructive bg-destructive/10 text-destructive", Icon: XCircle, label: "Rejected" },
   muted: { box: "border-muted-foreground bg-muted text-muted-foreground", Icon: AlertTriangle, label: "Status" },
+  // Offline capture is explicitly provisional (ADR-09): the label says so and
+  // the icon is not a success tick.
+  queued: { box: "border-info bg-info/10 text-info", Icon: CloudOff, label: "Queued offline" },
 };
 
 export function ScanResult({ tone, title, message, assertive }: { tone: ScanTone; title?: string; message: string; assertive?: boolean }) {
