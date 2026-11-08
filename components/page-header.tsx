@@ -2,12 +2,14 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 
-export function PageHeader({ title, description, eyebrow, actions, crumbs }: {
+export function PageHeader({ title, description, eyebrow, actions, crumbs, as: Heading = "h1" }: {
   title: string;
   description?: string;
   eyebrow?: string;
   actions?: ReactNode;
   crumbs?: { label: string; href?: string }[];
+  /** Default is the page title; use h2 for a second section on the same page. */
+  as?: "h1" | "h2" | "h3";
 }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
@@ -23,7 +25,7 @@ export function PageHeader({ title, description, eyebrow, actions, crumbs }: {
           </nav>
         )}
         {eyebrow && <p className="font-mono text-[11px] font-medium uppercase tracking-widest text-gold-dark">{eyebrow}</p>}
-        <h1 className="font-display text-2xl font-bold leading-tight md:text-3xl">{title}</h1>
+        <Heading className="font-display text-2xl font-bold leading-tight md:text-3xl">{title}</Heading>
         {description && <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

@@ -16,7 +16,7 @@ export default async function PlatformHome() {
   } catch (e) {
     if (e instanceof AuthError || e instanceof ForbiddenError) {
       return (
-        <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <main id="platform-main" tabIndex={-1} className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
           <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-gold-dark">Platform</p>
           <h1 className="mt-1 font-display text-2xl font-bold leading-tight md:text-3xl">Platform access required</h1>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">

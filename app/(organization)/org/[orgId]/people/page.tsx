@@ -126,10 +126,11 @@ export default function PeoplePage({ params }: { params: Promise<{ orgId: string
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or external ID…" aria-label="Search people" className="pl-9" />
             </div>
+            <p role="status" className="sr-only">{q ? `${filtered.length} matching members.` : ""}</p>
             {loading ? <LoadingState label="Loading directory…" /> : filtered.length === 0 ? (
               <EmptyState title={q ? "No matches" : "No people yet"} description={q ? "Try a different search." : "Add the first member with the form below."} />
             ) : (
-              <DataTable columns={["Member", "External ID", "Status", ""]} caption="People directory">
+              <DataTable columns={["Member", "External ID", "Status", { label: "Actions", srOnly: true }]} caption="People directory">
                 {filtered.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell>
@@ -140,7 +141,7 @@ export default function PeoplePage({ params }: { params: Promise<{ orgId: string
                     </TableCell>
                     <TableCell mono>{p.externalId ?? "—"}</TableCell>
                     <TableCell><Badge variant={p.status === "active" ? "success" : "muted"}>{p.status}</Badge></TableCell>
-                    <TableCell><Button variant="ghost" size="sm" onClick={() => open(p.id)}>Open</Button></TableCell>
+                    <TableCell><Button variant="ghost" size="sm" aria-label={`Open ${p.displayName}`} onClick={() => open(p.id)}>Open</Button></TableCell>
                   </TableRow>
                 ))}
               </DataTable>

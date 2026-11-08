@@ -147,10 +147,10 @@ export default function AttendancePage({ params }: { params: Promise<{ orgId: st
               </CardHeader>
               <CardContent>
                 {sessions.length === 0 ? <EmptyState title="No sessions yet" description="Create a session to open check-in." /> : (
-                  <ul className="max-h-56 space-y-1 overflow-auto" role="listbox" aria-label="Sessions">
+                  <ul className="max-h-56 space-y-1 overflow-auto" aria-label="Sessions">
                     {sessions.map((s) => (
                       <li key={s.id}>
-                        <button type="button" role="option" aria-selected={activeSession === s.id} onClick={() => setActiveSession(s.id)}
+                        <button type="button" aria-pressed={activeSession === s.id} onClick={() => setActiveSession(s.id)}
                           className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60 ${activeSession === s.id ? "bg-muted ring-1 ring-accent" : ""}`}>
                           <span className="min-w-0 flex-1 truncate font-medium">{s.title}</span>
                           <Badge variant="info">{s.type}</Badge>
