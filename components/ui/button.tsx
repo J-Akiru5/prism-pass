@@ -8,7 +8,7 @@ import { forwardRef, type ButtonHTMLAttributes } from "react";
 // Button language adapted from the inspected attendance reference:
 // navy default, gold gradient accent, h-10/8/12 rhythm, min touch targets.
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4",
+  "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4",
   {
     variants: {
       variant: {

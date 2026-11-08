@@ -192,7 +192,7 @@ export function OrgLedger() {
             id="org-status-filter"
             value={filters.status}
             onChange={(e) => setFilters((f) => ({ ...f, page: 1, status: e.target.value as Filters["status"] }))}
-            className="mt-1 h-11 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30 sm:w-48"
+            className="mt-1 h-11 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus:border-accent sm:w-48"
           >
             <option value="">All statuses</option>
             <option value="ACTIVE">Active</option>
