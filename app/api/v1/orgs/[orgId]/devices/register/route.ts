@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ok, fail, handleRouteError, readJson, BODY_LIMITS } from "@/lib/api";
+import { ok, fail, handleRouteError, readJson, BODY_LIMITS, InvalidJsonError } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { deviceKeyHash, generateDeviceKey } from "@/modules/offline/crypto";
@@ -17,7 +17,13 @@ export async function POST(req: Request, { params }: P) {
   try {
     const { orgId } = await params;
     const ctx = await requireOrganizationPermission("devices.manage", orgId);
-    const input = registerInput.parse(await readJson(req, BODY_LIMITS.tiny).catch(() => ({})));
+    // Registration historically tolerated an empty body (role defaults to scanner);
+    // an oversized body must still be a 413, not silently coerced to `{}`.
+    const raw = await readJson(req, BODY_LIMITS.tiny).catch((error: unknown) => {
+      if (error instanceof InvalidJsonError) return {};
+      throw error;
+    });
+    const input = registerInput.parse(raw);
     const { devicePublicId, secret } = generateDeviceKey();
 
     const device = await prisma.device.create({
