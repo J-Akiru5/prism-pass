@@ -55,9 +55,7 @@ export function AppShell({ orgId, orgName, children }: { orgId: string; orgName?
       <aside className="sticky top-0 z-10 hidden h-dvh w-64 shrink-0 flex-col self-start border-r border-slate-200 bg-white/95 backdrop-blur-sm dark:border-white/10 dark:bg-slate-950/95 md:flex">
         <div className="border-b border-slate-100 p-5 dark:border-white/10">
           <Link href={base} className="flex items-center gap-3 rounded-xl">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 text-[15px] font-bold text-white shadow-sm shadow-blue-600/25">
-              {orgLabel.charAt(0).toUpperCase()}
-            </span>
+            <BrandLogo variant="mark" size={40} />
             <span className="min-w-0">
               <span className="block truncate text-[15px] font-bold leading-tight tracking-tight">{orgLabel}</span>
               <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">Officer portal</span>
