@@ -271,10 +271,12 @@ async function main() {
     });
 
     const passPublicId = `pp_demo_${p.slug}`;
-    const secret = `demo-${p.slug}-secret-2026`;
+    // Secrets must match the QR parser (64 hex chars), so derive them
+    // deterministically from the slug: stable across reseeds, still opaque.
+    const secret = createHash("sha256").update(`prism-pass-demo:${p.slug}`).digest("hex");
     const pass = await prisma.pass.upsert({
       where: { organizationId_passPublicId: { organizationId: orgId, passPublicId } },
-      update: { status: "ACTIVE", revokedAt: null },
+      update: { status: "ACTIVE", revokedAt: null, credentialHash: hash(passPublicId, secret) },
       create: {
         id: `demo-pass-${p.slug}`,
         organizationId: orgId,
