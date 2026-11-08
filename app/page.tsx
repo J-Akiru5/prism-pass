@@ -1,7 +1,8 @@
 import { SiteNav } from "@/components/marketing/site-nav";
 import { Hero } from "@/components/marketing/hero";
 import { Audiences, Features, HowItWorks } from "@/components/marketing/features";
-import { CtaBand, Faq, MetricsBand } from "@/components/marketing/closing";
+import { Accountability, CtaBand, Faq } from "@/components/marketing/closing";
+import { ProductShowcase } from "@/components/marketing/product-shots";
 import { SiteFooter } from "@/components/marketing/site-footer";
 
 export const metadata = {
@@ -30,9 +31,10 @@ export default function Home() {
       <main id="main-content" tabIndex={-1}>
         <Hero />
         <Features />
+        <ProductShowcase />
         <HowItWorks />
-        <MetricsBand />
         <Audiences />
+        <Accountability />
         <Faq />
         <CtaBand />
       </main>

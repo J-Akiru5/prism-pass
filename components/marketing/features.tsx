@@ -2,14 +2,14 @@
 
 import {
   ArrowLeftRight,
-  Building2,
+  ArrowRight,
   CalendarCheck2,
-  GraduationCap,
   IdCard,
   ScanLine,
   ShieldCheck,
   Users,
 } from "lucide-react";
+import Link from "next/link";
 import { Reveal } from "./reveal";
 
 const FEATURES = [
@@ -62,22 +62,19 @@ const TONES: Record<string, { bar: string; chip: string; band: string; text: str
 
 const AUDIENCES = [
   {
-    Icon: GraduationCap,
-    title: "Schools & universities",
-    tone: "blue",
-    body: "Class attendance, intern deployments, and event check-ins — one directory from enrollment to graduation.",
+    k: "National agencies",
+    title: "Agencies and central offices",
+    body: "Plantilla and contractual staff across head office and field units, with attendance that matches what the HRMO already files.",
   },
   {
-    Icon: Building2,
-    title: "Companies & HR teams",
-    tone: "teal",
-    body: "Shift check-ins, training sessions, and site access with approval-backed corrections for payroll confidence.",
+    k: "State universities",
+    title: "SUCs, colleges and OJT",
+    body: "Class, laboratory and on-the-job attendance across colleges, exported in a form the registrar can accept.",
   },
   {
-    Icon: Users,
-    title: "Events & programs",
-    tone: "violet",
-    body: "Participant passes, gate scanning, and per-session records for orientations, seminars, and multi-day programs.",
+    k: "Local government",
+    title: "LGUs and community programs",
+    body: "Trainings, aid distribution and events checked in with a pass instead of a paper list at the door.",
   },
 ];
 
@@ -85,29 +82,45 @@ export function Features() {
   return (
     <section id="product" className="scroll-mt-20 bg-white py-16 md:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <Reveal className="mx-auto max-w-2xl text-center">
-          <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-blue-600">The platform</p>
-          <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            Everything attendance needs. Nothing it doesn&apos;t.
-          </h2>
-          <p className="mt-4 text-pretty text-slate-500">
-            Three consoles — directory, identity, and scanning — running on a single
-            attendance engine your auditors will love.
-          </p>
-        </Reveal>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map(({ Icon, title, body, tone }, i) => (
-            <Reveal key={title} delay={(i % 3) * 0.08} className="h-full">
-              <div className="group relative h-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
-                <span aria-hidden="true" className={["absolute inset-x-0 top-0 h-1 bg-gradient-to-r", TONES[tone].bar].join(" ")} />
-                <span className={["inline-flex h-11 w-11 items-center justify-center rounded-xl ring-1", TONES[tone].chip].join(" ")}>
-                  <Icon className="size-5" aria-hidden="true" />
-                </span>
-                <h3 className="mt-4 text-[16px] font-bold tracking-tight">{title}</h3>
-                <p className="mt-2 text-pretty text-sm leading-relaxed text-slate-500">{body}</p>
-              </div>
-            </Reveal>
-          ))}
+        <div className="grid gap-10 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] md:gap-16">
+          <Reveal className="md:sticky md:top-24 md:self-start">
+            <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-blue-600">The platform</p>
+            <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+              Everything attendance needs. Nothing it doesn&apos;t.
+            </h2>
+            <p className="mt-4 max-w-md text-pretty text-[16px] leading-relaxed text-slate-500">
+              Three consoles — directory, identity and scanning — sitting on one attendance
+              engine. Each part exists because the record has to survive review.
+            </p>
+            <Link
+              href="#product-shots"
+              className="mt-6 inline-flex min-h-[44px] items-center gap-1.5 text-[14.5px] font-semibold text-slate-900 underline decoration-slate-300 underline-offset-4 transition hover:decoration-slate-900"
+            >
+              See it inside the product <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+          </Reveal>
+
+          <div>
+            <ul className="border-t border-slate-200">
+              {FEATURES.map(({ title, body }, i) => (
+                <li key={title} className="border-b border-slate-200">
+                  <div className="group grid grid-cols-[2.25rem_1fr] items-start gap-x-3 py-6 transition-colors hover:bg-slate-50/80 sm:grid-cols-[3rem_1fr] sm:gap-x-4 sm:px-2">
+                    <span className="pt-1 text-[11px] font-semibold tabular-nums tracking-[0.06em] text-slate-400 transition-colors group-hover:text-blue-700">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="text-[17.5px] font-semibold leading-snug tracking-[-0.012em] text-slate-900">
+                        {title}
+                      </h3>
+                      <p className="mt-1.5 text-pretty text-[14.5px] leading-relaxed text-slate-600">
+                        {body}
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
     </section>
@@ -154,23 +167,25 @@ export function Audiences() {
         <Reveal className="mx-auto max-w-2xl text-center">
           <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-blue-600">Who it&apos;s for</p>
           <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            Built for teams that answer for attendance.
+            Offices that sign for attendance.
           </h2>
+          <p className="mt-4 text-pretty text-[16px] leading-relaxed text-slate-500">
+            Three kinds of office, one requirement: the record has to be defensible long after
+            the session ends.
+          </p>
         </Reveal>
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
-          {AUDIENCES.map(({ Icon, title, body, tone }, i) => (
-            <Reveal key={title} delay={i * 0.1}>
-              <div className="h-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-                <div className={["flex items-center justify-between border-b px-6 py-4", TONES[tone].band].join(" ")}>
-                  <Icon className={["size-6", TONES[tone].text].join(" ")} aria-hidden="true" />
-                  <span className={["text-[11px] font-bold uppercase tracking-[0.1em]", TONES[tone].text].join(" ")}>{String(i + 1).padStart(2, "0")}</span>
-                </div>
-                <div className="p-6">
-                  <h3 className="text-[16px] font-bold tracking-tight">{title}</h3>
-                  <p className="mt-2 text-pretty text-sm leading-relaxed text-slate-500">{body}</p>
-                </div>
-              </div>
-            </Reveal>
+
+        <div className="mt-12 grid gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 sm:grid-cols-3">
+          {AUDIENCES.map((a, i) => (
+            <div key={a.k} className="bg-white p-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400">
+                {String(i + 1).padStart(2, "0")} · {a.k}
+              </p>
+              <h3 className="mt-2 text-[17px] font-semibold leading-snug tracking-[-0.012em] text-slate-900">
+                {a.title}
+              </h3>
+              <p className="mt-2 text-pretty text-[14.5px] leading-relaxed text-slate-600">{a.body}</p>
+            </div>
           ))}
         </div>
       </div>

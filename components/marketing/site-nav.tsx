@@ -65,7 +65,7 @@ export function SiteNav() {
           </Link>
           <Link
             href="/demo"
-            className="hidden h-10 items-center gap-1.5 rounded-[10px] bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 sm:inline-flex"
+            className="hidden h-10 items-center gap-1.5 rounded-[10px] bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:inline-flex"
           >
             Get a demo <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
@@ -102,7 +102,7 @@ export function SiteNav() {
           <Link
             href="/demo"
             onClick={() => setOpen(false)}
-            className="mt-2 flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 text-[16px] font-semibold text-white sm:hidden"
+            className="mt-2 flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 text-[16px] font-semibold text-white sm:hidden"
           >
             Get a demo <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
