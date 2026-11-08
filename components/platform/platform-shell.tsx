@@ -131,7 +131,7 @@ export function PlatformShell({ children }: { children: ReactNode }) {
         </main>
 
         <nav
-          aria-label="Platform sections"
+          aria-label="Platform navigation"
           className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 px-1 pb-[env(safe-area-inset-bottom,0px)] pt-1 backdrop-blur-md md:hidden"
         >
           <ul className="grid grid-cols-5">

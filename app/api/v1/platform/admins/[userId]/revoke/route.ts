@@ -30,8 +30,8 @@ async function readReason(req: Request): Promise<string | undefined> {
 
 async function revoke(req: Request, { params }: P) {
   try {
-    const { userId } = await params;
     const actor = await requirePlatformActor();
+    const { userId } = await params;
     // Parsed after the gate so an unauthenticated caller never learns whether
     // the target exists, and never sees validation detail.
     const { reason } = revokePlatformAdminInput.parse({ reason: await readReason(req) });

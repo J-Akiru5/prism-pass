@@ -20,8 +20,8 @@ type P = { params: Promise<{ orgId: string }> };
  */
 export async function PATCH(req: Request, { params }: P) {
   try {
-    const { orgId } = await params;
     const actor = await requirePlatformActor();
+    const { orgId } = await params;
     const input = planUpdateInput.parse(await req.json());
 
     const org = await prisma.organization.findUnique({
