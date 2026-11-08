@@ -28,14 +28,25 @@ export const metadata: Metadata = {
     description,
     url: "/",
     locale: "en_US",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "Prism Pass — unified attendance and verification",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Prism Pass — Attendance you can prove, not just record",
     description,
+    images: ["/opengraph-image"],
   },
-  // app/icon.svg and app/apple-icon.png are picked up by the file conventions;
-  // app/opengraph-image.tsx supplies the share card for both OG and Twitter.
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {
@@ -50,7 +61,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>{children}</ThemeProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
