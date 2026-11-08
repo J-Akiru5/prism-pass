@@ -121,7 +121,9 @@ body {
 
 /* Honour the OS motion preference for both CSS and (via useReducedMotion)
    the framer-motion layers. This is the safety net: any animation that slips
-   through still resolves instantly instead of moving content. */
+   through still resolves instantly instead of moving content. `data-motion`
+   marks JS-driven wrappers whose opacity/transform framer writes inline;
+   `!important` is required to win over those inline values during hydration. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -130,5 +132,10 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  [data-motion] {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

@@ -38,9 +38,9 @@ export function Hero() {
       />
 
       <div className="relative mx-auto max-w-6xl px-4 pb-20 pt-32 sm:px-6 md:pb-28 md:pt-40">
-        <motion.div style={{ opacity: reduce ? 1 : fade }} className="mx-auto max-w-3xl text-center">
+        <motion.div data-motion="" style={{ opacity: reduce ? 1 : fade }} className="mx-auto max-w-3xl text-center">
           <motion.div
-            initial={reduce ? false : { opacity: 0, y: 24 }}
+            data-motion="" initial={reduce ? false : { opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease }}
             className="inline-flex items-center gap-2 rounded-full border border-gold-soft/30 bg-white/5 px-4 py-1.5 text-xs font-semibold tracking-wide text-gold-soft backdrop-blur"
@@ -49,7 +49,7 @@ export function Hero() {
             Digital Identity Pass · One attendance engine
           </motion.div>
           <motion.h1
-            initial={reduce ? false : { opacity: 0, y: 32 }}
+            data-motion="" initial={reduce ? false : { opacity: 0, y: 32 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1, ease }}
             className="mt-6 text-balance font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl"
@@ -61,7 +61,7 @@ export function Hero() {
             , not just record.
           </motion.h1>
           <motion.p
-            initial={reduce ? false : { opacity: 0, y: 32 }}
+            data-motion="" initial={reduce ? false : { opacity: 0, y: 32 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2, ease }}
             className="mx-auto mt-6 max-w-xl text-pretty text-base leading-relaxed text-white/75 sm:text-lg"
@@ -71,7 +71,7 @@ export function Hero() {
             verified on the server.
           </motion.p>
           <motion.div
-            initial={reduce ? false : { opacity: 0, y: 32 }}
+            data-motion="" initial={reduce ? false : { opacity: 0, y: 32 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3, ease }}
             className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"
@@ -90,7 +90,7 @@ export function Hero() {
             </Link>
           </motion.div>
           <motion.div
-            initial={reduce ? false : { opacity: 0 }}
+            data-motion="" initial={reduce ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8, delay: 0.5 }}
             className="mt-8 flex items-center justify-center"
@@ -102,7 +102,7 @@ export function Hero() {
         {/* product mock with parallax float — illustration, not content */}
         <motion.div
           aria-hidden="true"
-          initial={reduce ? false : { opacity: 0, y: 80 }}
+          data-motion="" initial={reduce ? false : { opacity: 0, y: 80 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.45, ease }}
           style={{ y: reduce ? 0 : mockY }}
@@ -172,7 +172,7 @@ export function Hero() {
 
           {/* floating chips */}
           <motion.div
-            style={{ y: reduce ? 0 : chipAY }}
+            data-motion="" style={{ y: reduce ? 0 : chipAY }}
             className="absolute -left-3 top-10 hidden items-center gap-2 rounded-xl border border-white/15 bg-[#0D1C38]/95 px-3.5 py-2.5 shadow-xl backdrop-blur md:flex lg:-left-12"
           >
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-400/15 text-emerald-300">
@@ -181,7 +181,7 @@ export function Hero() {
             <span className="text-xs font-semibold text-white">QR verified<span className="block text-[10px] font-normal text-white/55">server-side · audited</span></span>
           </motion.div>
           <motion.div
-            style={{ y: reduce ? 0 : chipBY }}
+            data-motion="" style={{ y: reduce ? 0 : chipBY }}
             className="absolute -right-3 bottom-12 hidden items-center gap-2 rounded-xl border border-white/15 bg-[#0D1C38]/95 px-3.5 py-2.5 shadow-xl backdrop-blur md:flex lg:-right-12"
           >
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gold-soft/15 text-gold-soft">

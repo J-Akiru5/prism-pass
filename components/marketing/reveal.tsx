@@ -12,17 +12,22 @@ interface RevealProps {
   y?: number;
 }
 
-/** Reusable scroll-triggered fade-up. Fires once when the block enters view. */
+/**
+ * Reusable scroll-triggered fade-up. Fires once when the block enters view.
+ * With reduced motion the same element renders, but `initial={false}` and a
+ * zero duration mean the block simply appears — no branching tree, so SSR
+ * and hydration stay identical.
+ */
 export function Reveal({ children, className, delay = 0, y = 28 }: RevealProps) {
   const reduce = useReducedMotion();
-  if (reduce) return <div className={cn(className)}>{children}</div>;
   return (
     <motion.div
+      data-motion=""
       className={cn(className)}
-      initial={{ opacity: 0, y }}
+      initial={reduce ? false : { opacity: 0, y }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.7, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: reduce ? 0 : 0.7, delay: reduce ? 0 : delay, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
     </motion.div>
