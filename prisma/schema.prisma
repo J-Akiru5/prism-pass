@@ -439,7 +439,12 @@ model Device {
   devicePublicId String @map("device_public_id")
   role           String @default("scanner")
   keyRef         String? @map("key_ref")
+  // SHA-256 verifier derived from the one-time device secret. The secret itself
+  // is never stored; it is returned by devices/register exactly once.
+  secretHash     String? @map("secret_hash")
+  revokedAt      DateTime? @map("revoked_at")
   lastSeenAt     DateTime? @map("last_seen_at")
+  lastSyncAt     DateTime? @map("last_sync_at")
   organization   Organization @relation(fields: [organizationId], references: [id])
   @@unique([organizationId, devicePublicId])
 
@@ -455,8 +460,11 @@ model OfflineSyncBatch {
   accepted       Int @default(0)
   rejected       Int @default(0)
   errors         Json?
+  signature      String?
+  clientVersion  String? @map("client_version")
   organization   Organization @relation(fields: [organizationId], references: [id])
   @@unique([organizationId, batchId])
+  @@index([organizationId, receivedAt])
 
   @@map("offline_sync_batches")
 }

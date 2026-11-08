@@ -1,0 +1,206 @@
+import { randomUUID } from "crypto";
+import type { AttendanceEvent, AttendanceRecord } from "@prisma/client";
+import { prisma } from "@/lib/db";
+import { parseQrPayload, verifyPassStatus } from "@/modules/passes/verify";
+import { hashCredential } from "@/modules/passes/service";
+import { reconcileRecord, resolveDirection, type ScanInput } from "@/modules/attendance/engine";
+import { evaluateGeo } from "@/modules/geo/evaluate";
+
+// Canonical attendance write path, extracted from the scan route so offline
+// batch sync applies exactly the same rules (credential check, person status,
+// idempotency, duplicate window, geo enforce, direction, reconciliation).
+// Behaviour is intentionally byte-for-byte identical to the online route.
+
+export type ScanActor = { organizationId: string; actorUserId: string | null };
+
+export type ScanSuccessData = {
+  event: AttendanceEvent;
+  record?: AttendanceRecord | null;
+  duplicate?: boolean;
+  geoResult: string;
+  dedupe?: true;
+  key?: "idempotencyKey";
+};
+
+export type ScanFailure = {
+  status: number;
+  code: string;
+  message: string;
+  details?: unknown;
+};
+
+export type ScanOutcome = { ok: true; data: ScanSuccessData } | ({ ok: false } & ScanFailure);
+
+export async function performScan(actor: ScanActor, sessionId: string, input: ScanInput): Promise<ScanOutcome> {
+  const organizationId = actor.organizationId;
+  const actorUserId = actor.actorUserId;
+
+  const session = await prisma.attendanceSession.findUnique({
+    where: { id: sessionId },
+    include: { policy: true },
+  });
+  if (!session || session.organizationId !== organizationId) {
+    return { ok: false, status: 404, code: "NOT_FOUND", message: "Session not found in this organization" };
+  }
+
+  // 1. Verify pass (same checks as verify endpoint — no divergence)
+  const parsed = parseQrPayload(input.credential);
+  if (!parsed) return { ok: false, status: 400, code: "INVALID_INPUT", message: "Unrecognized QR payload" };
+  const pass = await prisma.pass.findUnique({
+    where: { organizationId_passPublicId: { organizationId, passPublicId: parsed.passPublicId } },
+    include: { person: true },
+  });
+  if (!pass) {
+    await prisma.auditLog.create({ data: { organizationId, actorUserId, action: "attendance.scan", resource: `session:${sessionId}`, result: "not_found" } });
+    return { ok: false, status: 404, code: "NOT_FOUND", message: "Unknown pass in this organization" };
+  }
+  if (pass.person.organizationId !== organizationId || pass.person.status !== "active") {
+    await prisma.auditLog.create({ data: { organizationId, actorUserId, action: "attendance.scan", resource: `pass:${pass.id}`, result: "person_inactive" } });
+    return { ok: false, status: 403, code: "FORBIDDEN", message: "Pass holder is not active in this organization" };
+  }
+  if (pass.credentialHash !== hashCredential(parsed.passPublicId, parsed.secret)) {
+    await prisma.auditLog.create({ data: { organizationId, actorUserId, action: "attendance.scan", resource: `pass:${pass.id}`, result: "credential_mismatch" } });
+    return { ok: false, status: 403, code: "FORBIDDEN", message: "Credential mismatch" };
+  }
+  const v = verifyPassStatus({ status: pass.status as never, expiresAt: pass.expiresAt });
+  if (!v.valid) {
+    await prisma.auditLog.create({ data: { organizationId, actorUserId, action: "attendance.scan", resource: `pass:${pass.id}`, result: v.reason.toLowerCase() } });
+    return {
+      ok: false,
+      status: v.reason === "REVOKED" ? 403 : 410,
+      code: v.reason,
+      message: `Pass ${v.reason.toLowerCase()}`,
+    };
+  }
+
+  // 2. Idempotency: same key returns existing event, no double write
+  const idempotencyKey = input.idempotencyKey ?? randomUUID();
+  const existingKey = await prisma.attendanceEvent.findUnique({
+    where: { organizationId_idempotencyKey: { organizationId, idempotencyKey } },
+  });
+  if (existingKey) {
+    return { ok: true, data: { event: existingKey, dedupe: true, key: "idempotencyKey", geoResult: existingKey.geoResult } };
+  }
+
+  const clientTs = new Date(input.clientTs);
+  const serverTs = new Date();
+
+  // 2b. Geo verification is derived server-side from raw coordinates + configured
+  // fences. A client-supplied "inside" boolean is never trusted. `off` skips the
+  // fence lookup entirely; missing coordinates are recorded, never auto-rejected.
+  const geoMode = session.policy.geoMode;
+  const geofences =
+    geoMode !== "off" && input.geo
+      ? await prisma.geofence.findMany({
+          where: { organizationId },
+          select: { id: true, centerLat: true, centerLng: true, radiusM: true },
+        })
+      : [];
+  const geo = evaluateGeo(
+    { lat: input.geo?.lat, lng: input.geo?.lng, accuracyM: input.geo?.accuracyM },
+    geofences,
+    geoMode,
+  );
+  const geoEvidence = {
+    lat: input.geo?.lat ?? null,
+    lng: input.geo?.lng ?? null,
+    accuracyM: input.geo?.accuracyM ?? null,
+    geoResult: geo.geoResult,
+    geofenceId: geo.matchedGeofenceId,
+  };
+
+  // 3. Duplicate window: same pass re-scan → DUPLICATE_DETECTED, record untouched
+  const windowSince = new Date(serverTs.getTime() - session.policy.duplicateWindowSec * 1000);
+  const recentScan = await prisma.attendanceEvent.findFirst({
+    where: { organizationId, sessionId: session.id, personId: pass.personId, serverTs: { gte: windowSince }, status: "accepted" },
+    orderBy: { serverTs: "desc" },
+  });
+  if (recentScan && recentScan.passId === pass.id) {
+    const dup = await prisma.attendanceEvent.create({
+      data: {
+        organizationId, sessionId: session.id, personId: pass.personId,
+        passId: pass.id, passVersion: pass.version, type: "DUPLICATE_DETECTED",
+        clientTs, ...geoEvidence,
+        deviceId: input.deviceId ?? null, networkState: input.networkState, source: "scanner",
+        idempotencyKey, status: "accepted",
+      },
+    });
+    await prisma.auditLog.create({ data: { organizationId, actorUserId, action: "attendance.scan", resource: `event:${dup.id}`, result: "valid_duplicate", meta: { sessionId, personId: pass.personId, geoResult: geo.geoResult } as never } });
+    const record = await prisma.attendanceRecord.findUnique({ where: { organizationId_sessionId_personId: { organizationId, sessionId: session.id, personId: pass.personId } } });
+    return { ok: true, data: { event: dup, record, duplicate: true, geoResult: geo.geoResult } };
+  }
+
+  // 3b. Enforce mode: a reliable out-of-fence scan is rejected, audited and never
+  // reaches the attendance record. Duplicates above are recorded but not rejected,
+  // so duplicate-window behaviour is unchanged.
+  if (geo.reject) {
+    const rejected = await prisma.attendanceEvent.create({
+      data: {
+        organizationId, sessionId: session.id, personId: pass.personId,
+        passId: pass.id, passVersion: pass.version, type: "REJECTED",
+        clientTs, ...geoEvidence,
+        deviceId: input.deviceId ?? null, networkState: input.networkState, source: "scanner",
+        idempotencyKey, status: "rejected",
+      },
+    });
+    await prisma.auditLog.create({
+      data: {
+        organizationId, actorUserId, action: "attendance.scan",
+        resource: `event:${rejected.id}`, result: "geo_outside",
+        meta: { sessionId, personId: pass.personId, geoResult: geo.geoResult, distanceM: geo.distanceM, direction: input.direction } as never,
+      },
+    });
+    return {
+      ok: false,
+      status: 422,
+      code: "GEO_OUTSIDE",
+      message: "Scan is outside the organization's geofence",
+      details: { geoResult: geo.geoResult, distanceM: geo.distanceM },
+    };
+  }
+
+  // 4. Resolve direction + append event
+  const record0 = await prisma.attendanceRecord.findUnique({
+    where: { organizationId_sessionId_personId: { organizationId, sessionId: session.id, personId: pass.personId } },
+  });
+  const eventType = resolveDirection(input.direction, !!record0?.checkInEventId);
+  const event = await prisma.attendanceEvent.create({
+    data: {
+      organizationId, sessionId: session.id, personId: pass.personId,
+      passId: pass.id, passVersion: pass.version, type: eventType,
+      clientTs, ...geoEvidence,
+      deviceId: input.deviceId ?? null, networkState: input.networkState, source: "scanner",
+      idempotencyKey, status: "accepted",
+    },
+  });
+
+  // 5. Reconcile single record per (org, session, person)
+  let checkInAt: Date | null = null;
+  if (eventType === "CHECK_IN") {
+    checkInAt = serverTs;
+  } else if (record0?.checkInEventId) {
+    const inEv = await prisma.attendanceEvent.findUnique({ where: { id: record0.checkInEventId } });
+    checkInAt = inEv ? new Date(inEv.serverTs) : null;
+  }
+  const r = reconcileRecord(
+    { checkInAt, checkOutAt: null },
+    eventType, serverTs, new Date(session.startsAt), session.policy.graceMin, session.policy.lateThresholdMin,
+  );
+  const record = await prisma.attendanceRecord.upsert({
+    where: { organizationId_sessionId_personId: { organizationId, sessionId: session.id, personId: pass.personId } },
+    create: {
+      organizationId, sessionId: session.id, personId: pass.personId,
+      checkInEventId: eventType === "CHECK_IN" ? event.id : null,
+      checkOutEventId: eventType === "CHECK_OUT" ? event.id : null,
+      durationMin: r.durationMin,
+      status: r.status as never,
+    },
+    update: eventType === "CHECK_IN"
+      ? { checkInEventId: event.id, status: r.status as never }
+      : { checkOutEventId: event.id, durationMin: checkInAt ? Math.max(0, Math.round((serverTs.getTime() - checkInAt.getTime()) / 60000)) : null },
+  });
+  await prisma.auditLog.create({
+    data: { organizationId, actorUserId, action: "attendance.scan", resource: `event:${event.id}`, result: "accepted", meta: { sessionId, personId: pass.personId, direction: eventType, geoResult: geo.geoResult } as never },
+  });
+  return { ok: true, data: { event, record, duplicate: false, geoResult: geo.geoResult } };
+}
