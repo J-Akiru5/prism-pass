@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Consoles" };
 
 type Membership = {
+  status: string;
   role: string;
   organization: { id: string; name: string; slug: string; status: string };
 };
@@ -27,13 +28,16 @@ export default async function ConsolesPage() {
       where: { authId: user.id },
       select: {
         memberships: {
-          where: { status: "ACTIVE" },
-          select: { role: true, organization: { select: { id: true, name: true, slug: true, status: true } } },
+          select: {
+            status: true,
+            role: true,
+            organization: { select: { id: true, name: true, slug: true, status: true } },
+          },
         },
       },
     });
     memberships = ((internal?.memberships ?? []) as Membership[]).filter(
-      (m) => m.organization.status === "ACTIVE"
+      (m) => m.status === "ACTIVE" && m.organization.status === "ACTIVE"
     );
   } catch {
     memberships = [];

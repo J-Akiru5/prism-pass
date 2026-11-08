@@ -16,8 +16,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <Link href="/platform" className="rounded-lg px-3 py-2 font-medium transition-colors hover:bg-muted hover:text-foreground">
               Overview
             </Link>
-            <Link href="/login" className="rounded-lg px-3 py-2 font-medium transition-colors hover:bg-muted hover:text-foreground">
-              Sign in
+            <Link href="/consoles" className="rounded-lg px-3 py-2 font-medium transition-colors hover:bg-muted hover:text-foreground">
+              Consoles
             </Link>
           </nav>
         </div>

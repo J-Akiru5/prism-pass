@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, IdCard, CalendarCheck, BarChart3, Settings, ScanLine, UserRound } from "lucide-react";
+import { LayoutDashboard, Users, IdCard, CalendarCheck, BarChart3, Settings, ScanLine, UserRound, ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { PrismPassLogo } from "@/components/brand/prism-pass-logo";
@@ -74,6 +74,12 @@ export function AppShell({ orgId, orgName, children }: { orgId: string; orgName?
           })}
         </nav>
         <div className="border-t border-white/10 p-4">
+          <Link
+            href="/consoles"
+            className="mb-3 flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+          >
+            <ArrowLeft className="size-3.5" aria-hidden="true" /> All consoles
+          </Link>
           <div className="mb-2 flex items-center gap-2 opacity-90">
             <PrismPassLogo variant="mark" size={18} onDark />
             <span className="font-display text-xs font-bold text-white/80">Prism Pass</span>

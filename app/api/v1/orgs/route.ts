@@ -15,13 +15,16 @@ export async function GET() {
       where: { authId: user.id },
       select: {
         memberships: {
-          where: { status: "ACTIVE" },
-          select: { role: true, organization: { select: { id: true, name: true, slug: true, status: true } } },
+          select: {
+            status: true,
+            role: true,
+            organization: { select: { id: true, name: true, slug: true, status: true } },
+          },
         },
       },
     });
     const orgs = (internal?.memberships ?? [])
-      .filter((m) => m.organization.status === "ACTIVE")
+      .filter((m) => m.status === "ACTIVE" && m.organization.status === "ACTIVE")
       .map((m) => ({ ...m.organization, role: m.role }));
     return ok(orgs);
   } catch (e) { return handleRouteError(e); }
