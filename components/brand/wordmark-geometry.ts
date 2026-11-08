@@ -138,7 +138,7 @@ export function horizontalLockupSvg({ tone = "onLight", descriptor = true, markS
 }
 
 export function stackedLockupSvg({ tone = "onLight", descriptor = true, markSize = 96 }: LockupOptions = {}): string {
-  const pad = markSize * 0.22;
+  const pad = markSize * 0.28;
   const wordFont = markSize * PROPORTIONS.wordmark;
   const descFont = markSize * PROPORTIONS.descriptor;
   const wordWidth = runWidth(WORDMARK, wordFont);
@@ -149,7 +149,7 @@ export function stackedLockupSvg({ tone = "onLight", descriptor = true, markSize
   const gap = markSize * PROPORTIONS.stackedGap;
   const baseline = pad + markSize + gap + wordFont * CAP_RATIO;
   const descBaseline = baseline + descFont * 1.15;
-  const height = round(descBaseline + (descriptor ? pad * 0.8 : pad));
+  const height = round((descriptor ? descBaseline : baseline) + pad);
 
   let body = `<rect width="${width}" height="${height}" fill="none"/>`;
   body += `<g transform="translate(${markX} ${round(pad)}) scale(${round(markSize / 32)})">${tone === "mono" ? bareMark(tone) : tileMark(tone)}</g>`;

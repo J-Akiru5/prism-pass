@@ -98,13 +98,14 @@ bottom; the descriptor baseline falls near the P's leg. Canonical source: `locku
 ### Stacked lockup
 
 Mark centred above the wordmark + descriptor, all centred on a common axis; 0.30 × mark gap.
-Canonical source: `lockup-stacked.svg` (mark 96, 478 × 225 units). Use this where the horizontal
+Canonical source: `lockup-stacked.svg` (mark 96, 490 × 241 units). Use this where the horizontal
 lockup would be too wide for the container.
 
 ## Clear space and minimum sizes
 
 - **Clear space:** 0.25 × mark height on every side of any lockup. The exported lockups use 0.28 ×
-  (20.16 units on a 72-unit mark) so the rule is met by the file itself.
+  (20.16 units on the 72-unit horizontal, 26.88 on the 96-unit stacked) so the rule is met by the
+  file itself.
 - **Mark alone:** 16 px minimum (favicon); 24 px is the comfortable product size.
 - **Horizontal full lockup:** 30 px mark minimum in the React component (wordmark 15.6 px,
   descriptor 8.5 px floor). Use the exported 72-unit lockup at 36 px or larger (wordmark 18.7 px,
@@ -194,7 +195,7 @@ the application.
 | `app/icon.svg` | Favicon (navy pass tile, gold P) |
 | `app/apple-icon.png` | 180 × 180 iOS icon, full-bleed navy |
 | `app/opengraph-image.tsx` | 1200 × 630 OG card via `next/og` |
-| `app/layout.tsx` | Metadata, icons, Open Graph/Twitter, theme colour |
+| `app/layout.tsx` | Metadata, icons, Open Graph/Twitter, theme colour (Next 15 `viewport`) |
 | `public/brand/mark.svg` | Colour mark, 256 × 256 |
 | `public/brand/mark-mono.svg` | One-colour bare P, `currentColor` |
 | `public/brand/mark-inverse.svg` | Dark-surface tile, gold-soft P |

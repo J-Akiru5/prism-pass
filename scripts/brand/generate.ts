@@ -148,7 +148,7 @@ const dirs = [
 
 let body = `<rect width="${W}" height="${H}" fill="${BRAND.paper}"/>
   <text x="48" y="64" font-family="${FONT}" font-size="30" font-weight="600" fill="${BRAND.navy}">Prism Pass — mark exploration</text>
-  <text x="48" y="92" font-family="${FONT}" font-size="14" fill="${BRAND.muted}">Three directions on a 32-unit grid. Flat fills only. Gold is the single accent.</text>
+  <text x="48" y="92" font-family="${FONT}" font-size="14" fill="${BRAND.muted}">Three directions on a 32-unit grid. Size run 16–64; one-colour and inverse at 64. Flat fills only.</text>
   <line x1="48" y1="112" x2="${W - 48}" y2="112" stroke="${BRAND.gold}" stroke-width="2"/>`;
 
 const rowTop = 146;
