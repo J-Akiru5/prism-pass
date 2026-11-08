@@ -3,6 +3,7 @@ import { ok, fail, handleRouteError } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { performScan } from "@/modules/attendance/scan-service";
+import { DEVICE_ERROR_CODES, deviceSyncRejection } from "@/modules/devices/revocation";
 import { classifyBatchItems, type ItemDecision, type ItemStatus } from "@/modules/offline/classify";
 import { verifyBatchSignature } from "@/modules/offline/crypto";
 import { batchEnvelopeSchema, validateBatch } from "@/modules/offline/schema";
@@ -49,17 +50,19 @@ export async function POST(req: Request) {
       });
       return fail(404, "NOT_FOUND", "Unknown device in this organization");
     }
-    if (device.revokedAt) {
+    const rejection = deviceSyncRejection(device);
+    if (rejection) {
+      // Distinct code: a revoked device must stop retrying, not treat this as a
+      // transient authorization failure.
       await prisma.auditLog.create({
-        data: { organizationId: ctx.organizationId, actorUserId: ctx.internalUserId, action: "sync.batches", resource: `device:${device.id}`, result: "device_revoked" },
+        data: { organizationId: ctx.organizationId, actorUserId: ctx.internalUserId, action: "sync.batches", resource: `device:${device.id}`, result: rejection.reason },
       });
-      return fail(403, "FORBIDDEN", "Device is revoked");
+      return fail(rejection.status, rejection.code, rejection.message);
     }
     if (!device.secretHash) {
-      await prisma.auditLog.create({
-        data: { organizationId: ctx.organizationId, actorUserId: ctx.internalUserId, action: "sync.batches", resource: `device:${device.id}`, result: "device_unregistered" },
-      });
-      return fail(403, "FORBIDDEN", "Device has no signing key; register it again");
+      // Unreachable while deviceSyncRejection covers it; keeps the verifier
+      // non-null for the signature call if the policy changes.
+      return fail(403, DEVICE_ERROR_CODES.unregistered, "Device has no signing key; register it again");
     }
 
     if (!verifyBatchSignature({ batch: parsed, secretHash: device.secretHash, signature: parsed.signature })) {
