@@ -80,9 +80,9 @@ function panel(x: number, y: number, size: number, body: string, label: string, 
 
 // B — ticket prism
 function ticket(tone: "light" | "monoInk" | "monoPaper" | "darkDuo"): string {
-  const ink = tone === "darkDuo" || tone === "monoPaper" ? BRAND.paper : BRAND.navy;
-  const cut = tone === "darkDuo" || tone === "monoPaper" ? BRAND.navy : BRAND.paper;
-  const acc = tone === "light" ? BRAND.gold : tone === "darkDuo" ? BRAND.gold : cut;
+  const ink = tone === "monoPaper" ? BRAND.paper : BRAND.navy;
+  const cut = tone === "monoPaper" ? BRAND.navy : BRAND.paper;
+  const acc = tone === "light" || tone === "darkDuo" ? BRAND.gold : cut;
   return `<rect x="4" y="7.5" width="24" height="17" rx="3.5" fill="${ink}"/>
     <path d="M4 16L11.5 11V21Z" fill="${cut}"/>
     <rect x="18.5" y="9.8" width="9.5" height="2.8" rx="1.4" fill="${cut}"/>
@@ -93,7 +93,7 @@ function ticket(tone: "light" | "monoInk" | "monoPaper" | "darkDuo"): string {
 // C — hollow beam gate
 function gate(tone: "light" | "monoInk" | "monoPaper" | "darkDuo"): string {
   const ink = tone === "darkDuo" || tone === "monoPaper" ? BRAND.paper : BRAND.navy;
-  const slot = tone === "light" || tone === "darkDuo" ? BRAND.gold : ink;
+  const slot = tone === "light" ? BRAND.goldDark : tone === "darkDuo" ? BRAND.gold : ink;
   return `<path d="M9.5 27.5V7H21.5Q27.5 7 27.5 13Q27.5 19 21.5 19H9.5" fill="none" stroke="${ink}" stroke-width="4.5" stroke-linejoin="miter"/>
     <path d="M17 10.5L21 16H17Z" fill="${slot}"/>`;
 }

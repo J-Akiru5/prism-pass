@@ -19,7 +19,7 @@ size runs, colourways, construction grid, production lockups).
 |---|---|---|
 | **A — Aperture P** | Solid P + prism counter, applied in the pass tile | **Chosen.** Reads at 16 px, one-colour safe, gold always sits on navy where it has 6.04:1 contrast. |
 | B — Ticket Prism | The pass itself; one beam in, three ticket notches out | Strong story and strong at 64 px. Below 24 px the prism bite and three notches collapse into a dark block. |
-| C — Beam Gate | Hollow P with a gold aperture slot | Elegant at display sizes, but the 4.5-unit outline goes thin at 16 px and the accent has no one-colour equivalent. |
+| C — Beam Gate | Hollow P with a gold aperture slot | Elegant at display sizes, but the 4.5-unit outline goes thin at 16 px, the accent needs gold-dark on light, and it has no one-colour equivalent. |
 
 A wins on the two tests that matter: **16 px legibility** and **one-colour survival**. Its hook —
 the prism-shaped counter — is geometry, not colour, so it survives a fax machine. The gold P adds
@@ -241,8 +241,9 @@ navy, gold P); regenerate it with any SVG rasterizer if the mark changes.
 - **OG:** `pnpm brand:og <path>` rendered the route through `ImageResponse` to a 1200 × 630 PNG
   (28,194 bytes), verifying the composition and the outlined SVG data URIs. This is not a Next
   server build.
-- **Raster checks:** the tile, bare P, lockups and sheet were rendered with Sharp at 16, 24, 32 and
-  64 px. The 16 px tile reads; B collapses below 24 px; C's gold aperture is barely present at 16.
+- **Raster checks:** the tile, bare P and the B/C marks were rendered with Sharp at 16, 24, 32 and
+  64 px; the lockups and the sheet were rasterized at their native sizes. The 16 px tile reads;
+  B collapses below 24 px; C's gold aperture is barely present at 16.
 - **No browser:** the in-app browser was not connected in this session, so there was no interactive
   visual QA, no browser screenshot, and no dev server. The checks above are geometry + raster.
 - **No `next build`:** the host is memory-constrained; CI owns builds. Typecheck and tests are the

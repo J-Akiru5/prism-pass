@@ -56,25 +56,25 @@
     <rect x="18.5" y="14.6" width="9.5" height="2.8" rx="1.4" fill="#142850"/>
     <rect x="18.5" y="19.4" width="9.5" height="2.8" rx="1.4" fill="#142850"/></svg>
     <text x="780" y="471" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="10" fill="#8FA0BD">mono paper 64</text><rect x="880" y="372" width="84" height="84" fill="#0C1B36" stroke="#1B3A6B"/>
-    <svg x="890" y="382" width="64" height="64" viewBox="0 0 32 32"><rect x="4" y="7.5" width="24" height="17" rx="3.5" fill="#F7F5F0"/>
-    <path d="M4 16L11.5 11V21Z" fill="#142850"/>
-    <rect x="18.5" y="9.8" width="9.5" height="2.8" rx="1.4" fill="#142850"/>
+    <svg x="890" y="382" width="64" height="64" viewBox="0 0 32 32"><rect x="4" y="7.5" width="24" height="17" rx="3.5" fill="#142850"/>
+    <path d="M4 16L11.5 11V21Z" fill="#F7F5F0"/>
+    <rect x="18.5" y="9.8" width="9.5" height="2.8" rx="1.4" fill="#F7F5F0"/>
     <rect x="18.5" y="14.6" width="9.5" height="2.8" rx="1.4" fill="#C9A24B"/>
-    <rect x="18.5" y="19.4" width="9.5" height="2.8" rx="1.4" fill="#142850"/></svg>
+    <rect x="18.5" y="19.4" width="9.5" height="2.8" rx="1.4" fill="#F7F5F0"/></svg>
     <text x="890" y="471" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="10" fill="#8FA0BD">duotone dark 64</text><text x="48" y="642" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="12" font-weight="600" letter-spacing="2" fill="#5C6773">C — BEAM GATE</text>
     <text x="48" y="672" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="19" font-weight="600" fill="#142850">A hollow P with a gold aperture</text>
     <text x="1000" y="628" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="11" fill="#5C6773"><tspan x="1000" dy="0">Elegant at display sizes. The</tspan><tspan x="1000" dy="17">4.5-unit outline and the small</tspan><tspan x="1000" dy="17">aperture lose authority at 16 px,</tspan><tspan x="1000" dy="17">and the accent goes in one colour.</tspan></text><rect x="330" y="608" width="84" height="84" fill="#F7F5F0" stroke="#DCD6C8"/>
     <svg x="340" y="618" width="64" height="64" viewBox="0 0 32 32"><path d="M9.5 27.5V7H21.5Q27.5 7 27.5 13Q27.5 19 21.5 19H9.5" fill="none" stroke="#142850" stroke-width="4.5" stroke-linejoin="miter"/>
-    <path d="M17 10.5L21 16H17Z" fill="#C9A24B"/></svg>
+    <path d="M17 10.5L21 16H17Z" fill="#7E6226"/></svg>
     <text x="340" y="707" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="10" fill="#8A8F98">64 px</text><rect x="434" y="608" width="52" height="52" fill="#F7F5F0" stroke="#DCD6C8"/>
     <svg x="444" y="618" width="32" height="32" viewBox="0 0 32 32"><path d="M9.5 27.5V7H21.5Q27.5 7 27.5 13Q27.5 19 21.5 19H9.5" fill="none" stroke="#142850" stroke-width="4.5" stroke-linejoin="miter"/>
-    <path d="M17 10.5L21 16H17Z" fill="#C9A24B"/></svg>
+    <path d="M17 10.5L21 16H17Z" fill="#7E6226"/></svg>
     <text x="444" y="675" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="10" fill="#8A8F98">32 px</text><rect x="502" y="608" width="44" height="44" fill="#F7F5F0" stroke="#DCD6C8"/>
     <svg x="512" y="618" width="24" height="24" viewBox="0 0 32 32"><path d="M9.5 27.5V7H21.5Q27.5 7 27.5 13Q27.5 19 21.5 19H9.5" fill="none" stroke="#142850" stroke-width="4.5" stroke-linejoin="miter"/>
-    <path d="M17 10.5L21 16H17Z" fill="#C9A24B"/></svg>
+    <path d="M17 10.5L21 16H17Z" fill="#7E6226"/></svg>
     <text x="512" y="667" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="10" fill="#8A8F98">24 px</text><rect x="562" y="608" width="36" height="36" fill="#F7F5F0" stroke="#DCD6C8"/>
     <svg x="572" y="618" width="16" height="16" viewBox="0 0 32 32"><path d="M9.5 27.5V7H21.5Q27.5 7 27.5 13Q27.5 19 21.5 19H9.5" fill="none" stroke="#142850" stroke-width="4.5" stroke-linejoin="miter"/>
-    <path d="M17 10.5L21 16H17Z" fill="#C9A24B"/></svg>
+    <path d="M17 10.5L21 16H17Z" fill="#7E6226"/></svg>
     <text x="572" y="659" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="10" fill="#8A8F98">16 px</text><rect x="660" y="608" width="84" height="84" fill="#F7F5F0" stroke="#DCD6C8"/>
     <svg x="670" y="618" width="64" height="64" viewBox="0 0 32 32"><path d="M9.5 27.5V7H21.5Q27.5 7 27.5 13Q27.5 19 21.5 19H9.5" fill="none" stroke="#142850" stroke-width="4.5" stroke-linejoin="miter"/>
     <path d="M17 10.5L21 16H17Z" fill="#142850"/></svg>
