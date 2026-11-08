@@ -10,7 +10,7 @@ const CONSOLES = [
   { href: "/scan", title: "Scanner", desc: "QR check-in/out", Icon: ScanLine },
 ];
 
-export const metadata = { title: "Consoles — Prism Pass" };
+export const metadata = { title: "Consoles" };
 
 /** Signed-in console chooser (previously the `/` home page). */
 export default function ConsolesPage() {
