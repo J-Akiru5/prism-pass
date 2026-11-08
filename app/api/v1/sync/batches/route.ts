@@ -49,11 +49,17 @@ export async function POST(req: Request) {
       });
       return fail(404, "NOT_FOUND", "Unknown device in this organization");
     }
-    if (device.revokedAt || !device.secretHash) {
+    if (device.revokedAt) {
       await prisma.auditLog.create({
         data: { organizationId: ctx.organizationId, actorUserId: ctx.internalUserId, action: "sync.batches", resource: `device:${device.id}`, result: "device_revoked" },
       });
       return fail(403, "FORBIDDEN", "Device is revoked");
+    }
+    if (!device.secretHash) {
+      await prisma.auditLog.create({
+        data: { organizationId: ctx.organizationId, actorUserId: ctx.internalUserId, action: "sync.batches", resource: `device:${device.id}`, result: "device_unregistered" },
+      });
+      return fail(403, "FORBIDDEN", "Device has no signing key; register it again");
     }
 
     if (!verifyBatchSignature({ batch: parsed, secretHash: device.secretHash, signature: parsed.signature })) {
