@@ -47,11 +47,18 @@ export default function OrgDashboard({ params }: { params: Promise<{ orgId: stri
       setPeopleTotal(people.meta?.total ?? 0);
       setPassesTotal(passes.meta?.total ?? 0);
       setPassesActive(((passes.data ?? []) as { status: string }[]).filter((p) => p.status === "ACTIVE").length);
-      setSessions(sess.data ?? []);
-      const latest = (sess.data ?? [])[0] as Session | undefined;
-      if (latest) {
-        setLatestTitle(latest.title);
-        const rec = await getJSON(`/api/v1/orgs/${orgId}/records?sessionId=${latest.id}&page=1&pageSize=100`);
+      const list = (sess.data ?? []) as Session[];
+      setSessions(list);
+      // Show the session that actually has attendance: the most recent one that has
+      // already started, otherwise the next upcoming one.
+      const now = Date.now();
+      const started = list
+        .filter((s) => new Date(s.startsAt).getTime() <= now)
+        .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
+      const primary = started[0] ?? list[0];
+      if (primary) {
+        setLatestTitle(primary.title);
+        const rec = await getJSON(`/api/v1/orgs/${orgId}/records?sessionId=${primary.id}&page=1&pageSize=100`);
         setLatestRecords(rec.data ?? []);
       }
     } catch (e) {
@@ -160,7 +167,7 @@ export default function OrgDashboard({ params }: { params: Promise<{ orgId: stri
               </div>
 
               <div>
-                <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Sessions</h3>
+                <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Recent sessions</h3>
                 {sessions.length === 0 ? (
                   <p className="mt-4 text-sm text-muted-foreground">
                     Nothing scheduled.{" "}
@@ -168,7 +175,10 @@ export default function OrgDashboard({ params }: { params: Promise<{ orgId: stri
                   </p>
                 ) : (
                   <ul className="mt-2">
-                    {sessions.slice(0, 5).map((s) => (
+                    {[...sessions]
+                      .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime())
+                      .slice(0, 5)
+                      .map((s) => (
                       <li key={s.id} className="flex items-baseline justify-between gap-4 border-b py-3 last:border-b-0">
                         <Link href={`${base}/attendance`} className="group min-w-0">
                           <span className="block truncate text-sm font-medium group-hover:underline">{s.title}</span>
