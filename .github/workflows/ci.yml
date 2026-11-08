@@ -41,6 +41,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Non-blocking while the dependency tree is stabilised: a production
+      # advisory is reported loudly but does not fail this slice. Promote to
+      # blocking once the report is clean and triaged.
+      - name: Dependency audit (production, non-blocking)
+        run: pnpm audit --prod
+        continue-on-error: true
+
+      # Blocking: the repository has no credential-like strings today, so a
+      # finding is a real regression. See docs/security/secret-scanning.md.
+      - name: Secret scan
+        run: pnpm security:secrets
+
       # Typecheck needs generated Prisma types. Kept as an explicit step rather
       # than a postinstall hook so a local generate failure cannot block install.
       - name: Generate Prisma client

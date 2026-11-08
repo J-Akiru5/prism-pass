@@ -14,7 +14,7 @@ truth for what is done, what is next and what is blocked. Read in this order:
 1. `docs/roadmap/PLAN.md` — status and next scope
 2. `docs/architecture/overview.md` — product thesis, consoles, domain separation
 3. `docs/data-model/erd.md` — entities and invariants
-4. `docs/security/permission-matrix.md` + `tenancy-isolation.md`
+4. `docs/security/permission-matrix.md` + `tenancy-isolation.md` (+ P9: `security-headers.md`, `rate-limiting.md`, `input-hardening.md`, `secret-scanning.md`, `demo-accounts.md`)
 5. `docs/api/contracts-v1.md` → `docs/roadmap/phases-gates.md` → `docs/decisions/`
 
 ## Status

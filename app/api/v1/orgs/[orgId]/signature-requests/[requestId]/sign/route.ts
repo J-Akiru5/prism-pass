@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { ok, fail, handleRouteError } from "@/lib/api";
+import { ok, fail, handleRouteError, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { signInput } from "@/modules/documents/schema";
@@ -37,7 +37,7 @@ export async function POST(req: Request, { params }: P) {
   try {
     const { orgId, requestId } = await params;
     const ctx = await requireOrganizationPermission("documents.sign", orgId);
-    const input = signInput.parse(await req.json());
+    const input = signInput.parse(await readJson(req, BODY_LIMITS.small));
 
     const request = await prisma.signatureRequest.findUnique({
       where: { id: requestId },

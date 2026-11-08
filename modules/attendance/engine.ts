@@ -27,11 +27,17 @@ export const createSessionInput = z.object({
 export type CreateSessionInput = z.infer<typeof createSessionInput>;
 
 export const scanInput = z.object({
-  credential: z.string().min(8),
+  credential: z.string().min(8).max(512),
   clientTs: z.string().datetime(),
   direction: z.enum(["auto", "in", "out"]).default("auto"),
   idempotencyKey: z.string().uuid().optional(),
-  geo: z.object({ lat: z.number(), lng: z.number(), accuracyM: z.number().optional() }).optional(),
+  geo: z
+    .object({
+      lat: z.number().finite().min(-90).max(90),
+      lng: z.number().finite().min(-180).max(180),
+      accuracyM: z.number().finite().min(0).max(100_000).optional(),
+    })
+    .optional(),
   deviceId: z.string().max(120).optional(),
   networkState: z.string().max(20).default("online"),
 });

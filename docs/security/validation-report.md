@@ -22,3 +22,25 @@ Enabled on `organizations, memberships, people, passes, audit_logs` (deny-by-def
 - RLS policies are deny-by-default without granular per-role policies — correct for P1 (server enforces), but P2 should add authenticated read policies if direct client reads are introduced.
 - No ESLint config — `next lint` prompts; rely on typecheck + tests + build for now.
 - Prisma full 21-model DDL not yet applied (only 8 core tables live) — additive migration needed before attendance engine (P3).
+
+## P9 security-hardening slice (2026-11-08)
+
+- **Headers:** enforced by `middleware.ts` for every document (HSTS, `X-Content-Type-Options`,
+  `Referrer-Policy`, `X-Frame-Options: DENY`, `Permissions-Policy`). Camera/geolocation are delegated
+  only on `/scan`. Nonce-based CSP ships as `Content-Security-Policy-Report-Only`; enforcement is
+  blocked on a browser pass, documented in `docs/security/security-headers.md`. This is telemetry,
+  not XSS mitigation, until promoted.
+- **Rate limits:** in-memory token buckets on pass verify, scan, sync batches and public verify
+  token lookup; per IP and per org where an authenticated org exists. Per-instance only —
+  `docs/security/rate-limiting.md`.
+- **Input hardening:** all JSON bodies go through `readJson` with a 16 KiB–1 MiB ceiling; malformed
+  JSON is 400 and oversized bodies are 413. `searchParams` ids/dates/status are validated;
+  scan credentials and geo coordinates are bounded. Tenant scoping and write logic unchanged.
+- **Secrets/dependencies:** `pnpm security:secrets` scans tracked files and is blocking in CI;
+  `pnpm security:secrets:all` is the local pre-flight. `pnpm audit --prod` reports 9 advisories
+  (7 high, 2 moderate) and stays non-blocking-loud until triaged. No dependency was added.
+- **Demo accounts:** `password123` is unchanged by owner decision. `DEMO_MODE` now renders a
+  warning banner and logs a startup warning; rotation remains required before any pilot
+  (`docs/security/demo-accounts.md`).
+- **Verification:** `pnpm typecheck` clean; `pnpm test` 170/170 passing (139 existing + 31 new);
+  secret scan clean over 218 working-tree files. No build or deployment was run.

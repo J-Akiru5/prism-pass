@@ -1,7 +1,8 @@
-import { ok, fail, handleRouteError } from "@/lib/api";
+import { ok, fail, handleRouteError, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { scanInput } from "@/modules/attendance/engine";
 import { performScan } from "@/modules/attendance/scan-service";
+import { enforceRateLimits, ipCheck, limiters, orgCheck } from "@/lib/rate-limit-http";
 
 type P = { params: Promise<{ orgId: string; sessionId: string }> };
 
@@ -12,8 +13,12 @@ type P = { params: Promise<{ orgId: string; sessionId: string }> };
 export async function POST(req: Request, { params }: P) {
   try {
     const { orgId, sessionId } = await params;
+    const denied = enforceRateLimits([ipCheck(limiters.scanIp, req)]);
+    if (denied) return denied;
     const ctx = await requireOrganizationPermission("attendance.scan", orgId);
-    const input = scanInput.parse(await req.json());
+    const orgDenied = enforceRateLimits([orgCheck(limiters.scanOrg, ctx.organizationId)]);
+    if (orgDenied) return orgDenied;
+    const input = scanInput.parse(await readJson(req, BODY_LIMITS.small));
 
     const result = await performScan(
       { organizationId: ctx.organizationId, actorUserId: ctx.internalUserId },

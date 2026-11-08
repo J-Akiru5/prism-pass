@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { ok, fail, handleRouteError } from "@/lib/api";
+import { ok, fail, handleRouteError, readJson, BODY_LIMITS } from "@/lib/api";
 import { requirePlatformAdmin } from "@/lib/tenant";
 import { getSessionUser } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db";
-const body = z.object({ slug: z.string().min(2).max(64), name: z.string().min(2).max(120), timezone: z.string().default("Asia/Manila") });
+const body = z.object({ slug: z.string().min(2).max(64), name: z.string().min(2).max(120), timezone: z.string().min(1).max(60).default("Asia/Manila") });
 
 // Organizations the signed-in user can actually enter. This is what the console
 // chooser and the standalone consoles use instead of asking for a raw org UUID.
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   try {
     await requirePlatformAdmin();
     if (!process.env.DATABASE_URL) return fail(503, "DB_NOT_CONFIGURED", "Set DATABASE_URL (Supabase pooled URL) to provision orgs.");
-    const input = body.parse(await req.json());
+    const input = body.parse(await readJson(req, BODY_LIMITS.tiny));
     const org = await prisma.organization.create({ data: { slug: input.slug, name: input.name, timezone: input.timezone } });
     await prisma.auditLog.create({ data: { organizationId: org.id, action: "org.create", resource: `org:${org.id}`, result: "ok" } });
     return ok(org);

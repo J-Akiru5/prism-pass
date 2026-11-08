@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { ok, fail, handleRouteError } from "@/lib/api";
+import { ok, fail, handleRouteError, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { createSignatureRequestInput } from "@/modules/documents/schema";
@@ -10,7 +10,7 @@ export async function POST(req: Request, { params }: P) {
   try {
     const { orgId, documentId } = await params;
     const ctx = await requireOrganizationPermission("documents.manage", orgId);
-    const input = createSignatureRequestInput.parse(await req.json());
+    const input = createSignatureRequestInput.parse(await readJson(req, BODY_LIMITS.small));
 
     const document = await prisma.document.findUnique({ where: { id: documentId } });
     if (!document || document.organizationId !== ctx.organizationId) {

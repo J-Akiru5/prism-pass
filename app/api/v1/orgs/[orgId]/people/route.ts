@@ -1,4 +1,4 @@
-import { ok, handleRouteError, pagination } from "@/lib/api";
+import { ok, handleRouteError, pagination, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { createPersonInput } from "@/modules/identity/service";
@@ -20,7 +20,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ orgId: 
   try {
     const { orgId } = await params;
     const ctx = await requireOrganizationPermission("members.manage", orgId);
-    const input = createPersonInput.parse(await req.json());
+    const input = createPersonInput.parse(await readJson(req, BODY_LIMITS.tiny));
     if (!process.env.DATABASE_URL) return ok({ demo: true, ...input, organizationId: ctx.organizationId });
     const person = await prisma.person.create({ data: { organizationId: ctx.organizationId, displayName: input.displayName, externalId: input.externalId, userId: input.userId } });
     await prisma.auditLog.create({ data: { organizationId: ctx.organizationId, actorUserId: ctx.internalUserId, action: "person.create", resource: `person:${person.id}`, result: "ok" } });

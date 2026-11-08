@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import type { Prisma } from "@prisma/client";
-import { ok, fail, handleRouteError, pagination } from "@/lib/api";
+import { ok, fail, handleRouteError, pagination, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { createDocumentInput } from "@/modules/documents/schema";
@@ -36,7 +36,7 @@ export async function POST(req: Request, { params }: P) {
   try {
     const { orgId } = await params;
     const ctx = await requireOrganizationPermission("documents.manage", orgId);
-    const input = createDocumentInput.parse(await req.json());
+    const input = createDocumentInput.parse(await readJson(req, BODY_LIMITS.medium));
     const id = randomUUID();
     const sha256 = documentContentHash({ template: input.template, version: 1, payload: input.payload });
     const document = await prisma.document.create({

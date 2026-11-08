@@ -1,19 +1,25 @@
 import { z } from "zod";
-import { ok, fail, handleRouteError } from "@/lib/api";
+import { ok, fail, handleRouteError, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { parseQrPayload, verifyPassStatus } from "@/modules/passes/verify";
 import { hashCredential } from "@/modules/passes/service";
+import { enforceRateLimits, ipCheck, limiters, orgCheck } from "@/lib/rate-limit-http";
 
-const body = z.object({ credential: z.string().min(8) });
+const body = z.object({ credential: z.string().min(8).max(512) });
 const DUPLICATE_WINDOW_MS = 120_000;
 
 export async function POST(req: Request, { params }: { params: Promise<{ orgId: string }> }) {
   try {
     const { orgId } = await params;
+    // Unauthenticated cost is the cheapest thing to flood; spend the IP token first.
+    const denied = enforceRateLimits([ipCheck(limiters.passVerifyIp, req)]);
+    if (denied) return denied;
     // attendance.scan required; requireOrganizationPermission already blocks suspended orgs + revoked memberships
     const ctx = await requireOrganizationPermission("attendance.scan", orgId);
-    const { credential } = body.parse(await req.json());
+    const orgDenied = enforceRateLimits([orgCheck(limiters.passVerifyOrg, ctx.organizationId)]);
+    if (orgDenied) return orgDenied;
+    const { credential } = body.parse(await readJson(req, BODY_LIMITS.tiny));
     const parsed = parseQrPayload(credential);
     if (!parsed) {
       await prisma.auditLog.create({

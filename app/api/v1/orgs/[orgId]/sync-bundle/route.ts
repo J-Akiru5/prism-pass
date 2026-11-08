@@ -1,4 +1,5 @@
-import { ok, fail, handleRouteError } from "@/lib/api";
+import { z } from "zod";
+import { ok, fail, handleRouteError, optionalQueryId } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import {
@@ -15,6 +16,7 @@ const SESSION_LOOKBACK_MS = 30 * 24 * 60 * 60_000;
 const SESSION_LOOKAHEAD_MS = 60 * 24 * 60 * 60_000;
 const MAX_SESSIONS = 500;
 const MAX_PASSES = 5_000;
+const bundleQuery = z.object({ sessionId: optionalQueryId });
 
 // GET /orgs/:orgId/sync-bundle?sessionId=... (attendance.scan)
 // Versioned, least-privilege snapshot a scanner can cache before going offline:
@@ -26,7 +28,7 @@ export async function GET(req: Request, { params }: P) {
     const { orgId } = await params;
     const ctx = await requireOrganizationPermission("attendance.scan", orgId);
     const { searchParams } = new URL(req.url);
-    const sessionId = searchParams.get("sessionId");
+    const { sessionId } = bundleQuery.parse(Object.fromEntries(searchParams));
     const generatedAt = new Date();
 
     if (sessionId) {

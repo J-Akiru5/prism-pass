@@ -1,4 +1,4 @@
-import { ok, fail, handleRouteError } from "@/lib/api";
+import { ok, fail, handleRouteError, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission, requirePlatformAdmin } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
 import { updateOrgStatusInput } from "@/modules/organizations/service";
@@ -35,7 +35,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ orgId:
   try {
     const { orgId } = await params;
     await requirePlatformAdmin();
-    const input = updateOrgStatusInput.parse(await req.json());
+    const input = updateOrgStatusInput.parse(await readJson(req, BODY_LIMITS.tiny));
     const org = await prisma.organization.update({ where: { id: orgId }, data: { status: input.status } });
     await prisma.auditLog.create({
       data: {
