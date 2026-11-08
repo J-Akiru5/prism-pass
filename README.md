@@ -97,6 +97,25 @@ Create the owner user in Supabase Auth first, then seed:
 pnpm seed:syntaxure <authUuid> admin@example.com
 ```
 
+## Demo accounts and data
+
+`pnpm seed:demo` creates the Supabase Auth users, links them to people in **Syntaxure Labs**, and
+seeds a full demo dataset. Password for both accounts: `password123`.
+
+| Account | Access |
+| --- | --- |
+| `admin@syntaxure.dev` | OWNER of Syntaxure Labs + platform admin (org console + `/platform`) |
+| `user@syntaxure.dev` | MEMBER of Syntaxure Labs (own pass, own attendance in `/member`) |
+
+Seeded data: campus, department, two programs, an attendance policy, a 150 m geofence on the main
+campus, one scanner device, eight people with active passes, three sessions (yesterday complete, today
+in progress, one event next week), plus attendance events and records covering PRESENT, LATE, ABSENT
+and an out-of-geofence exception awaiting approval.
+
+The seed is idempotent and prints every demo QR payload (`PRISM1:publicId:secret`) so the scanner can
+be exercised without issuing passes by hand. Demo credentials are intentionally weak; rotate them
+before any real pilot (see `docs/implementation/known-limitations.md`).
+
 ## Scripts
 
 | Script | What it does |
@@ -110,6 +129,7 @@ pnpm seed:syntaxure <authUuid> admin@example.com
 | `pnpm prisma:generate` | Regenerate the Prisma client |
 | `pnpm db:migrate` | `prisma migrate dev` (see the pooler caveat above) |
 | `pnpm seed:syntaxure` | Seed owner org + platform admin |
+| `pnpm seed:demo` | Seed demo accounts, org structure, passes, sessions and attendance |
 
 There is no ESLint configuration yet, so `next lint` prompts for setup and is not part of the gate.
 Typecheck, tests and build are the enforced checks.

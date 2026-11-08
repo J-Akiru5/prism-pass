@@ -1,12 +1,12 @@
 # Known limitations (P2 + P3-foundational, 2026-11-04)
-- **Schema split / RLS gap (2026-11-08):** the live database holds 24 PascalCase Prisma tables and 16
-  snake_case migration tables. RLS is enabled only on the snake_case set; the app reads and writes
-  through Prisma with the service role, so those tables have no database-level isolation. Server-side
-  `requireOrganizationPermission` is the only tenant boundary for them today. Consolidating on one
-  schema with RLS is tracked under P4/P9.
-- **Migrations use the session pooler:** `DATABASE_URL` targets the transaction pooler (`:6543`).
-  DDL and advisory-lock work must use the session pooler (`:5432`, same host/user); `prisma db push`
-  and `prisma migrate dev` still fail against the pooler.
+- **Pooler prepared statements (fixed 2026-11-08):** Prisma + the transaction pooler (`:6543`) failed
+  with `prepared statement "s0" already exists`. `lib/db.ts` now appends `pgbouncer=true` and
+  `connection_limit=1` for Supabase pooler URLs; DDL and seeding use the session pooler (`:5432`).
+- **Legacy PascalCase tables:** 24 empty PascalCase tables remain from an early unmapped push. They hold
+  no data and are unused; dropping them needs a backup review first.
+- **Demo credentials are weak by design:** `admin@syntaxure.dev` and `user@syntaxure.dev` use
+  `password123` for demos. The production URL is public, so these must be rotated or gated before any
+  real pilot. Tracked for P9 hardening.
 - Authenticated browser click-through not yet performed — protected routes correctly redirect to `/login`; needs a signed-in session (user handoff).
 - `prisma db push` still unusable on pooler (schema-engine); DDL via `pg` + reviewed SQL files (0003 applied this way). No destructive ops run.
 - Stray PascalCase tables from an early unmapped push remain in live DB (untouched, unused); future cleanup migration may drop them after backup review.
