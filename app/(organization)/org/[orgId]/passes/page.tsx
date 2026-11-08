@@ -97,7 +97,7 @@ export default function PassesPage({ params }: { params: Promise<{ orgId: string
 
       {printPass && (
         <div className="mt-6">
-          <PageHeader title={`ID card — ${printPass.passPublicId}`} eyebrow="Printable" actions={<Button variant="outline" size="sm" onClick={() => setPrintPass(null)}>Close</Button>} />
+          <PageHeader as="h2" title={`ID card — ${printPass.passPublicId}`} eyebrow="Printable" actions={<Button variant="outline" size="sm" onClick={() => setPrintPass(null)}>Close</Button>} />
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
             The live QR credential is shown only at issuance. This card identifies the pass; rotate to provision a new device-held credential.
           </p>
