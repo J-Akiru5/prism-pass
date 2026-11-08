@@ -153,6 +153,7 @@ non-text/graphical-object threshold; **4.5:1** is AA normal text.
 | Gold-soft `#E4CD8E` on navy `#142850` | **9.26:1** | Pass — the P on dark |
 | Gold-soft `#E4CD8E` on deep `#0C1B36` | **10.95:1** | Pass — descriptor on dark / OG |
 | Muted `#5C6773` on paper `#F7F5F0` | **5.29:1** | Pass — descriptor on light |
+| OG muted `#8FA0BD` on deep `#0C1B36` | **6.47:1** | Pass — OG credit line |
 | Gold-dark `#7E6226` on paper `#F7F5F0` | **5.26:1** | Pass — the fallback gold for light |
 | Gold `#C9A24B` on paper `#F7F5F0` | **2.20:1** | **Fail 3:1** — never use for the mark or text |
 | Gold `#C9A24B` on white `#FFFFFF` | **2.40:1** | **Fail 3:1** |
