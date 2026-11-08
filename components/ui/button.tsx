@@ -5,26 +5,42 @@ import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { forwardRef, type ButtonHTMLAttributes } from "react";
 
-// Button language adapted from the inspected attendance reference:
-// navy default, gold gradient accent, h-10/8/12 rhythm, min touch targets.
+// One control surface for the whole product: 10px radius, 14.5px semibold,
+// a hairline inner highlight on solid fills, 44px touch height on phones.
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4",
+  [
+    "inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-[10px]",
+    "text-[14.5px] font-semibold tracking-[-0.01em]",
+    "transition-[background-color,border-color,color,box-shadow,transform] duration-150",
+    "active:translate-y-px",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
+    "disabled:pointer-events-none disabled:opacity-45",
+    "[&_svg]:size-4 [&_svg]:shrink-0",
+  ].join(" "),
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-sm hover:opacity-90",
-        gold: "bg-gradient-to-br from-gold-soft via-accent to-gold-dark text-accent-foreground font-semibold shadow-md hover:brightness-105",
-        outline: "border border-input bg-card text-foreground hover:bg-muted",
-        secondary: "bg-secondary text-secondary-foreground hover:opacity-85",
-        ghost: "text-foreground hover:bg-muted",
-        destructive: "bg-destructive text-destructive-foreground shadow-sm hover:opacity-90",
-        link: "text-primary underline-offset-4 hover:underline",
+        default:
+          "bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_1px_2px_rgba(2,6,23,0.28)] hover:bg-blue-700 active:bg-blue-800",
+        ink:
+          "bg-slate-900 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_1px_2px_rgba(2,6,23,0.3)] hover:bg-slate-800",
+        action:
+          "bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_1px_2px_rgba(2,6,23,0.28)] hover:bg-blue-700",
+        gold:
+          "bg-blue-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_1px_2px_rgba(2,6,23,0.28)] hover:bg-blue-700",
+        outline:
+          "border border-slate-200 bg-white text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)] hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900",
+        secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200/80",
+        ghost: "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900",
+        destructive:
+          "bg-red-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_1px_2px_rgba(2,6,23,0.24)] hover:bg-red-700",
+        link: "h-auto px-0 text-blue-700 underline decoration-blue-300 underline-offset-4 hover:decoration-blue-600",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-8 px-3 text-[13px]",
-        lg: "h-12 px-6 text-base",
-        icon: "h-10 w-10",
+        default: "h-11 min-h-[44px] px-4 md:min-h-0",
+        sm: "h-9 min-h-[36px] rounded-lg px-3 text-[13.5px]",
+        lg: "h-12 rounded-xl px-6 text-[15.5px]",
+        icon: "size-11 min-h-[44px] min-w-[44px] p-0 md:min-h-0 md:min-w-0",
       },
     },
     defaultVariants: { variant: "default", size: "default" },

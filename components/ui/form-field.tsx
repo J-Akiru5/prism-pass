@@ -8,12 +8,6 @@ type ControlProps = {
   "aria-invalid"?: boolean | "true" | "false";
 };
 
-/**
- * Label + hint + error wrapper. Hints and errors are programmatically tied to
- * the single control it wraps (`aria-describedby`), and an error also marks the
- * control `aria-invalid` so assistive tech connects the message to the field
- * instead of announcing it in isolation.
- */
 export function FormField({ label, htmlFor, hint, error, children, required }: {
   label: string;
   htmlFor?: string;
@@ -41,18 +35,18 @@ export function FormField({ label, htmlFor, hint, error, children, required }: {
 
   return (
     <div className="space-y-1.5">
-      <label htmlFor={controlId} className="block text-[11px] font-bold uppercase tracking-wider text-primary">
+      <label htmlFor={controlId} className="block text-[13px] font-semibold text-slate-900 dark:text-white">
         {label}
         {required && (
           <>
-            <span aria-hidden="true"> *</span>
+            <span aria-hidden="true" className="text-blue-600"> *</span>
             <span className="sr-only"> (required)</span>
           </>
         )}
       </label>
       {control}
-      {showHint && <p id={hintId} className="text-xs text-muted-foreground">{hint}</p>}
-      {error && <p id={errorId} role="alert" className="text-xs font-medium text-destructive">{error}</p>}
+      {showHint && <p id={hintId} className="text-[13px] text-slate-500">{hint}</p>}
+      {error && <p id={errorId} role="alert" className="text-[13px] font-medium text-red-600">{error}</p>}
     </div>
   );
 }

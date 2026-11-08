@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PrismPassLogo } from "@/components/brand/prism-pass-logo";
+import { BrandLogo } from "@/components/brand/logo";
 import { SyntaxureCredit } from "@/components/brand/syntaxure-credit";
 
 const COLS = [
@@ -38,7 +38,7 @@ export function SiteFooter() {
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
         <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
-            <PrismPassLogo onDark size={38} />
+            <BrandLogo onDark size={38} />
             <p className="mt-4 max-w-xs text-pretty text-sm leading-relaxed text-white/65">
               Unified attendance + verification. One directory, one identity
               pass, one attendance engine — scoped to your organization.

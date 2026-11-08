@@ -138,12 +138,11 @@ export function OrgLedger() {
   return (
     <>
       <PageHeader
-        eyebrow="Platform · Tenants"
         title="Organizations"
-        description="Every tenant on this deployment. Suspension is a platform action, audited with actor and previous status; an organization OWNER never inherits it (ADR-11)."
+        description="Every organization on this installation. Suspending one is a platform admin action and is always recorded."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-primary">
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500">
               <ShieldCheck className="size-3.5" aria-hidden="true" />
               Platform admin
             </span>
@@ -159,9 +158,9 @@ export function OrgLedger() {
           <div className="min-w-0 flex-1">
             <label
               htmlFor="org-search"
-              className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+              className="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
             >
-              Find tenant
+              Find an organization
             </label>
             <div className="relative mt-1">
               <Search
@@ -185,7 +184,7 @@ export function OrgLedger() {
         <div>
           <label
             htmlFor="org-status-filter"
-            className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+            className="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
           >
             Status
           </label>
@@ -256,57 +255,57 @@ export function OrgLedger() {
             }
           />
         ) : (
-          <div role="region" aria-label="Organization ledger" tabIndex={0} className="overflow-x-auto">
-            <table className="w-full min-w-[960px] border-collapse text-sm">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <table className="pp-table w-full text-[15px]">
               <caption className="sr-only">
                 Organizations on this platform: name and slug, status, active members, active passes, creation date,
                 last audited activity, and links to detail or the suspend/reactivate control.
               </caption>
               <thead>
-                <tr className="border-b border-border text-left">
-                  <th scope="col" className="pb-2.5 pr-4 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                <tr className="border-b border-slate-200 bg-slate-50 text-left">
+                  <th scope="col" className="whitespace-nowrap px-4 py-3 text-[12.5px] font-bold uppercase tracking-[0.06em] text-slate-600">
                     Organization
                   </th>
-                  <th scope="col" className="pb-2.5 pr-4 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                  <th scope="col" className="whitespace-nowrap px-4 py-3 text-[12.5px] font-bold uppercase tracking-[0.06em] text-slate-600">
                     Status
                   </th>
-                  <th scope="col" className="pb-2.5 pr-4 text-right font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                  <th scope="col" className="whitespace-nowrap px-4 py-3 text-right text-[12.5px] font-bold uppercase tracking-[0.06em] text-slate-600">
                     Members
                   </th>
-                  <th scope="col" className="pb-2.5 pr-4 text-right font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                  <th scope="col" className="whitespace-nowrap px-4 py-3 text-right text-[12.5px] font-bold uppercase tracking-[0.06em] text-slate-600">
                     Passes
                   </th>
-                  <th scope="col" className="pb-2.5 pr-4 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                  <th scope="col" className="whitespace-nowrap px-4 py-3 text-[12.5px] font-bold uppercase tracking-[0.06em] text-slate-600">
                     Created
                   </th>
-                  <th scope="col" className="pb-2.5 pr-4 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                  <th scope="col" className="whitespace-nowrap px-4 py-3 text-[12.5px] font-bold uppercase tracking-[0.06em] text-slate-600">
                     Last activity
                   </th>
-                  <th scope="col" className="pb-2.5 text-right">
+                  <th scope="col" className="px-4 py-3 text-right">
                     <span className="sr-only">Actions</span>
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-slate-100">
                 {rows.map((row) => {
                   const nextStatus: PlatformOrgStatus = row.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE";
                   const actionLabel = nextStatus === "SUSPENDED" ? "Suspend" : "Reactivate";
                   return (
-                    <tr key={row.id} className="align-top transition-colors hover:bg-muted/40">
-                      <th scope="row" className="py-3 pr-4 text-left font-normal">
+                    <tr key={row.id} className="align-middle transition-colors hover:bg-slate-50">
+                      <th scope="row" data-label="" className="px-4 py-3 text-left font-normal">
                         <Link href={`/platform/orgs/${row.id}`} className="block font-medium text-foreground hover:underline">
                           {row.name}
                         </Link>
-                        <span className="mt-0.5 block font-mono text-[11px] text-muted-foreground">{row.slug}</span>
+                        <span className="mt-0.5 block font-mono text-[12.5px] text-slate-500">{row.slug}</span>
                       </th>
-                      <td className="py-3 pr-4">
+                      <td data-label="Status" className="px-4 py-3">
                         <Badge variant={orgStatusTone(row.status)}>{orgStatusLabel(row.status)}</Badge>
                       </td>
-                      <td className="py-3 pr-4 text-right font-mono text-xs tabular-nums text-foreground">{row.memberCount}</td>
-                      <td className="py-3 pr-4 text-right font-mono text-xs tabular-nums text-foreground">{row.passCount}</td>
-                      <td className="py-3 pr-4 font-mono text-[11px] tabular-nums text-muted-foreground">{formatDate(row.createdAt)}</td>
-                      <td className="py-3 pr-4 font-mono text-[11px] tabular-nums text-muted-foreground">{formatDateTime(row.lastActivityAt)}</td>
-                      <td className="py-3">
+                      <td data-label="Members" className="px-4 py-3 text-right font-mono text-[13px] tabular-nums text-foreground">{row.memberCount}</td>
+                      <td data-label="Passes" className="px-4 py-3 text-right font-mono text-[13px] tabular-nums text-foreground">{row.passCount}</td>
+                      <td data-label="Created" className="px-4 py-3 font-mono text-[13px] tabular-nums text-slate-500">{formatDate(row.createdAt)}</td>
+                      <td data-label="Last activity" className="px-4 py-3 font-mono text-[13px] tabular-nums text-slate-500">{formatDateTime(row.lastActivityAt)}</td>
+                      <td className="px-4 py-3 pp-cell-actions">
                         <div className="flex items-center justify-end gap-2">
                           <Link
                             href={`/platform/orgs/${row.id}`}
@@ -452,7 +451,7 @@ function CreateOrgDialog({ onClose, onCreated }: { onClose: () => void; onCreate
   return (
     <Modal
       title="New organization"
-      description="Provisions a tenant, its subscription and the audit entry in one transaction. The caller must be a platform admin."
+      description="Creates the organization, its subscription, and the audit entry in one step. Platform admins only."
       onClose={() => {
         if (!busy) onClose();
       }}
@@ -469,7 +468,7 @@ function CreateOrgDialog({ onClose, onCreated }: { onClose: () => void; onCreate
     >
       <form id={formId} onSubmit={submit} className="space-y-4">
         <div>
-          <label htmlFor={nameId} className="block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <label htmlFor={nameId} className="block text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Display name
           </label>
           <Input
@@ -483,7 +482,7 @@ function CreateOrgDialog({ onClose, onCreated }: { onClose: () => void; onCreate
         </div>
 
         <div>
-          <label htmlFor={slugId} className="block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <label htmlFor={slugId} className="block text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Slug
           </label>
           <Input
@@ -505,7 +504,7 @@ function CreateOrgDialog({ onClose, onCreated }: { onClose: () => void; onCreate
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor={timezoneId} className="block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <label htmlFor={timezoneId} className="block text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Timezone
             </label>
             <Input
@@ -517,7 +516,7 @@ function CreateOrgDialog({ onClose, onCreated }: { onClose: () => void; onCreate
             />
           </div>
           <div>
-            <label htmlFor={planId} className="block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <label htmlFor={planId} className="block text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Plan
             </label>
             <select

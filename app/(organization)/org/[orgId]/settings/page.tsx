@@ -62,7 +62,7 @@ export default function SettingsPage({ params }: { params: Promise<{ orgId: stri
 
   return (
     <>
-      <PageHeader title="Settings" description="Organization profile and status. Suspension is a platform-admin action." eyebrow="Configuration" />
+      <PageHeader title="Settings" description="Your organization's details and a record of every action taken here." />
       <div className="mt-6 max-w-2xl">
         {error && <ErrorState message={error} retry={load} />}
         {!error && !org && <LoadingState label="Loading organization…" />}
@@ -74,8 +74,8 @@ export default function SettingsPage({ params }: { params: Promise<{ orgId: stri
             </CardHeader>
             <CardContent>
               <Badge variant={org.status === "ACTIVE" ? "success" : "danger"}>{org.status}</Badge>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Branding, retention, subscription, and scoped-role management arrive with later phases. Membership and pass controls live on their own pages.
+              <p className="mt-3 text-[15px] leading-relaxed text-slate-600">
+                Only a platform administrator can suspend an organization. People and passes are managed on their own pages.
               </p>
             </CardContent>
           </Card>
@@ -84,12 +84,10 @@ export default function SettingsPage({ params }: { params: Promise<{ orgId: stri
 
       <section className="mt-12">
         <div className="flex flex-wrap items-baseline justify-between gap-3 border-b pb-3">
-          <h2 className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-            Audit ledger{auditTotal !== null ? ` · ${auditTotal} entries` : ""}
+          <h2 className="text-[19px] font-bold tracking-tight text-slate-900">
+            Audit log{auditTotal !== null ? ` (${auditTotal})` : ""}
           </h2>
-          <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-            Newest first · requires organization.manage
-          </span>
+          <span className="text-[14px] text-slate-500">Newest first · administrators only</span>
         </div>
 
         {auditLoading && <div className="mt-4"><LoadingState label="Loading recent audit entries…" /></div>}
@@ -105,26 +103,26 @@ export default function SettingsPage({ params }: { params: Promise<{ orgId: stri
         )}
 
         {!auditLoading && !auditError && audit.length > 0 && (
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
+          <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <table className="pp-table w-full text-[15px]">
               <caption className="sr-only">Recent audit log entries for this organization</caption>
               <thead>
-                <tr className="border-b text-left">
+                <tr className="border-b border-slate-200 bg-slate-50 text-left">
                   {["Time", "Action", "Resource", "Result", "Actor"].map((heading) => (
                     <th
                       key={heading}
                       scope="col"
-                      className="py-2 pr-4 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground last:pr-0"
+                      className="whitespace-nowrap px-4 py-3 text-[12.5px] font-bold uppercase tracking-[0.06em] text-slate-600"
                     >
                       {heading}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y divide-slate-100">
                 {audit.map((row) => (
-                  <tr key={row.id} className="align-top transition-colors hover:bg-muted/40">
-                    <td className="whitespace-nowrap py-3 pr-4 font-mono text-xs tabular-nums text-muted-foreground">
+                  <tr key={row.id} className="align-middle transition-colors hover:bg-slate-50">
+                    <td data-label="Time" className="whitespace-nowrap px-4 py-3 font-mono text-[13px] tabular-nums text-slate-600">
                       {new Date(row.createdAt).toLocaleString(undefined, {
                         month: "short",
                         day: "numeric",
@@ -132,17 +130,14 @@ export default function SettingsPage({ params }: { params: Promise<{ orgId: stri
                         minute: "2-digit",
                       })}
                     </td>
-                    <td className="py-3 pr-4 font-mono text-xs">{row.action}</td>
-                    <td className="max-w-[16rem] truncate py-3 pr-4 font-mono text-xs text-muted-foreground" title={row.resource}>
-                      {row.resource}
+                    <td data-label="Action" className="px-4 py-3 font-mono text-[13px] text-slate-900">{row.action}</td>
+                    <td data-label="Resource" className="max-w-[16rem] px-4 py-3 font-mono text-[13px] text-slate-600" title={row.resource}>
+                      <span className="block truncate">{row.resource}</span>
                     </td>
-                    <td className="py-3 pr-4">
+                    <td data-label="Result" className="px-4 py-3">
                       <Badge variant={resultVariant(row.result)}>{row.result}</Badge>
                     </td>
-                    <td
-                      className="max-w-[10rem] truncate py-3 font-mono text-xs text-muted-foreground"
-                      title={row.actorUserId ?? "system"}
-                    >
+                    <td data-label="Actor" className="max-w-[10rem] px-4 py-3 font-mono text-[13px] text-slate-600" title={row.actorUserId ?? "system"}>
                       {row.actorUserId ? `${row.actorUserId.slice(0, 8)}…` : "system"}
                     </td>
                   </tr>

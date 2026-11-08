@@ -3,19 +3,18 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, BadgeCheck, Building2, CalendarCheck2, Mail, ShieldCheck } from "lucide-react";
-import { PrismPassLogo } from "@/components/brand/prism-pass-logo";
+import { BrandLogo } from "@/components/brand/logo";
 import { SyntaxureCredit } from "@/components/brand/syntaxure-credit";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 const SIZES = ["1–50 people", "51–200 people", "201–1,000 people", "1,000+ people"];
 
 const NEXT_STEPS = [
-  { Icon: Mail, text: "We reply within one business day with a scoped demo plan." },
-  { Icon: Building2, text: "We provision a private tenant — your data never touches a shared demo." },
+  { Icon: Mail, text: "We reply within one business day with a plan for your demo." },
+  { Icon: Building2, text: "We set up a private workspace, so your data never sits in a shared demo." },
   { Icon: CalendarCheck2, text: "We import a sample roster and run a live scanning session with your team." },
 ];
 
@@ -53,10 +52,10 @@ export default function DemoPage() {
     <div className="min-h-dvh bg-background">
       <header className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link href="/" aria-label="Prism Pass home">
-          <PrismPassLogo size={32} />
+          <BrandLogo size={32} />
         </Link>
         <div className="flex items-center gap-2">
-          <ThemeToggle />
+          
           <Link href="/login" className="rounded-lg px-3 py-2 text-sm font-semibold hover:bg-muted">
             Sign in
           </Link>
@@ -65,44 +64,35 @@ export default function DemoPage() {
 
       <main className="mx-auto grid max-w-6xl gap-8 px-4 pb-16 pt-6 sm:px-6 md:pt-10 lg:grid-cols-2 lg:gap-12">
         {/* pitch panel */}
-        <div className="relative overflow-hidden rounded-3xl bg-navy-deep p-8 text-white sm:p-10">
-          <div aria-hidden="true" className="absolute inset-0">
-            <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#2E5CB8]/50 blur-[100px]" />
-            <div className="absolute -bottom-24 -right-16 h-72 w-72 rounded-full bg-[#C9A24B]/25 blur-[100px]" />
-          </div>
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-6 sm:p-8">
           <div className="relative">
-            <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-medium text-white/60 transition hover:text-white">
+            <Link href="/" className="inline-flex min-h-[44px] items-center gap-1.5 text-[15px] font-semibold text-slate-600 transition hover:text-slate-900">
               <ArrowLeft className="size-4" aria-hidden="true" /> Back to site
             </Link>
-            <h1 className="mt-4 font-display text-3xl font-bold leading-tight sm:text-4xl">
-              Book your{" "}
-              <span className="bg-gradient-to-r from-gold-soft to-gold-dark bg-clip-text text-transparent">
-                guided demo
-              </span>
+            <h1 className="mt-2 text-[30px] font-bold leading-tight tracking-tight text-slate-900 sm:text-4xl">
+              Book a guided demo
             </h1>
-            <p className="mt-3 max-w-md text-[15px] leading-relaxed text-white/70">
-              A 30-minute working session on your use case — directory, passes,
-              scanning, and reporting — followed by a private tenant you can
-              pilot with real programs.
+            <p className="mt-2 max-w-md text-[16px] leading-relaxed text-slate-600">
+              Thirty minutes on your own use case: directory, passes, scanning, and reports. Then a private workspace you can pilot with real people.
             </p>
             <ul className="mt-8 space-y-4">
               {NEXT_STEPS.map(({ Icon, text }) => (
                 <li key={text} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-gold-soft">
+                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-blue-600 ring-1 ring-slate-200">
                     <Icon className="size-4" aria-hidden="true" />
                   </span>
-                  <span className="text-sm leading-relaxed text-white/80">{text}</span>
+                  <span className="text-[15px] leading-relaxed text-slate-700">{text}</span>
                 </li>
               ))}
             </ul>
-            <div className="mt-8 flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <ShieldCheck className="size-5 shrink-0 text-gold-soft" aria-hidden="true" />
-              <p className="text-xs leading-relaxed text-white/65">
-                No shared demo workspace. Your pilot data lives in its own tenant scope from day one.
+            <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <ShieldCheck className="size-5 shrink-0 text-emerald-600" aria-hidden="true" />
+              <p className="text-[14.5px] leading-relaxed text-slate-600">
+                Nothing is shared with other organizations. Your pilot data stays separate from day one.
               </p>
             </div>
-            <div className="mt-6">
-              <SyntaxureCredit onDark />
+            <div className="mt-5">
+              <SyntaxureCredit />
             </div>
           </div>
         </div>

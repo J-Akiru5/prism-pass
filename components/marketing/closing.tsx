@@ -7,27 +7,25 @@ import { ArrowRight, Minus, Plus } from "lucide-react";
 import { Reveal } from "./reveal";
 
 const METRICS = [
-  { v: "1", k: "attendance engine", d: "for employees, interns & participants" },
-  { v: "100%", k: "server-verified", d: "every scan checked against live membership" },
-  { v: "0", k: "demo workspaces", d: "tenant consoles resolve real data only" },
-  { v: "∞", k: "audit trail", d: "every sensitive action recorded" },
+  { v: "1", k: "attendance engine", d: "for employees, interns & participants", tone: "text-blue-600", dot: "bg-blue-500" },
+  { v: "100%", k: "server-verified", d: "every scan checked against live membership", tone: "text-violet-600", dot: "bg-violet-500" },
+  { v: "0", k: "demo workspaces", d: "tenant consoles resolve real data only", tone: "text-teal-600", dot: "bg-teal-500" },
+  { v: "∞", k: "audit trail", d: "every sensitive action recorded", tone: "text-amber-600", dot: "bg-amber-500" },
 ];
 
 export function MetricsBand() {
   return (
-    <section className="relative overflow-hidden bg-navy-deep py-16 text-white md:py-20">
-      <div aria-hidden="true" className="absolute inset-0">
-        <div className="absolute left-1/2 top-0 h-72 w-[42rem] -translate-x-1/2 rounded-full bg-[#2E5CB8]/25 blur-[120px]" />
-        <div className="absolute bottom-[-40%] right-[10%] h-64 w-64 rounded-full bg-[#C9A24B]/15 blur-[100px]" />
-      </div>
+    <section className="relative border-y border-slate-100 bg-slate-50/80 py-14 md:py-16">
+      <div aria-hidden="true" className="pp-dots pointer-events-none absolute inset-0 opacity-60" />
       <div className="relative mx-auto grid max-w-6xl gap-8 px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
         {METRICS.map((m, i) => (
           <Reveal key={m.k} delay={i * 0.08} className="text-center">
-            <p className="bg-gradient-to-br from-gold-soft to-gold-dark bg-clip-text font-display text-5xl font-bold text-transparent">
-              {m.v}
+            <p className={`tnum text-5xl font-bold tracking-tight ${m.tone}`}>{m.v}</p>
+            <p className="mt-2 flex items-center justify-center gap-1.5 text-[13px] font-bold uppercase tracking-wide text-slate-900">
+              <span className={`size-1.5 rounded-full ${m.dot}`} aria-hidden="true" />
+              {m.k}
             </p>
-            <p className="mt-2 text-sm font-semibold uppercase tracking-wider text-white">{m.k}</p>
-            <p className="mt-1 text-sm text-white/60">{m.d}</p>
+            <p className="mt-1 text-sm text-slate-500">{m.d}</p>
           </Reveal>
         ))}
       </div>
@@ -62,30 +60,30 @@ export function Faq() {
   const [open, setOpen] = useState<number | null>(0);
   const reduce = useReducedMotion();
   return (
-    <section id="faq" className="scroll-mt-20 bg-muted/50 py-20 md:py-28">
+    <section id="faq" className="scroll-mt-20 bg-white py-16 md:py-24">
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <Reveal className="text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">FAQ</p>
-          <h2 className="mt-3 text-balance font-display text-3xl font-bold tracking-tight sm:text-4xl">
+          <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-blue-600">FAQ</p>
+          <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
             Questions, answered.
           </h2>
         </Reveal>
-        <div className="mt-10 space-y-3">
+        <div className="mt-8 space-y-3">
           {FAQS.map((f, i) => {
             const isOpen = open === i;
             const panelId = `faq-panel-${i}`;
             return (
               <Reveal key={f.q} delay={i * 0.05}>
-                <div className={`overflow-hidden rounded-2xl border bg-card shadow-sm transition-colors ${isOpen ? "border-accent/50 ring-1 ring-accent/40" : ""}`}>
+                <div className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition-colors ${isOpen ? "border-blue-600/40" : "border-slate-200"}`}>
                   <button
                     type="button"
                     onClick={() => setOpen(isOpen ? null : i)}
                     aria-expanded={isOpen}
                     aria-controls={panelId}
-                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+                    className="flex min-h-[56px] w-full items-center justify-between gap-4 px-5 py-4 text-left"
                   >
-                    <span className="text-pretty font-display text-[15px] font-bold sm:text-base">{f.q}</span>
-                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${isOpen ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                    <span className="text-pretty text-[15px] font-bold tracking-tight sm:text-base">{f.q}</span>
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${isOpen ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"}`}>
                       {isOpen ? <Minus className="size-4" aria-hidden="true" /> : <Plus className="size-4" aria-hidden="true" />}
                     </span>
                   </button>
@@ -97,9 +95,9 @@ export function Faq() {
                         initial={reduce ? false : { height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={reduce ? { opacity: 1 } : { height: 0, opacity: 0 }}
-                        transition={{ duration: reduce ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
+                        transition={{ duration: reduce ? 0 : 0.25 }}
                       >
-                        <p className="text-pretty px-5 pb-5 text-sm leading-relaxed text-muted-foreground">{f.a}</p>
+                        <p className="text-pretty px-5 pb-5 text-sm leading-relaxed text-slate-500">{f.a}</p>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -115,36 +113,32 @@ export function Faq() {
 
 export function CtaBand() {
   return (
-    <section className="bg-background px-4 py-20 sm:px-6 md:py-28">
-      <Reveal className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl bg-navy-deep px-6 py-16 text-center text-white shadow-2xl sm:px-12 md:py-20">
-        <div aria-hidden="true" className="absolute inset-0">
-          <div className="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-[#2E5CB8]/40 blur-[110px]" />
-          <div className="absolute -bottom-28 -right-20 h-80 w-80 rounded-full bg-[#C9A24B]/30 blur-[110px]" />
-          <div className="absolute inset-0 opacity-[0.1] [background-image:linear-gradient(rgba(255,255,255,.6)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.6)_1px,transparent_1px)] [background-size:48px_48px] [mask-image:radial-gradient(ellipse_60%_70%_at_50%_50%,black,transparent)]" />
-        </div>
-        <div className="relative">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold-soft">Get started</p>
-          <h2 className="mx-auto mt-3 max-w-2xl text-balance font-display text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-            See your organization&apos;s attendance, verified.
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-pretty text-white/75">
-            Tell us about your programs and we&apos;ll provision a tenant,
-            import your roster, and have you scanning in days — not quarters.
-          </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link
-              href="/demo"
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-gold-soft via-[#D9B45B] to-gold-dark px-7 text-[15px] font-bold text-navy-deep shadow-[0_8px_30px_rgba(201,162,75,0.35)] transition hover:brightness-105 sm:w-auto"
-            >
-              Book a demo <ArrowRight className="size-4" aria-hidden="true" />
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-white/20 bg-white/5 px-7 text-[15px] font-semibold text-white transition hover:bg-white/10 sm:w-auto"
-            >
-              Sign in
-            </Link>
-          </div>
+    <section className="bg-white px-4 py-16 sm:px-6 md:py-24">
+      <Reveal className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl border border-blue-700/30 bg-gradient-to-br from-blue-700 via-indigo-700 to-violet-700 px-6 py-14 text-center text-white shadow-xl shadow-blue-900/20 sm:px-12 md:py-16">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-[0.18] [background-image:linear-gradient(to_right,#fff_1px,transparent_1px),linear-gradient(to_bottom,#fff_1px,transparent_1px)] [background-size:56px_56px]" />
+        <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full border border-white/20" />
+        <div aria-hidden="true" className="pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full border border-white/15" />
+        <p className="relative text-[12px] font-bold uppercase tracking-[0.12em] text-blue-100">Get started</p>
+        <h2 className="relative mx-auto mt-3 max-w-2xl text-balance text-3xl font-bold tracking-tight sm:text-4xl">
+          See your organization&apos;s attendance, verified.
+        </h2>
+        <p className="relative mx-auto mt-4 max-w-xl text-pretty text-blue-100">
+          Tell us about your programs and we&apos;ll provision a tenant,
+          import your roster, and have you scanning in days — not quarters.
+        </p>
+        <div className="relative mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Link
+            href="/demo"
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white px-7 text-[15px] font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50 sm:w-auto"
+          >
+            Book a demo <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
+          <Link
+            href="/login"
+            className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-white/20 px-7 text-[15px] font-semibold text-white transition hover:bg-white/10 sm:w-auto"
+          >
+            Sign in
+          </Link>
         </div>
       </Reveal>
     </section>

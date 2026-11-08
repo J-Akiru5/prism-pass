@@ -48,13 +48,12 @@ export function OverviewConsole() {
   return (
     <>
       <PageHeader
-        eyebrow="Platform · Syntaxure Labs"
         title="Operations overview"
-        description="Cross-tenant aggregates for this deployment. Counts only — no tenant records, credentials or member data are read on this page."
+        description="Totals for every organization on this installation. Only counts — no member records or credentials."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-primary">
-              <ShieldCheck className="size-3.5" aria-hidden="true" />
+            <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-[13px] font-semibold text-blue-700">
+              <ShieldCheck className="size-4" aria-hidden="true" />
               Platform admin
             </span>
             <Button variant="outline" className="h-11" onClick={() => void load(true)} disabled={refreshing}>
@@ -80,10 +79,10 @@ export function OverviewConsole() {
       {counts && (
         <section aria-labelledby="rail-heading" className="mt-8">
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-2">
-            <h2 id="rail-heading" className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-              Deployment at a glance
+            <h2 id="rail-heading" className="text-[17px] font-bold text-slate-900">
+              At a glance
             </h2>
-            <p aria-live="polite" className="font-mono text-[11px] tabular-nums text-muted-foreground">
+            <p aria-live="polite" className="text-[13.5px] tabular-nums text-slate-500">
               {data ? `Measured ${formatTime(data.generatedAt)}` : ""}
             </p>
           </div>
@@ -113,7 +112,7 @@ export function OverviewConsole() {
                   tone: counts.pendingApprovals > 0 ? "warning" : "default",
                   hint: "Attendance records",
                 },
-                { label: "Platform admins", value: counts.platformAdmins, hint: "ADR-11 grants" },
+                { label: "Platform admins", value: counts.platformAdmins, hint: "Platform access" },
               ]}
             />
           </div>
@@ -149,32 +148,32 @@ export function OverviewConsole() {
         )}
 
         {data && data.activity.length > 0 && (
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[640px] border-collapse text-sm">
+          <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <table className="pp-table w-full text-[15px]">
               <caption className="sr-only">
                 Recent platform-scope audit entries: time, action, tenant, and result.
               </caption>
               <thead>
-                <tr className="border-b border-border text-left">
+                <tr className="border-b border-slate-200 bg-slate-50 text-left">
                   {["Time", "Action", "Tenant", "Result"].map((heading) => (
                     <th
                       key={heading}
                       scope="col"
-                      className="py-2 pr-4 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground last:pr-0"
+                      className="whitespace-nowrap px-4 py-3 text-[12.5px] font-bold uppercase tracking-[0.06em] text-slate-600"
                     >
                       {heading}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-slate-100">
                 {data.activity.map((row) => (
-                  <tr key={row.id} className="align-top transition-colors hover:bg-muted/40">
-                    <td className="whitespace-nowrap py-3 pr-4 font-mono text-[11px] tabular-nums text-muted-foreground">
+                  <tr key={row.id} className="align-middle transition-colors hover:bg-slate-50">
+                    <td data-label="Time" className="whitespace-nowrap px-4 py-3 font-mono text-[13px] tabular-nums text-slate-600">
                       {formatTime(row.createdAt)}
                     </td>
-                    <td className="py-3 pr-4 font-mono text-xs">{row.action}</td>
-                    <td className="py-3 pr-4 text-sm">
+                    <td data-label="Action" className="px-4 py-3 font-mono text-[13px]">{row.action}</td>
+                    <td data-label="Tenant" className="px-4 py-3 text-[15px]">
                       {row.organizationId ? (
                         <Link
                           href={`/platform/orgs/${row.organizationId}`}
@@ -183,10 +182,10 @@ export function OverviewConsole() {
                           {row.organizationName ?? row.organizationId.slice(0, 8)}
                         </Link>
                       ) : (
-                        <span className="text-muted-foreground">Platform</span>
+                        <span className="text-slate-500">Platform</span>
                       )}
                     </td>
-                    <td className="py-3">
+                    <td data-label="Result" className="px-4 py-3">
                       <Badge variant={resultTone(row.result)}>{row.result}</Badge>
                     </td>
                   </tr>

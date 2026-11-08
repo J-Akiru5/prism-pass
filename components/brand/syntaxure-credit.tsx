@@ -1,50 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * "Powered by Syntaxure Labs" lockup.
- *
- * Drop the official logo file at `public/syntaxure-labs-logo.svg` and it
- * will be used automatically; until then a crafted "S" monogram renders.
- * Pass `onDark` on navy/dark backgrounds.
+ * "Powered by Syntaxure Labs" lockup — an engraved "S" monogram plus the name.
+ * The parent brand is credited in type only; no external asset is required.
  */
 export function SyntaxureCredit({ onDark = false, className }: { onDark?: boolean; className?: string }) {
-  const [imgOk, setImgOk] = useState(true);
-  const imgRef = useRef<HTMLImageElement>(null);
-  // Prerendered <img> can fail before hydration attaches onError —
-  // catch that case on mount (React does not replay error events).
-  useEffect(() => {
-    const el = imgRef.current;
-    if (el && el.complete && el.naturalWidth === 0) setImgOk(false);
-  }, []);
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
-      {imgOk ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          ref={imgRef}
-          src="/syntaxure-labs-logo.svg"
-          alt="Syntaxure Labs"
-          width={22}
-          height={22}
-          className="h-[22px] w-[22px] rounded-md object-contain"
-          onError={() => setImgOk(false)}
-        />
-      ) : (
-        <span
-          aria-hidden="true"
-          className={cn(
-            "flex h-[22px] w-[22px] items-center justify-center rounded-md font-display text-[13px] font-bold",
-            onDark ? "bg-gold-soft/15 text-gold-soft ring-1 ring-gold-soft/40" : "bg-primary text-primary-foreground"
-          )}
-        >
-          S
-        </span>
-      )}
-      <span className={cn("text-xs", onDark ? "text-white/60" : "text-muted-foreground")}>
-        Powered by <span className={cn("font-semibold", onDark ? "text-white/90" : "text-foreground")}>Syntaxure Labs</span>
+      <span
+        aria-hidden="true"
+        className={cn(
+          "flex h-[24px] w-[24px] items-center justify-center rounded-md bg-gradient-to-br text-[13px] font-bold",
+          onDark
+            ? "from-white/25 to-white/10 text-white ring-1 ring-white/25"
+            : "from-slate-800 to-slate-950 text-white shadow-sm shadow-slate-900/20",
+        )}
+      >
+        S
+      </span>
+      <span className={cn("text-[12.5px]", onDark ? "text-white/60" : "text-slate-500")}>
+        Powered by <span className={cn("font-semibold", onDark ? "text-white/90" : "text-slate-800")}>Syntaxure Labs</span>
       </span>
     </span>
   );

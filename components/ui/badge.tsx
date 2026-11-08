@@ -3,21 +3,23 @@ import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { HTMLAttributes } from "react";
 
-// Tone map mirrors the inspected scanner outcome banner:
-// success / warning(gold) / info(navy) / danger.
-const badgeVariants = cva("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold", {
-  variants: {
-    variant: {
-      default: "bg-primary/10 text-primary dark:bg-primary/20",
-      success: "bg-success/10 text-success",
-      warning: "bg-accent/20 text-gold-dark",
-      danger: "bg-destructive/10 text-destructive",
-      info: "bg-info/10 text-info",
-      muted: "bg-muted text-muted-foreground",
+// Status tags: 6px radius, tinted fill, hairline ring. Reads as data, not candy.
+const badgeVariants = cva(
+  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-0.5 text-[12px] font-semibold leading-5 ring-1 ring-inset",
+  {
+    variants: {
+      variant: {
+        default: "bg-slate-50 text-slate-700 ring-slate-200",
+        success: "bg-emerald-50 text-emerald-700 ring-emerald-200/80",
+        warning: "bg-amber-50 text-amber-800 ring-amber-200/80",
+        danger: "bg-red-50 text-red-700 ring-red-200/80",
+        info: "bg-blue-50 text-blue-700 ring-blue-200/80",
+        muted: "bg-white text-slate-500 ring-slate-200",
+      },
     },
+    defaultVariants: { variant: "default" },
   },
-  defaultVariants: { variant: "default" },
-});
+);
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement>, VariantProps<typeof badgeVariants> {}
 

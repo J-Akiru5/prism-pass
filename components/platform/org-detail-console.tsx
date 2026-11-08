@@ -206,7 +206,6 @@ export function OrgDetailConsole({ orgId }: { orgId: string }) {
     <>
       <PageHeader
         crumbs={[{ label: "Organizations", href: "/platform/orgs" }, { label: org.name }]}
-        eyebrow="Platform · Tenant detail"
         title={org.name}
         description={`Slug ${org.slug} · Timezone ${org.timezone} · Provisioned ${formatDate(org.createdAt)}`}
         actions={
@@ -296,7 +295,7 @@ export function OrgDetailConsole({ orgId }: { orgId: string }) {
             <div>
               <label
                 htmlFor="org-plan"
-                className="block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+                className="block text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
               >
                 Plan
               </label>
@@ -324,7 +323,7 @@ export function OrgDetailConsole({ orgId }: { orgId: string }) {
             </div>
 
             <fieldset>
-              <legend className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              <legend className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 Entitlements
               </legend>
               <div className="mt-1 grid grid-cols-1 gap-px border-y border-border bg-border sm:grid-cols-2">
@@ -355,7 +354,7 @@ export function OrgDetailConsole({ orgId }: { orgId: string }) {
           <div className="mt-4 max-w-md">
             <label
               htmlFor="plan-reason"
-              className="block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+              className="block text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
             >
               Change note (optional)
             </label>
@@ -414,7 +413,7 @@ export function OrgDetailConsole({ orgId }: { orgId: string }) {
                     <th
                       key={heading}
                       scope="col"
-                      className="py-2 pr-4 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground last:pr-0"
+                      className="py-2 pr-4 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground last:pr-0"
                     >
                       {heading}
                     </th>
@@ -474,7 +473,7 @@ export function OrgDetailConsole({ orgId }: { orgId: string }) {
                     <th
                       key={heading}
                       scope="col"
-                      className="py-2 pr-4 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground last:pr-0"
+                      className="py-2 pr-4 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground last:pr-0"
                     >
                       {heading}
                     </th>

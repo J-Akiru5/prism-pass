@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ConsoleBar } from "@/components/console-bar";
+import { MobileTabBar } from "@/components/mobile-tab-bar";
 import { PageHeader } from "@/components/page-header";
 import { DigitalPassCard, type PassInfo } from "@/components/digital-pass-card";
 import { ErrorState, LoadingState, EmptyState } from "@/components/ui-states";
@@ -60,40 +61,39 @@ export default function MemberHome() {
   const org = orgs.find((o) => o.id === orgId);
 
   return (
-    <div className="min-h-dvh bg-background">
+    <div className="min-h-dvh bg-slate-50">
       <ConsoleBar label="Member" orgHref={orgId ? `/org/${orgId}` : undefined} />
-      <main className="mx-auto max-w-xl px-4 pb-16 pt-8 md:px-6">
+      <main className="mx-auto w-full max-w-2xl px-4 pb-28 pt-6 md:px-6 md:pt-8 lg:pb-16">
         <PageHeader
           title="My pass"
-          description="Your digital identity. The credential is opaque — it carries no personal data (ADR-07)."
-          eyebrow="Member"
+          description="Show this QR when you arrive so your attendance is recorded."
         />
 
-        {orgsLoading && <p className="mt-6 font-mono text-xs uppercase tracking-[0.16em] text-muted-foreground">Loading organizations…</p>}
+        {orgsLoading && <div className="mt-6"><LoadingState label="Loading your organization…" /></div>}
 
         {!orgsLoading && orgsError && (
-          <div className="mt-6 border-y py-4 text-sm">
-            <p className="font-medium">Could not load your organizations</p>
-            <p className="mt-1 text-muted-foreground">{orgsError}</p>
-            <Link href="/login?next=/member" className="mt-2 inline-block underline underline-offset-4">Sign in again</Link>
+          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[15px] text-red-800">
+            <p className="font-bold">Could not load your organization</p>
+            <p className="mt-1">{orgsError}</p>
+            <Link href="/login?next=/member" className="mt-2 inline-flex min-h-[44px] items-center font-semibold underline underline-offset-4">Sign in again</Link>
           </div>
         )}
 
         {!orgsLoading && !orgsError && orgs.length === 0 && (
-          <div className="mt-6 border-y py-4 text-sm">
-            <p className="font-medium">No organization yet</p>
-            <p className="mt-1 text-muted-foreground">Your account has no active membership.</p>
+          <div className="mt-6 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[15px]">
+            <p className="font-bold text-slate-900">No organization yet</p>
+            <p className="mt-1 text-slate-600">Your account is not a member of an organization.</p>
           </div>
         )}
 
         {orgs.length > 1 && (
-          <div className="mt-6 flex items-center justify-between gap-4 border-y py-3">
-            <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Organization</span>
+          <div className="mt-5">
+            <label htmlFor="member-org" className="mb-1.5 block text-[15px] font-semibold text-slate-700">Organization</label>
             <select
-              aria-label="Organization"
+              id="member-org"
               value={orgId}
               onChange={(e) => setOrgId(e.target.value)}
-              className="h-9 rounded-md border border-input bg-card px-2 text-sm"
+              className="pp-select h-12 w-full rounded-[10px] border border-slate-200 bg-white px-3.5 text-[16px] font-medium text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)_inset] transition-[border-color,box-shadow] hover:border-slate-300 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-600/12"
             >
               {orgs.map((o) => (
                 <option key={o.id} value={o.id}>{o.name}</option>
@@ -129,16 +129,16 @@ export default function MemberHome() {
             )}
 
             <section>
-              <h2 className="border-b pb-2 font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Programs</h2>
+              <h2 className="text-[17px] font-bold text-slate-900">Your groups</h2>
               {idn.assignments.length === 0 ? (
-                <p className="pt-3 text-sm text-muted-foreground">No program assignments.</p>
+                <p className="mt-2 text-[15px] text-slate-600">You are not in a group yet.</p>
               ) : (
-                <ul className="pt-1">
+                <ul className="mt-2 space-y-2">
                   {idn.assignments.map((a) => (
-                    <li key={a.id} className="flex items-baseline justify-between gap-4 border-b py-2.5 text-sm last:border-b-0">
-                      <span className="font-medium capitalize">{a.role}</span>
-                      <span className="font-mono text-[11px] text-muted-foreground">
-                        {a.programId ? `program ${a.programId.replace("demo-program-", "")}` : "direct"}
+                    <li key={a.id} className="flex flex-wrap items-baseline justify-between gap-x-3 rounded-xl bg-slate-50 px-3 py-2.5 text-[15px]">
+                      <span className="font-semibold capitalize text-slate-900">{a.role}</span>
+                      <span className="text-[14px] text-slate-600">
+                        {a.programId ? a.programId.replace("demo-program-", "") : "Direct member"}
                       </span>
                     </li>
                   ))}
@@ -148,6 +148,7 @@ export default function MemberHome() {
           </div>
         ))}
       </main>
+      <MobileTabBar base={orgId ? `/org/${orgId}` : undefined} breakpoint="lg" />
     </div>
   );
 }

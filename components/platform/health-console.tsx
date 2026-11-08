@@ -76,7 +76,6 @@ export function HealthConsole() {
   return (
     <>
       <PageHeader
-        eyebrow="Platform · Operations"
         title="Health"
         description="Measured runtime facts for this deployment. Anything that cannot be measured is labelled unavailable — no estimated or synthetic numbers."
         actions={
@@ -254,7 +253,7 @@ export function HealthConsole() {
                         <th
                           key={heading}
                           scope="col"
-                          className="py-2 pr-4 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground last:pr-0"
+                          className="py-2 pr-4 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground last:pr-0"
                         >
                           {heading}
                         </th>

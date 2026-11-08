@@ -2,11 +2,12 @@
 
 import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, CalendarCheck, Download, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, CalendarCheck, Download, FileSpreadsheet, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MAX_DTR_RANGE_DAYS, parseDtrRange } from "@/modules/reports/range";
 
 function toDateInput(date: Date): string {
@@ -16,15 +17,7 @@ function toDateInput(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-const CONTRACT = [
-  { label: "Granularity", value: "One row per person per local day" },
-  { label: "Range", value: `Inclusive, up to ${MAX_DTR_RANGE_DAYS} days` },
-  { label: "Format", value: "CSV, RFC 4180 with formula guard" },
-  { label: "Scope", value: "Your organization only" },
-];
-
-// Reports hub (P7): live CSV export. Editorial ledger language — hairline rules
-// and mono labels, no KPI card grid, no placeholder numbers.
+// Reports hub: one clear job — export the daily time record for a date range.
 export default function ReportsPage({ params }: { params: Promise<{ orgId: string }> }) {
   const { orgId } = use(params);
   // Defaults are resolved after mount so server and client markup never disagree
@@ -47,138 +40,110 @@ export default function ReportsPage({ params }: { params: Promise<{ orgId: strin
     <>
       <PageHeader
         title="Reports"
-        eyebrow="Reporting"
-        description="Snapshots and exports from the canonical attendance engine. Every file is generated on request from tenant-scoped records."
+        description="Download attendance as a spreadsheet file your office can open in Excel."
       />
 
-      <section className="mt-8 border-t pt-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-3 border-b pb-3">
-          <h2 className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Daily time record</h2>
-          <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-            CSV · up to {MAX_DTR_RANGE_DAYS} days
-          </span>
-        </div>
+      <Card className="mt-5 max-w-2xl">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+              <FileSpreadsheet className="size-5" aria-hidden="true" />
+            </span>
+            <CardTitle>Daily time record</CardTitle>
+          </div>
+          <CardDescription>
+            One line per person per day: first in, last out, total hours, status. Up to {MAX_DTR_RANGE_DAYS} days at a time.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField label="From" htmlFor="dtr-from">
+              <Input
+                id="dtr-from"
+                name="from"
+                type="date"
+                value={from}
+                max={to}
+                onChange={(event) => setFrom(event.target.value)}
+              />
+            </FormField>
+            <FormField label="To" htmlFor="dtr-to">
+              <Input
+                id="dtr-to"
+                name="to"
+                type="date"
+                value={to}
+                min={from}
+                onChange={(event) => setTo(event.target.value)}
+              />
+            </FormField>
+          </div>
 
-        <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          One row per person per day: first in, last out, total minutes, status, approval state, and exception
-          flags. Overnight shifts stay on their shift date instead of splitting across two rows.
-        </p>
-
-        <div className="mt-6 grid gap-5 sm:grid-cols-[minmax(0,12rem)_minmax(0,12rem)_auto] sm:items-end">
-          <FormField label="From" htmlFor="dtr-from">
-            <Input
-              id="dtr-from"
-              name="from"
-              type="date"
-              value={from}
-              max={to}
-              onChange={(event) => setFrom(event.target.value)}
-            />
-          </FormField>
-          <FormField label="To" htmlFor="dtr-to">
-            <Input
-              id="dtr-to"
-              name="to"
-              type="date"
-              value={to}
-              min={from}
-              onChange={(event) => setTo(event.target.value)}
-            />
-          </FormField>
-          <div>
+          <div className="mt-4">
             {href ? (
-              <a href={href} download className={buttonVariants({ variant: "gold" })}>
+              <a href={href} download className={buttonVariants({ variant: "default", size: "lg" }) + " h-12 w-full"}>
                 <Download aria-hidden="true" /> Download CSV
               </a>
             ) : (
               <span
                 aria-disabled="true"
-                className={`${buttonVariants({ variant: "outline" })} pointer-events-none opacity-50`}
+                className={`${buttonVariants({ variant: "outline", size: "lg" })} pointer-events-none h-12 w-full opacity-50`}
               >
                 <Download aria-hidden="true" /> Download CSV
               </span>
             )}
           </div>
-        </div>
 
-        {parsed?.ok ? (
-          <p role="status" className="mt-3 font-mono text-xs tabular-nums text-muted-foreground">
-            {parsed.range.days} {parsed.range.days === 1 ? "day" : "days"} · inclusive · {parsed.range.from} to{" "}
-            {parsed.range.to}
-          </p>
-        ) : parsed ? (
-          <p role="alert" className="mt-3 text-sm font-medium text-destructive">
-            {parsed.message}
-          </p>
-        ) : (
-          <p className="mt-3 text-xs text-muted-foreground">Choose a start and end date to enable the export.</p>
-        )}
+          {parsed?.ok ? (
+            <p role="status" className="mt-3 text-[15px] text-slate-600">
+              {parsed.range.days} {parsed.range.days === 1 ? "day" : "days"} included · {parsed.range.from} to {parsed.range.to}
+            </p>
+          ) : parsed ? (
+            <p role="alert" className="mt-3 text-[15px] font-medium text-red-600">
+              {parsed.message}
+            </p>
+          ) : (
+            <p className="mt-3 text-[15px] text-slate-600">Pick a start and end date to enable the download.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <section className="mt-5 max-w-2xl">
+        <Card>
+          <CardContent className="flex items-start gap-3 p-5">
+            <ShieldCheck className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden="true" />
+            <p className="text-[15px] leading-relaxed text-slate-600">
+              Viewer roles get initials and a scrambled ID instead of full names. Every download is recorded in the audit log.
+            </p>
+          </CardContent>
+        </Card>
       </section>
 
-      <section className="mt-12">
-        <div className="border-b pb-3">
-          <h2 className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Export contract</h2>
-        </div>
-        <dl className="grid border-b sm:grid-cols-2 lg:grid-cols-4">
-          {CONTRACT.map((item, index) => (
-            <div
-              key={item.label}
-              className={[
-                "px-5 py-5 first:pl-0",
-                index < 2 ? "border-b sm:border-b-0" : "",
-                index % 2 === 1 ? "border-l" : "",
-                "lg:border-l lg:first:border-l-0",
-              ].join(" ")}
-            >
-              <dt className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{item.label}</dt>
-              <dd className="mt-2 text-sm leading-snug">{item.value}</dd>
-            </div>
-          ))}
-        </dl>
-
-        <div className="mt-5 flex items-start gap-2.5 text-sm text-muted-foreground">
-          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
-          <p className="max-w-2xl leading-relaxed">
-            Viewer exports are masked to initials and a salted external-id hash — no name string or email is
-            included. Export runs are written to the audit ledger.
-          </p>
-        </div>
-      </section>
-
-      <section className="mt-12">
-        <div className="flex flex-wrap items-baseline justify-between gap-3 border-b pb-3">
-          <h2 className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Other views</h2>
-          <Link
-            href={`/org/${orgId}/attendance`}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-          >
-            Attendance log <ArrowUpRight className="size-3" aria-hidden="true" />
-          </Link>
-        </div>
-        <ul className="mt-2">
-          <li className="border-b py-3 last:border-b-0">
-            <Link href={`/org/${orgId}/attendance`} className="group flex items-center justify-between gap-4">
-              <span>
-                <span className="block text-sm font-medium group-hover:underline">Attendance by session</span>
-                <span className="mt-0.5 block font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                  Live records · status · approval · duration
-                </span>
-              </span>
-              <CalendarCheck className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            </Link>
-          </li>
-          <li className="py-3">
-            <Link href={`/org/${orgId}/settings`} className="group flex items-center justify-between gap-4">
-              <span>
-                <span className="block text-sm font-medium group-hover:underline">Audit ledger</span>
-                <span className="mt-0.5 block font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                  Recent organization events · requires organization.manage
-                </span>
-              </span>
-              <ArrowUpRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-            </Link>
-          </li>
-        </ul>
+      <section className="mt-5 max-w-2xl" aria-label="Other views">
+        <Card>
+          <CardContent className="p-0">
+            <ul className="divide-y divide-slate-100">
+              <li>
+                <Link href={`/org/${orgId}/attendance`} className="flex min-h-[64px] items-center justify-between gap-3 px-5 py-3">
+                  <span>
+                    <span className="block text-[16.5px] font-semibold text-slate-900">Attendance by session</span>
+                    <span className="mt-0.5 block text-[14px] text-slate-500">Who came, status, approvals</span>
+                  </span>
+                  <CalendarCheck className="size-5 shrink-0 text-slate-400" aria-hidden="true" />
+                </Link>
+              </li>
+              <li>
+                <Link href={`/org/${orgId}/settings`} className="flex min-h-[64px] items-center justify-between gap-3 px-5 py-3">
+                  <span>
+                    <span className="block text-[16.5px] font-semibold text-slate-900">Audit log</span>
+                    <span className="mt-0.5 block text-[14px] text-slate-500">Every recorded action, newest first</span>
+                  </span>
+                  <ArrowUpRight className="size-5 shrink-0 text-slate-400" aria-hidden="true" />
+                </Link>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
       </section>
     </>
   );

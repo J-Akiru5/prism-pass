@@ -5,23 +5,19 @@ import { usePathname } from "next/navigation";
 import { Activity, ArrowUpRight, Building2, LayoutDashboard, ScrollText, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
-import { PrismPassLogo } from "@/components/brand/prism-pass-logo";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { BrandLogo } from "@/components/brand/logo";
+import { SignOutButton } from "@/components/sign-out-button";
 
 /**
- * Platform console shell — separate from the organization portal (ADR-11).
- *
- * Deep-navy sidebar on desktop, five-item bottom nav on mobile, sticky paper
- * header, skip link. Every target is at least 44px high where it is a primary
- * control. Active state uses both `aria-current` and a gold rule, so colour is
- * never the only signal.
+ * Platform console shell — separate from the organization portal.
+ * White surface, one blue action, and 48px mobile targets.
  */
 const NAV = [
-  { href: "/platform", label: "Overview", short: "Overview", icon: LayoutDashboard },
+  { href: "/platform", label: "Overview", short: "Home", icon: LayoutDashboard },
   { href: "/platform/orgs", label: "Organizations", short: "Orgs", icon: Building2 },
   { href: "/platform/admins", label: "Platform admins", short: "Admins", icon: ShieldCheck },
-  { href: "/platform/audit", label: "Audit", short: "Audit", icon: ScrollText },
-  { href: "/platform/health", label: "Health", short: "Health", icon: Activity },
+  { href: "/platform/audit", label: "Audit log", short: "Audit", icon: ScrollText },
+  { href: "/platform/health", label: "System health", short: "Health", icon: Activity },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
@@ -33,30 +29,26 @@ export function PlatformShell({ children }: { children: ReactNode }) {
   const current = NAV.find((item) => isActive(pathname, item.href))?.label ?? "Platform";
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-white dark:bg-slate-950">
       <a
         href="#main-content"
-        className="fixed left-3 top-3 z-[100] -translate-y-[250%] rounded-lg bg-card px-4 py-2.5 text-sm font-bold text-primary shadow-lg transition-transform focus-visible:translate-y-0"
+        className="fixed left-3 top-3 z-[100] -translate-y-[250%] rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-transform focus-visible:translate-y-0"
       >
         Skip to content
       </a>
 
-      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col self-start bg-sidebar text-sidebar-foreground md:flex">
-        <div className="border-b border-white/10 p-5">
-          <Link href="/platform" className="flex items-center gap-3 rounded-lg" aria-label="Platform console home">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full border border-sidebar-accent/70 bg-white/10">
-              <PrismPassLogo variant="mark" size={22} tone="onDark" decorative />
-            </span>
+      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col self-start border-r border-slate-200 bg-white dark:border-white/10 dark:bg-slate-950 md:flex">
+        <div className="border-b border-slate-100 p-5 dark:border-white/10">
+          <Link href="/platform" className="flex items-center gap-3 rounded-xl" aria-label="Platform console home">
+            <BrandLogo variant="mark" size={34} />
             <span className="min-w-0">
-              <span className="block font-display text-[15px] font-bold leading-tight">Prism Pass</span>
-              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-gold-soft">
-                Platform console
-              </span>
+              <span className="block truncate text-[15px] font-bold leading-tight tracking-tight">Prism Pass</span>
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">Platform</span>
             </span>
           </Link>
         </div>
 
-        <nav aria-label="Platform sections" className="flex-1 space-y-1 overflow-y-auto p-4">
+        <nav aria-label="Platform sections" className="flex-1 space-y-1 overflow-y-auto p-3">
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = isActive(pathname, href);
             return (
@@ -65,76 +57,68 @@ export function PlatformShell({ children }: { children: ReactNode }) {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group relative flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  active ? "bg-white/10 text-white" : "text-white/75 hover:bg-white/5 hover:text-white",
+                  "flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-medium transition-colors",
+                  active
+                    ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5",
                 )}
               >
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-gold-soft transition-opacity",
-                    active ? "opacity-100" : "opacity-0 group-hover:opacity-40",
-                  )}
-                />
-                <Icon className={cn("size-4", active ? "opacity-100" : "opacity-75")} aria-hidden="true" />
+                <Icon className="size-4 shrink-0" aria-hidden="true" />
                 {label}
               </Link>
             );
           })}
         </nav>
 
-        <div className="space-y-3 border-t border-white/10 p-4">
+        <div className="space-y-3 border-t border-slate-100 p-4 dark:border-white/10">
           <Link
             href="/consoles"
-            className="flex min-h-11 items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+            className="flex min-h-11 items-center gap-2 rounded-xl px-2 text-[14px] font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5"
           >
-            <ArrowUpRight className="size-3.5" aria-hidden="true" /> All consoles
+            <ArrowUpRight className="size-4" aria-hidden="true" /> All consoles
           </Link>
-          <p className="px-2 font-mono text-[10px] uppercase tracking-[0.16em] text-white/45">
-            Syntaxure Labs · ADR-11
-          </p>
+          <p className="px-2 text-[12px] text-slate-400">Syntaxure Labs</p>
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b bg-card/90 px-4 py-3 backdrop-blur-md md:px-6">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/90 md:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="md:hidden">
-              <PrismPassLogo variant="mark" size={26} />
+              <BrandLogo variant="mark" size={30} />
             </span>
             <span className="min-w-0">
-              <span className="block truncate font-display text-sm font-bold leading-tight md:text-base">
-                {current}
-              </span>
-              <span className="block font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground md:text-[10px]">
-                Platform console · Syntaxure Labs
+              <span className="block truncate text-[16px] font-bold leading-tight tracking-tight">{current}</span>
+              <span className="block text-[11.5px] font-semibold uppercase tracking-[0.06em] text-slate-500">
+                Platform console
               </span>
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <ThemeToggle className="h-11 w-11" />
+            
             <Link
               href="/consoles"
-              className="hidden h-9 items-center gap-1.5 rounded-lg border border-input px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex"
+              className="hidden h-11 items-center gap-1.5 rounded-[10px] border border-slate-200 px-3 text-[14px] font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-white/15 dark:text-slate-200 dark:hover:bg-white/5 sm:inline-flex"
             >
-              All consoles <ArrowUpRight className="size-3.5" aria-hidden="true" />
+              Consoles
             </Link>
+            <SignOutButton variant="icon" />
           </div>
         </header>
 
         <main
           id="main-content"
           tabIndex={-1}
-          className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-6 md:px-6 md:pb-12 md:pt-8"
+          className="mx-auto w-full max-w-6xl flex-1 px-4 pb-28 pt-5 md:px-6 md:pb-12 md:pt-8"
         >
           {children}
         </main>
 
         <nav
           aria-label="Platform navigation"
-          className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 px-1 pb-[env(safe-area-inset-bottom,0px)] pt-1 backdrop-blur-md md:hidden"
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pb-[env(safe-area-inset-bottom,0px)] pt-1.5 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/95 md:hidden"
         >
-          <ul className="grid grid-cols-5">
+          <ul className="grid grid-cols-5 gap-1">
             {NAV.map(({ href, short, icon: Icon }) => {
               const active = isActive(pathname, href);
               return (
@@ -143,11 +127,11 @@ export function PlatformShell({ children }: { children: ReactNode }) {
                     href={href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-2 text-[10px] font-medium leading-tight transition-colors",
-                      active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted",
+                      "flex min-h-[66px] flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[12.5px] font-bold transition-colors",
+                      active ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300",
                     )}
                   >
-                    <Icon className="size-5" aria-hidden="true" />
+                    <Icon className="size-6" aria-hidden="true" />
                     <span className="w-full truncate text-center">{short}</span>
                   </Link>
                 </li>

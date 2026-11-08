@@ -431,16 +431,15 @@ export default function ScanPage() {
   );
 
   return (
-    <div className="min-h-dvh bg-background">
+    <div className="min-h-dvh bg-slate-50">
       <ConsoleBar label="Scanner" orgHref={orgId ? `/org/${orgId}` : undefined} />
-      <main className="mx-auto max-w-xl px-4 pb-16 pt-8 md:px-6">
+      <main className="mx-auto w-full max-w-2xl px-4 pb-16 pt-6 md:px-6 md:pb-16 md:pt-8">
         <PageHeader
           title="Scanner"
-          description="Point the camera at a pass, or paste the payload. Verification is server-side and authoritative."
-          eyebrow="Check-in"
+          description="Scan a pass with the camera, or paste the scan code. Every check is verified on the server."
         />
 
-        {orgsLoading && <p className="mt-6 font-mono text-xs uppercase tracking-[0.16em] text-muted-foreground">Loading organizations…</p>}
+        {orgsLoading && <p className="mt-6 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Loading organizations…</p>}
 
         {!orgsLoading && orgsError && (
           <div className="mt-6 border-y py-4 text-sm">
@@ -459,50 +458,44 @@ export default function ScanPage() {
 
         {orgs.length > 0 && (
           <>
-            <section className="mt-8 border-y">
-              <dl className="divide-y">
-                <div className="flex items-center justify-between gap-4 py-3">
-                  <dt className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Organization</dt>
-                  <dd className="min-w-0 flex-1 text-right">
-                    {orgs.length === 1 ? (
-                      <span className="text-sm">{orgs[0].name}</span>
-                    ) : (
-                      <select
-                        aria-label="Organization"
-                        value={orgId}
-                        onChange={(e) => setOrgId(e.target.value)}
-                        className="h-9 max-w-full rounded-md border border-input bg-card px-2 text-sm"
-                      >
-                        {orgs.map((o) => (
-                          <option key={o.id} value={o.id}>{o.name}</option>
-                        ))}
-                      </select>
-                    )}
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between gap-4 py-3">
-                  <dt className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Session</dt>
-                  <dd className="min-w-0 flex-1 text-right">
-                    <select
-                      aria-label="Session"
-                      value={sessionId}
-                      onChange={(e) => setSessionId(e.target.value)}
-                      disabled={sessionsLoading}
-                      className="h-9 max-w-full rounded-md border border-input bg-card px-2 text-sm"
-                    >
-                      <option value="">Verify only — do not record</option>
-                      {sessions.map((s) => (
-                        <option key={s.id} value={s.id}>{s.title}</option>
-                      ))}
-                    </select>
-                  </dd>
-                </div>
-              </dl>
-              <p className="pb-3 text-xs text-muted-foreground">
-                {activeSession
-                  ? `Recording into “${activeSession.title}”.`
-                  : "Verification only. Choose a session to write attendance."}
-              </p>
+            <section className="mt-6 space-y-4">
+              <div>
+                <p className="mb-1.5 text-[15px] font-semibold text-slate-700">Organization</p>
+                {orgs.length === 1 ? (
+                  <p className="text-[17px] font-semibold text-slate-900">{orgs[0].name}</p>
+                ) : (
+                  <select
+                    aria-label="Organization"
+                    value={orgId}
+                    onChange={(e) => setOrgId(e.target.value)}
+                    className="pp-select h-12 w-full rounded-[10px] border border-slate-200 bg-white px-3.5 text-[16px] font-medium text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)_inset] transition-[border-color,box-shadow] hover:border-slate-300 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-600/12"
+                  >
+                    {orgs.map((o) => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div>
+                <label htmlFor="scan-session" className="mb-1.5 block text-[15px] font-semibold text-slate-700">Session</label>
+                <select
+                  id="scan-session"
+                  value={sessionId}
+                  onChange={(e) => setSessionId(e.target.value)}
+                  disabled={sessionsLoading}
+                  className="pp-select h-12 w-full rounded-[10px] border border-slate-200 bg-white px-3.5 text-[16px] font-medium text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)_inset] transition-[border-color,box-shadow] hover:border-slate-300 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-600/12 disabled:opacity-60"
+                >
+                  <option value="">Check only — do not record</option>
+                  {sessions.map((s) => (
+                    <option key={s.id} value={s.id}>{s.title}</option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-[14.5px] text-slate-600">
+                  {activeSession
+                    ? `Recording into “${activeSession.title}”.`
+                    : "Choose a session to save attendance. Otherwise this only checks the pass."}
+                </p>
+              </div>
             </section>
 
             <div className="mt-6">
@@ -515,30 +508,30 @@ export default function ScanPage() {
             </div>
 
             <section className="mt-8">
-              <div className="flex items-baseline justify-between border-b pb-2">
-                <h2 className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  <Keyboard className="size-3.5" aria-hidden="true" /> Manual entry
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="flex items-center gap-2 text-[17px] font-bold text-slate-900">
+                  <Keyboard className="size-4 text-slate-500" aria-hidden="true" /> Type a code
                 </h2>
-                <span className="text-xs text-muted-foreground">No camera required</span>
+                <span className="text-[14px] text-slate-500">No camera needed</span>
               </div>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   submit();
                 }}
-                className="mt-3 flex gap-2"
+                className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]"
               >
                 <Input
                   value={cred}
                   onChange={(e) => setCred(e.target.value)}
-                  placeholder="PRISM1:passPublicId:secret"
+                  placeholder="Paste the full scan code"
                   aria-label="Credential payload"
-                  className="font-mono text-xs"
+                  className="font-mono text-[15px]"
                   autoComplete="off"
                   spellCheck={false}
                 />
-                <Button type="submit" variant="gold" disabled={busy}>
-                  <ScanLine aria-hidden="true" /> {busy ? "Working…" : "Verify"}
+                <Button type="submit" className="h-12" disabled={busy}>
+                  <ScanLine aria-hidden="true" /> {busy ? "Checking…" : "Check pass"}
                 </Button>
               </form>
             </section>

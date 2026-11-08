@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AuthError, ForbiddenError, requirePlatformAdmin } from "@/lib/tenant";
-import { PrismPassLogo } from "@/components/brand/prism-pass-logo";
+import { BrandLogo } from "@/components/brand/logo";
 import { PlatformShell } from "@/components/platform/platform-shell";
 
 // The gate needs cookies, so nothing under /platform is static.
@@ -11,7 +11,7 @@ function AccessDenied() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center px-6 py-16">
       <Link href="/" aria-label="Prism Pass home" className="w-fit rounded-lg">
-        <PrismPassLogo size={34} />
+        <BrandLogo size={34} />
       </Link>
       <p className="mt-12 font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-gold-dark">
         Platform · Access control
@@ -19,7 +19,7 @@ function AccessDenied() {
       <h1 className="mt-2 font-display text-3xl font-bold leading-tight">Platform access required</h1>
       <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
         This console is limited to platform administrators. An organization OWNER — even of every tenant —
-        does not inherit platform access (ADR-11). Ask an existing platform admin for a grant.
+        does not get platform access. Ask an existing platform admin for access.
       </p>
       <div className="mt-8 flex flex-wrap gap-3">
         <Link

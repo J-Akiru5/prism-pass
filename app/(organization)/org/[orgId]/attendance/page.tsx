@@ -1,19 +1,20 @@
 "use client";
 
 import { use, useCallback, useEffect, useState } from "react";
-import { CalendarPlus, ClipboardList, ScanLine, ShieldCheck, XCircle } from "lucide-react";
+import { CalendarPlus, ScanLine, ShieldCheck, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
-import { DataTable, TableCell, TableRow } from "@/components/data-table";
+import { DataTable } from "@/components/data-table";
 import { FormField } from "@/components/ui/form-field";
-import { Input } from "@/components/ui/input";
+import { Input, Select } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SessionAgenda, type AgendaSession } from "@/components/session-agenda";
 import { AttendanceTimelineRows, type RecordRow } from "@/components/attendance-timeline";
 import { ErrorState, LoadingState, EmptyState } from "@/components/ui-states";
 
 type Policy = { id: string; name: string; graceMin: number; lateThresholdMin: number; duplicateWindowSec: number };
-type Session = { id: string; policyId: string; type: string; title: string; startsAt: string; endsAt: string; timezone: string };
+type Session = AgendaSession & { policyId: string; timezone: string };
 
 async function api(path: string, init?: RequestInit) {
   const r = await fetch(path, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
@@ -33,6 +34,8 @@ export default function AttendancePage({ params }: { params: Promise<{ orgId: st
   const [cred, setCred] = useState("");
   const [scanResult, setScanResult] = useState<string | null>(null);
   const [peopleNames, setPeopleNames] = useState<Record<string, string>>({});
+  const [newSession, setNewSession] = useState(false);
+  const [policyOpen, setPolicyOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,11 +44,12 @@ export default function AttendancePage({ params }: { params: Promise<{ orgId: st
         api(`/api/v1/orgs/${orgId}/policies?page=1&pageSize=100`),
         api(`/api/v1/orgs/${orgId}/sessions?page=1&pageSize=100`),
       ]);
-      setPolicies(p); setSessions(s);
-      if (s.length && !activeSession) setActiveSession(s[0].id);
+      setPolicies(p);
+      setSessions(s);
+      setActiveSession((current) => current || (s.length ? s[0].id : ""));
       setError(null);
     } catch (e) { setError((e as Error).message); } finally { setLoading(false); }
-  }, [orgId, activeSession]);
+  }, [orgId]);
 
   const loadRecords = useCallback(async () => {
     if (!activeSession) return;
@@ -66,16 +70,18 @@ export default function AttendancePage({ params }: { params: Promise<{ orgId: st
 
   async function createPolicy(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); setError(null);
-    const fd = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
     try {
       await api(`/api/v1/orgs/${orgId}/policies`, { method: "POST", body: JSON.stringify({ name: String(fd.get("name")), graceMin: Number(fd.get("grace") ?? 10), lateThresholdMin: Number(fd.get("late") ?? 15) }) });
-      (e.target as HTMLFormElement).reset(); await load();
+      form.reset(); setPolicyOpen(false); await load();
     } catch (e) { setError((e as Error).message); }
   }
 
   async function createSession(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); setError(null);
-    const fd = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
     try {
       const now = new Date();
       await api(`/api/v1/orgs/${orgId}/sessions`, {
@@ -86,7 +92,7 @@ export default function AttendancePage({ params }: { params: Promise<{ orgId: st
           endsAt: new Date(String(fd.get("ends")) || new Date(now.getTime() + 4 * 3600000).toISOString()).toISOString(),
         }),
       });
-      (e.target as HTMLFormElement).reset(); await load();
+      form.reset(); setNewSession(false); await load();
     } catch (e) { setError((e as Error).message); }
   }
 
@@ -102,105 +108,132 @@ export default function AttendancePage({ params }: { params: Promise<{ orgId: st
   }
 
   const enriched = records.map((r) => ({ ...r, personName: peopleNames[r.personId] }));
+  const current = sessions.find((s) => s.id === activeSession);
+  const onTime = records.filter((r) => r.status === "PRESENT").length;
+  const late = records.filter((r) => r.status === "LATE").length;
+  const pending = records.filter((r) => r.approvalStatus === "PENDING").length;
 
   return (
     <>
       <PageHeader
-        title="Attendance — one engine"
-        description="Employees, interns, and event participants share this single scan path. Session type is informational only."
-        eyebrow={`Sessions · ${sessions.length}`}
+        title="Attendance"
+        description={loading ? "Loading your schedule…" : "Choose the session you are working, then scan passes. Everything below follows that session."}
+        actions={
+          <Button variant={newSession ? "outline" : "default"} className="h-12 w-full sm:w-auto" onClick={() => setNewSession((v) => !v)}>
+            {newSession ? <><X aria-hidden="true" /> Close</> : <><CalendarPlus aria-hidden="true" /> New session</>}
+          </Button>
+        }
       />
       {error && <div className="mt-4"><ErrorState message={error} retry={load} /></div>}
 
-      {loading ? <div className="mt-6"><LoadingState label="Loading policies and sessions…" /></div> : (
-        <>
-          <div className="mt-6 grid gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Policies ({policies.length})</CardTitle>
-                <CardDescription>Grace, lateness, and duplicate windows. Requires organization.manage.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-1.5 text-sm">
-                  {policies.map((p) => (
-                    <li key={p.id} className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2">
-                      <ClipboardList className="size-4 text-muted-foreground" aria-hidden="true" />
-                      <span className="font-medium">{p.name}</span>
-                      <span className="ml-auto font-mono text-xs text-muted-foreground">grace {p.graceMin}m · late +{p.lateThresholdMin}m · dupe {p.duplicateWindowSec}s</span>
-                    </li>
-                  ))}
-                  {policies.length === 0 && <li className="text-muted-foreground">Create a policy first.</li>}
-                </ul>
-                <form onSubmit={createPolicy} className="mt-3 flex gap-2">
-                  <Input name="name" required placeholder="Policy name" aria-label="Policy name" className="flex-1" />
-                  <Input name="grace" type="number" defaultValue={10} title="Grace minutes" aria-label="Grace minutes" className="w-20" />
-                  <Input name="late" type="number" defaultValue={15} title="Late threshold" aria-label="Late threshold" className="w-20" />
-                  <Button variant="outline" type="submit">Create</Button>
-                </form>
-              </CardContent>
-            </Card>
+      {newSession && (
+        <Card className="mt-5">
+          <CardHeader>
+            <CardTitle>New session</CardTitle>
+            <CardDescription>A session is one shift, class, or event that people check into.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={createSession} className="grid gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <FormField label="Session name" htmlFor="sess-title">
+                  <Input id="sess-title" name="title" required placeholder="e.g. OJT morning block" />
+                </FormField>
+              </div>
+              <FormField label="Policy" htmlFor="sess-policy">
+                <Select id="sess-policy" name="policyId">
+                  {policies.length === 0 ? <option value="">Create a policy first</option> : policies.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </Select>
+              </FormField>
+              <FormField label="Type" htmlFor="sess-type">
+                <Select id="sess-type" name="type">{["EVENT", "OJT", "SHIFT", "CLASS", "VISITOR", "TRAINING"].map((t) => <option key={t} value={t}>{t}</option>)}</Select>
+              </FormField>
+              <FormField label="Starts" htmlFor="sess-starts"><Input id="sess-starts" name="starts" type="datetime-local" /></FormField>
+              <FormField label="Ends" htmlFor="sess-ends"><Input id="sess-ends" name="ends" type="datetime-local" /></FormField>
+              <Button type="submit" className="h-12 sm:col-span-2">Create session</Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Sessions ({sessions.length})</CardTitle>
-                <CardDescription>Select a session to scan and review its records.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {sessions.length === 0 ? <EmptyState title="No sessions yet" description="Create a session to open check-in." /> : (
-                  <ul className="max-h-56 space-y-1 overflow-auto" aria-label="Sessions">
-                    {sessions.map((s) => (
-                      <li key={s.id}>
-                        <button type="button" aria-pressed={activeSession === s.id} onClick={() => setActiveSession(s.id)}
-                          className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60 ${activeSession === s.id ? "bg-muted ring-1 ring-accent" : ""}`}>
-                          <span className="min-w-0 flex-1 truncate font-medium">{s.title}</span>
-                          <Badge variant="info">{s.type}</Badge>
-                          <span className="hidden font-mono text-xs text-muted-foreground sm:block">{new Date(s.startsAt).toLocaleDateString()}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {policies.length > 0 && (
-                  <form onSubmit={createSession} className="mt-3 grid grid-cols-2 gap-2 border-t pt-3">
-                    <div className="col-span-2"><FormField label="Session title" htmlFor="sess-title"><Input id="sess-title" name="title" required placeholder="e.g. OJT AM block" /></FormField></div>
-                    <select name="policyId" aria-label="Policy" className="h-10 rounded-lg border border-input bg-card px-2 text-sm">{policies.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-                    <select name="type" aria-label="Session type" className="h-10 rounded-lg border border-input bg-card px-2 text-sm">{["EVENT", "OJT", "SHIFT", "CLASS", "VISITOR", "TRAINING"].map((t) => <option key={t} value={t}>{t}</option>)}</select>
-                    <Input name="starts" type="datetime-local" aria-label="Starts at" />
-                    <Input name="ends" type="datetime-local" aria-label="Ends at" />
-                    <Button variant="outline" type="submit" className="col-span-2"><CalendarPlus aria-hidden="true" /> Create session</Button>
-                  </form>
-                )}
-              </CardContent>
-            </Card>
+      <section className="mt-6" aria-labelledby="schedule-heading">
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="schedule-heading" className="text-[19px] font-bold tracking-tight text-slate-900">Schedule</h2>
+          <p className="text-[14px] text-slate-500">{loading ? "Loading…" : `${sessions.length} ${sessions.length === 1 ? "session" : "sessions"} · newest first`}</p>
+        </div>
+        {loading ? <LoadingState label="Loading sessions…" /> : (
+          <SessionAgenda
+            sessions={sessions}
+            selectedId={activeSession}
+            onSelect={setActiveSession}
+            emptyLabel="No sessions yet. Use “New session” above to create the first one."
+          />
+        )}
+      </section>
+
+      {activeSession && (
+        <section className="mt-6" aria-labelledby="working-heading">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="working-heading" className="text-[19px] font-bold tracking-tight text-slate-900">
+              {current ? current.title : "Selected session"}
+            </h2>
+            <p className="text-[14px] text-slate-500">
+              {records.length} recorded · {onTime} on time · {late} late{pending > 0 ? ` · ${pending} awaiting approval` : ""}
+            </p>
           </div>
 
-          {activeSession && (
-            <Card className="mt-4">
-              <CardHeader>
-                <CardTitle>Live scan + records ({records.length})</CardTitle>
-                <CardDescription>Paste a credential or scan from the scanner page. Duplicates are flagged, never double-counted.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={scan} className="flex gap-2">
-                  <Input value={cred} onChange={(e) => setCred(e.target.value)} placeholder="PRISM1:… credential (scanner fills this automatically)" aria-label="Credential" className="font-mono" />
-                  <Button type="submit" variant="gold"><ScanLine aria-hidden="true" /> Scan</Button>
-                </form>
-                {scanResult && <p role="status" className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-success"><ShieldCheck className="size-4" aria-hidden="true" />{scanResult}</p>}
-                <div className="mt-3">
-                  {records.length === 0 ? <EmptyState title="No records" description="No scans recorded for this session yet." /> : (
-                    <DataTable columns={["Person", "Status", "Approval", "Duration"]} caption="Attendance records">
-                      <AttendanceTimelineRows records={enriched} />
-                    </DataTable>
-                  )}
-                </div>
-                <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <XCircle className="size-3.5" aria-hidden="true" /> Corrections and approvals are available to authorized roles via the adjust / approve endpoints; history is append-only.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </>
+          <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
+            <form onSubmit={scan} className="grid gap-2 sm:grid-cols-[1fr_auto]">
+              <Input value={cred} onChange={(e) => setCred(e.target.value)} placeholder="Paste a credential to record a scan" aria-label="Credential" className="font-mono" />
+              <Button type="submit" className="h-12"><ScanLine aria-hidden="true" /> Record scan</Button>
+            </form>
+            {scanResult && (
+              <p role="status" className="mt-2 inline-flex items-center gap-1.5 text-[15px] font-semibold text-emerald-700">
+                <ShieldCheck className="size-4" aria-hidden="true" />{scanResult}
+              </p>
+            )}
+          </div>
+
+          <div className="mt-4">
+            {records.length === 0 ? (
+              <EmptyState title="Nobody yet" description="Scan the first pass to start this session." />
+            ) : (
+              <DataTable columns={["Person", "Status", "Approval", "Duration"]} caption="Attendance records">
+                <AttendanceTimelineRows records={enriched} />
+              </DataTable>
+            )}
+          </div>
+        </section>
       )}
+
+      <section className="mt-8" aria-labelledby="policy-heading">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="policy-heading" className="text-[19px] font-bold tracking-tight text-slate-900">Attendance policy</h2>
+          <Button variant="ghost" size="sm" onClick={() => setPolicyOpen((v) => !v)}>
+            {policyOpen ? "Close" : "New policy"}
+          </Button>
+        </div>
+        <dl className="mt-2 grid gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 sm:grid-cols-3">
+          {policies.length === 0 ? (
+            <div className="bg-white p-4 text-[15px] text-slate-600 sm:col-span-3">No policy yet — each session needs one.</div>
+          ) : policies.map((p) => (
+            <div key={p.id} className="bg-white p-4">
+              <dt className="text-[16px] font-semibold text-slate-900">{p.name}</dt>
+              <dd className="mt-1 text-[14px] leading-relaxed text-slate-600">
+                {p.graceMin} min grace · late after {p.lateThresholdMin} min · ignores repeats for {p.duplicateWindowSec}s
+              </dd>
+            </div>
+          ))}
+        </dl>
+
+        {policyOpen && (
+          <form onSubmit={createPolicy} className="mt-3 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
+            <FormField label="Policy name" htmlFor="pol-name"><Input id="pol-name" name="name" required placeholder="e.g. Standard office" /></FormField>
+            <FormField label="Grace (min)" htmlFor="pol-grace"><Input id="pol-grace" name="grace" type="number" defaultValue={10} className="sm:w-24" /></FormField>
+            <FormField label="Late after (min)" htmlFor="pol-late"><Input id="pol-late" name="late" type="number" defaultValue={15} className="sm:w-28" /></FormField>
+            <Button variant="outline" type="submit" className="h-12">Create policy</Button>
+          </form>
+        )}
+      </section>
     </>
   );
 }

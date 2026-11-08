@@ -142,9 +142,8 @@ export function AuditConsole({ initialOrganizationId = "" }: { initialOrganizati
   return (
     <>
       <PageHeader
-        eyebrow="Platform · Oversight"
-        title="Audit explorer"
-        description="Every tenant and platform-scope audit entry, newest first. Rows carry the audit ledger itself; tenant meta (person ids, geo details, adjustment notes) is not forwarded."
+        title="Audit log"
+        description="Every recorded action, newest first. Personal details are never copied into this log."
         actions={
           <Button variant="outline" className="h-11" onClick={() => void load(true)} disabled={refreshing}>
             <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" />
@@ -156,7 +155,7 @@ export function AuditConsole({ initialOrganizationId = "" }: { initialOrganizati
       <form onSubmit={apply} className="mt-6 border-y border-border py-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6 lg:items-end">
           <div className="lg:col-span-2">
-            <label htmlFor="audit-org" className="block font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <label htmlFor="audit-org" className="block text-[11.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Organization
             </label>
             <select
@@ -180,7 +179,7 @@ export function AuditConsole({ initialOrganizationId = "" }: { initialOrganizati
           </div>
 
           <div>
-            <label htmlFor="audit-action" className="block font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <label htmlFor="audit-action" className="block text-[11.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Action contains
             </label>
             <Input
@@ -194,7 +193,7 @@ export function AuditConsole({ initialOrganizationId = "" }: { initialOrganizati
           </div>
 
           <div>
-            <label htmlFor="audit-result" className="block font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <label htmlFor="audit-result" className="block text-[11.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Result
             </label>
             <select
@@ -213,7 +212,7 @@ export function AuditConsole({ initialOrganizationId = "" }: { initialOrganizati
           </div>
 
           <div>
-            <label htmlFor="audit-from" className="block font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <label htmlFor="audit-from" className="block text-[11.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               From
             </label>
             <Input
@@ -227,7 +226,7 @@ export function AuditConsole({ initialOrganizationId = "" }: { initialOrganizati
           </div>
 
           <div>
-            <label htmlFor="audit-to" className="block font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <label htmlFor="audit-to" className="block text-[11.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               To
             </label>
             <Input
@@ -312,31 +311,31 @@ export function AuditConsole({ initialOrganizationId = "" }: { initialOrganizati
             />
           </div>
         ) : (
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[880px] border-collapse text-sm">
+          <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <table className="pp-table w-full text-[15px]">
               <caption className="sr-only">
                 Cross-tenant audit entries: time, organization, action and reason, resource, result, and actor user id.
               </caption>
               <thead>
-                <tr className="border-b border-border text-left">
+                <tr className="border-b border-slate-200 bg-slate-50 text-left">
                   {["Time", "Organization", "Action", "Resource", "Result", "Actor"].map((heading) => (
                     <th
                       key={heading}
                       scope="col"
-                      className="py-2 pr-4 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground last:pr-0"
+                      className="whitespace-nowrap px-4 py-3 text-[12.5px] font-bold uppercase tracking-[0.06em] text-slate-600"
                     >
                       {heading}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-slate-100">
                 {rows.map((row) => (
-                  <tr key={row.id} className="align-top transition-colors hover:bg-muted/40">
-                    <td className="whitespace-nowrap py-3 pr-4 font-mono text-[11px] tabular-nums text-muted-foreground">
+                  <tr key={row.id} className="align-middle transition-colors hover:bg-slate-50">
+                    <td data-label="Time" className="whitespace-nowrap px-4 py-3 font-mono text-[13px] tabular-nums text-slate-600">
                       {formatDateTime(row.createdAt)}
                     </td>
-                    <td className="py-3 pr-4 text-sm">
+                    <td data-label="Organization" className="px-4 py-3 text-[15px]">
                       {row.organizationId ? (
                         <Link href={`/platform/orgs/${row.organizationId}`} className="hover:underline">
                           {row.organizationName ?? row.organizationId.slice(0, 8)}
@@ -345,17 +344,17 @@ export function AuditConsole({ initialOrganizationId = "" }: { initialOrganizati
                         <span className="text-muted-foreground">Platform</span>
                       )}
                     </td>
-                    <td className="py-3 pr-4">
-                      <span className="block font-mono text-xs">{row.action}</span>
-                      {row.reason && <span className="mt-0.5 block max-w-[18rem] text-xs text-muted-foreground">{row.reason}</span>}
+                    <td data-label="Action" className="px-4 py-3">
+                      <span className="block font-mono text-[13px]">{row.action}</span>
+                      {row.reason && <span className="mt-0.5 block max-w-[18rem] text-[13px] text-slate-500">{row.reason}</span>}
                     </td>
-                    <td className="max-w-[16rem] truncate py-3 pr-4 font-mono text-xs text-muted-foreground" title={row.resource}>
-                      {row.resource}
+                    <td data-label="Resource" className="max-w-[16rem] px-4 py-3 font-mono text-[13px] text-slate-500" title={row.resource}>
+                      <span className="block truncate">{row.resource}</span>
                     </td>
-                    <td className="py-3 pr-4">
+                    <td data-label="Result" className="px-4 py-3">
                       <Badge variant={resultTone(row.result)}>{row.result}</Badge>
                     </td>
-                    <td className="max-w-[10rem] truncate py-3 font-mono text-xs text-muted-foreground" title={row.actorUserId ?? "system"}>
+                    <td data-label="Actor" className="max-w-[10rem] px-4 py-3 font-mono text-[13px] text-slate-500" title={row.actorUserId ?? "system"}>
                       {row.actorUserId ? `${row.actorUserId.slice(0, 8)}…` : "system"}
                     </td>
                   </tr>
@@ -367,7 +366,7 @@ export function AuditConsole({ initialOrganizationId = "" }: { initialOrganizati
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
           <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-            Newest first · audit rows are immutable
+            Newest first · entries cannot be edited
           </p>
           <div className="flex items-center gap-2">
             <Button

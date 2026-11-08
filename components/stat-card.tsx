@@ -8,23 +8,25 @@ export function StatCard({ label, value, sub, icon: Icon, tone = "default" }: {
   icon?: LucideIcon;
   tone?: "default" | "success" | "warning" | "danger" | "info";
 }) {
-  const bar: Record<string, string> = {
-    default: "bg-primary",
-    success: "bg-success",
-    warning: "bg-accent",
-    danger: "bg-destructive",
-    info: "bg-info",
+  const dot: Record<string, string> = {
+    default: "bg-slate-900 dark:bg-white",
+    success: "bg-emerald-500",
+    warning: "bg-amber-500",
+    danger: "bg-red-500",
+    info: "bg-blue-500",
   };
   return (
-    <Card className="relative overflow-hidden">
-      <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${bar[tone]}`} />
-      <CardContent className="p-4 pl-5">
+    <Card>
+      <CardContent className="p-4 md:p-5">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-          {Icon && <Icon className="size-4 text-muted-foreground" aria-hidden="true" />}
+          <p className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wide text-slate-500">
+            <span aria-hidden="true" className={`h-2 w-2 rounded-full ${dot[tone]}`} />
+            {label}
+          </p>
+          {Icon && <Icon className="size-4 text-slate-400" aria-hidden="true" />}
         </div>
-        <p className="mt-1 font-display text-3xl font-bold leading-none">{value}</p>
-        {sub && <p className="mt-1.5 text-xs text-muted-foreground">{sub}</p>}
+        <p className="tnum mt-2 text-[28px] font-bold leading-none tracking-tight">{value}</p>
+        {sub && <p className="mt-1.5 text-[13px] text-slate-500">{sub}</p>}
       </CardContent>
     </Card>
   );

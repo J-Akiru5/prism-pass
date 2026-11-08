@@ -1,8 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-// Interaction adapted from CICT-QR src/components/AdminScanner.jsx (html5-qrcode,
-// feedback states, duplicate guard). Data layer replaced by Prism Pass secure
-// service boundary (not copied). onDecode hands verified-by-server flow to parent.
+
 export function ScannerViewport({ onDecode }: { onDecode?: (decoded: string) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<"idle" | "scanning" | "success" | "error" | "duplicate">("idle");
@@ -41,17 +39,29 @@ export function ScannerViewport({ onDecode }: { onDecode?: (decoded: string) => 
     return () => { cancelled = true; scanner?.stop().catch(() => {}); };
   }, []);
   return (
-    <div className="rounded-xl border bg-card p-4">
-      <div className="flex items-center gap-2 text-sm">
-        <span className={`h-2 w-2 rounded-full ${online ? "bg-emerald-500" : "bg-amber-500"}`} />
-        {online ? "Online" : "Offline — queueing locally (provisional, ADR-09)"}
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-900">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-white/10">
+        <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Camera</p>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[12px] font-semibold text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+          <span className={`h-2 w-2 rounded-full ${online ? "bg-emerald-500" : "bg-amber-500"}`} aria-hidden="true" />
+          {online ? "Online" : "Offline"}
+        </span>
       </div>
-      <div id="prism-scan-region" ref={ref} className="mt-3 min-h-56 overflow-hidden rounded-lg bg-black/90" />
-      <div className="mt-3 text-sm">
-        {status === "scanning" && <p className="text-muted-foreground">Point camera at a Prism Pass QR…</p>}
-        {status === "success" && <p className="text-emerald-600">Accepted (UI-level): {last} — server reconciliation authoritative.</p>}
-        {status === "duplicate" && <p className="text-amber-600">Duplicate prevented at interface (120s window).</p>}
-        {status === "error" && <p className="text-red-600">Camera unavailable. Check permission or use a camera device.</p>}
+      <div className="relative bg-slate-950">
+        <div id="prism-scan-region" ref={ref} className="min-h-56 overflow-hidden" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-4">
+          <span className="absolute left-0 top-0 h-7 w-7 rounded-tl-lg border-l-2 border-t-2 border-white" />
+          <span className="absolute right-0 top-0 h-7 w-7 rounded-tr-lg border-r-2 border-t-2 border-white" />
+          <span className="absolute bottom-0 left-0 h-7 w-7 rounded-bl-lg border-b-2 border-l-2 border-white" />
+          <span className="absolute bottom-0 right-0 h-7 w-7 rounded-br-lg border-b-2 border-r-2 border-white" />
+        </div>
+      </div>
+      <div className="px-4 py-3 text-sm" role="status">
+        {status === "scanning" && <p className="text-slate-500">Point the camera at the pass QR — hold steady inside the frame.</p>}
+        {status === "success" && <p className="font-medium text-emerald-700">Scanned: <span className="break-all font-mono text-xs">{last}</span></p>}
+        {status === "duplicate" && <p className="font-medium text-amber-700">Duplicate scan ignored.</p>}
+        {status === "error" && <p className="font-medium text-slate-600">Camera unavailable. Use manual entry below.</p>}
+        {status === "idle" && <p className="text-slate-500">Starting camera…</p>}
       </div>
     </div>
   );

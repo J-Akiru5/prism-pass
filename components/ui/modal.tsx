@@ -86,7 +86,7 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-navy-deep/40 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -97,20 +97,20 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
-        className={`w-full ${width} max-h-[88dvh] overflow-y-auto rounded-2xl border bg-card shadow-lg`}
+        className={`w-full ${width} max-h-[88dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-lg`}
       >
-        <div className="border-b px-5 py-4">
-          <h2 id={titleId} className="font-display text-lg font-bold leading-tight">
+        <div className="border-b border-slate-100 px-5 py-4">
+          <h2 id={titleId} className="text-lg font-bold leading-tight tracking-tight">
             {title}
           </h2>
           {description && (
-            <p id={descriptionId} className="mt-1 text-sm text-muted-foreground">
+            <p id={descriptionId} className="mt-1 text-sm text-slate-500">
               {description}
             </p>
           )}
         </div>
         <div className="px-5 py-4">{children}</div>
-        {footer && <div className="flex flex-wrap justify-end gap-2 border-t bg-muted/40 px-5 py-3">{footer}</div>}
+        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">{footer}</div>}
       </div>
     </div>
   );
@@ -198,7 +198,7 @@ export function ReasonDialog({
       <form id={formId} onSubmit={submit} className="space-y-2">
         <label
           htmlFor={reasonId}
-          className="block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+          className="block text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
         >
           {requireReason ? "Reason (required)" : "Reason (optional)"}
         </label>

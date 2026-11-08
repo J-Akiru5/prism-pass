@@ -1,10 +1,28 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
-import { ThemeProvider } from "@/components/theme-provider";
+import { Fraunces, IBM_Plex_Mono, Public_Sans } from "next/font/google";
 import { DemoModeBanner } from "@/components/demo-mode-banner";
 
-const inter = Inter({ subsets: ["latin"] });
+// Government-grade type system: Public Sans (USWDS-derived civic grotesque)
+// for UI, Fraunces for archival display authority, IBM Plex Mono for
+// credential / tabular data. No Inter, no system fallback stack as voice.
+const sans = Public_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+const display = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+const mono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+  weight: ["400", "500", "600"],
+});
 
 // Absolute URLs are required for social cards. APP_URL is the deployment-wide
 // base URL already documented in the README; the localhost fallback keeps
@@ -12,7 +30,7 @@ const inter = Inter({ subsets: ["latin"] });
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.APP_URL ?? "http://localhost:3000";
 
 const description =
-  "One people directory, one verifiable QR identity pass, and one canonical attendance engine — scoped to your organization and verified on the server.";
+  "One people directory, one QR pass per person, and one attendance record your office can verify.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -51,21 +69,16 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  colorScheme: "light dark",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F7F5F0" },
-    { media: "(prefers-color-scheme: dark)", color: "#0C1B36" },
-  ],
+  colorScheme: "light",
+  themeColor: "#FFFFFF",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+    <html lang="en" className="light" style={{ colorScheme: "light" }}>
+      <body className={`${sans.variable} ${display.variable} ${mono.variable} font-sans`}>
         <DemoModeBanner />
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          {children}
-        </ThemeProvider>
+        {children}
       </body>
     </html>
   );

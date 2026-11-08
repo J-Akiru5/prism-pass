@@ -7,11 +7,11 @@ import { SiteFooter } from "@/components/marketing/site-footer";
 export const metadata = {
   title: "Unified attendance + verification",
   description:
-    "One people directory, one verifiable QR identity pass, and one canonical attendance engine — scoped to your organization and verified on the server. Powered by Syntaxure Labs.",
+    "One people directory, one QR pass per person, and one attendance record your office can verify. Powered by Syntaxure Labs.",
   openGraph: {
     title: "Prism Pass — Attendance you can prove, not just record",
     description:
-      "One people directory, one verifiable QR identity pass, and one canonical attendance engine — scoped to your organization and verified on the server.",
+      "One people directory, one QR pass per person, and one attendance record your office can verify.",
     url: "/",
   },
 };

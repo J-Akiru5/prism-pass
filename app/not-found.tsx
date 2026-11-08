@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { PrismPassLogo } from "@/components/brand/prism-pass-logo";
+import { BrandLogo } from "@/components/brand/logo";
 
 export default function NotFound() {
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center bg-background px-6 py-24 text-center">
       <Link href="/" aria-label="Prism Pass home" className="rounded-lg">
-        <PrismPassLogo size={38} />
+        <BrandLogo size={38} />
       </Link>
       <p className="mt-12 font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">404</p>
       <h1 className="mt-3 font-display text-3xl font-bold tracking-tight">Not found</h1>

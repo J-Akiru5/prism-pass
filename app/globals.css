@@ -1,142 +1,337 @@
-/* Prism Pass design tokens — enterprise navy/gold/paper language adapted from
-   the inspected USC Attendance reference (see docs/design/extracted-tokens.md).
-   Semantic shadcn-style names; light + dark are independently designed. */
+/* Prism Pass — 2026 whitest clean system.
+   Pure white canvas, slate ink, one blue action. No gradients, no grain. */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  /* Surfaces: warm paper background, white panels, warm gray dividers */
-  --background: 40 25% 95%;
-  --foreground: 240 4% 11%;
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
   --card: 0 0% 100%;
-  --card-foreground: 240 4% 11%;
+  --card-foreground: 222 47% 11%;
   --popover: 0 0% 100%;
-  --popover-foreground: 240 4% 11%;
+  --popover-foreground: 222 47% 11%;
 
-  /* Brand: navy primary, gold accent */
-  --primary: 222 60% 20%;
+  --primary: 222 47% 11%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 222 30% 92%;
-  --secondary-foreground: 222 60% 20%;
-  --accent: 41 54% 54%;
-  --accent-foreground: 222 60% 13%;
-  --gold-soft: 41 55% 78%;
-  --gold-dark: 41 54% 32%;
+  --action: 221 83% 53%;
+  --action-foreground: 0 0% 100%;
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --accent: 221 83% 53%;
+  --accent-foreground: 0 0% 100%;
+  --gold-soft: 221 83% 96%;
+  --gold-dark: 221 83% 53%;
 
-  --muted: 40 18% 90%;
-  --muted-foreground: 215 12% 40%;
-  --border: 40 20% 82%;
-  --input: 40 20% 82%;
-  --ring: 222 60% 20%;
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 9% 38%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 221 83% 53%;
 
-  --destructive: 0 45% 44%;
+  --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
-  /* 34% keeps success text at >=4.5:1 on its own /10 tint (was 37% = 4.26:1). */
-  --success: 152 33% 34%;
+  --success: 142 76% 36%;
   --success-foreground: 0 0% 100%;
-  --warning: 41 54% 45%;
-  --warning-foreground: 222 60% 13%;
-  --info: 222 60% 35%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 222 47% 11%;
+  --info: 221 83% 53%;
   --info-foreground: 0 0% 100%;
 
-  /* Sidebar stays deep navy in both themes (reference pattern) */
-  --sidebar: 222 60% 13%;
-  --sidebar-foreground: 0 0% 100%;
-  --sidebar-accent: 41 54% 54%;
-  --sidebar-border: 0 0% 100%;
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 222 47% 11%;
+  --sidebar-accent: 221 83% 53%;
+  --sidebar-border: 220 13% 91%;
 
-  --radius: 0.625rem;
+  --accent-blue: 221 83% 53%;
+  --accent-violet: 262 83% 58%;
+  --accent-teal: 173 80% 34%;
+  --accent-amber: 32 95% 44%;
+  --accent-rose: 347 77% 50%;
 
-  --shadow-sm: 0 1px 2px rgb(12 27 54 / 0.06);
-  --shadow-md: 0 4px 12px rgb(12 27 54 / 0.08);
-  --shadow-lg: 0 8px 24px rgb(12 27 54 / 0.12);
+  --radius: 0.75rem;
+
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
+  --shadow-md: 0 4px 12px rgb(15 23 42 / 0.08);
+  --shadow-lg: 0 12px 32px rgb(15 23 42 / 0.12);
 }
 
 .dark {
-  /* Deliberate dark: deep navy surfaces, gold primary actions */
-  --background: 222 60% 5%;
-  --foreground: 40 20% 95%;
-  --card: 222 55% 10%;
-  --card-foreground: 40 20% 95%;
-  --popover: 222 55% 12%;
-  --popover-foreground: 40 20% 95%;
+  --background: 222 47% 7%;
+  --foreground: 0 0% 100%;
+  --card: 222 47% 10%;
+  --card-foreground: 0 0% 100%;
+  --popover: 222 47% 11%;
+  --popover-foreground: 0 0% 100%;
 
-  --primary: 41 54% 54%;
-  --primary-foreground: 222 60% 10%;
-  --secondary: 222 40% 16%;
-  --secondary-foreground: 40 20% 95%;
-  --accent: 41 54% 54%;
-  --accent-foreground: 222 60% 10%;
-  --gold-soft: 41 55% 72%;
-  --gold-dark: 41 55% 72%;
+  --primary: 0 0% 100%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 222 47% 14%;
+  --secondary-foreground: 0 0% 100%;
+  --accent: 217 91% 60%;
+  --accent-foreground: 222 47% 7%;
+  --gold-soft: 217 91% 70%;
+  --gold-dark: 217 91% 70%;
 
-  --muted: 222 40% 14%;
-  --muted-foreground: 215 15% 68%;
+  --muted: 222 47% 14%;
+  --muted-foreground: 220 9% 68%;
   --border: 222 30% 20%;
   --input: 222 30% 20%;
-  --ring: 41 54% 54%;
+  --ring: 217 91% 60%;
 
-  --destructive: 0 60% 68%;
-  --destructive-foreground: 222 60% 8%;
-  --success: 152 35% 62%;
-  --success-foreground: 222 60% 8%;
-  --warning: 41 60% 62%;
-  --warning-foreground: 222 60% 8%;
-  --info: 217 70% 68%;
-  --info-foreground: 222 60% 8%;
+  --destructive: 0 72% 65%;
+  --destructive-foreground: 222 47% 7%;
+  --success: 142 70% 55%;
+  --success-foreground: 222 47% 7%;
+  --warning: 38 92% 60%;
+  --warning-foreground: 222 47% 7%;
+  --info: 217 91% 65%;
+  --info-foreground: 222 47% 7%;
 
-  --sidebar: 222 65% 7%;
+  --sidebar: 222 47% 8%;
   --sidebar-foreground: 0 0% 100%;
-  --sidebar-accent: 41 54% 54%;
-  --sidebar-border: 0 0% 100%;
+  --sidebar-accent: 217 91% 60%;
 
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
   --shadow-md: 0 4px 12px rgb(0 0 0 / 0.45);
-  --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.5);
 }
 
 * { border-color: hsl(var(--border)); }
 
+html { text-rendering: optimizeLegibility; }
+
+html, body { max-width: 100%; overflow-x: clip; }
 body {
-  background: hsl(var(--background));
+  background: #fff;
   color: hsl(var(--foreground));
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
+  text-wrap: pretty;
+  font-size: 16px;
+  line-height: 1.6;
 }
 
-/* Visible focus indicator: navy ring + gold halo (reference pattern), readable on both themes */
+/* Senior-calm reading: never tiny, never faint, always roomy on phones. */
+@media (max-width: 768px) {
+  body { font-size: 16.5px; }
+  main p, main li { line-height: 1.65; }
+}
+.pp-lead { font-size: 16px; line-height: 1.65; color: hsl(var(--muted-foreground)); }
+@media (max-width: 768px) {
+  .pp-lead { font-size: 17px; }
+}
+
+.dark body, .dark { background: hsl(var(--background)); }
+
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 3px solid hsl(var(--ring));
+  outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
-  box-shadow: 0 0 0 5px hsl(var(--accent) / 0.55);
 }
 
-.font-display { font-family: Georgia, "Times New Roman", serif; }
+::selection { background: hsl(var(--ring) / 0.18); }
 
-::selection {
-  background: hsl(var(--accent) / 0.32);
-  color: hsl(var(--foreground));
+/* Clean type: tight SaaS tracking, tabular numbers everywhere it counts. */
+.font-display {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+.tnum, .tabular { font-variant-numeric: tabular-nums; }
+.qr-crisp svg, .qr-crisp canvas, .qr-crisp img {
+  image-rendering: pixelated;
+  shape-rendering: crispEdges;
 }
 
-/* Honour the OS motion preference for both CSS and (via useReducedMotion)
-   the framer-motion layers. This is the safety net: any animation that slips
-   through still resolves instantly instead of moving content. `data-motion`
-   marks JS-driven wrappers whose opacity/transform framer writes inline;
-   `!important` is required to win over those inline values during hydration. */
+/* ------------------------------------------------
+   Surface texture: dot field, hairline grid, soft light.
+   Faint enough to sit behind text, present enough to feel designed.
+   ------------------------------------------------ */
+.pp-dots {
+  background-image: radial-gradient(hsl(var(--foreground) / 0.16) 1px, transparent 1.2px);
+  background-size: 22px 22px;
+  background-position: -12px -12px;
+}
+.pp-dots-fade {
+  -webkit-mask-image: radial-gradient(120% 80% at 50% 0%, #000 25%, transparent 78%);
+  mask-image: radial-gradient(120% 80% at 50% 0%, #000 25%, transparent 78%);
+}
+.pp-lines {
+  background-image:
+    linear-gradient(to right, hsl(var(--foreground) / 0.13) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--foreground) / 0.13) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+.pp-glow-blue {
+  background: radial-gradient(58% 58% at 50% 0%, hsl(var(--accent-blue) / 0.16), transparent 72%);
+}
+.pp-glow-violet {
+  background: radial-gradient(52% 52% at 80% 20%, hsl(var(--accent-violet) / 0.14), transparent 70%);
+}
+.pp-glow-teal {
+  background: radial-gradient(50% 50% at 15% 85%, hsl(var(--accent-teal) / 0.12), transparent 70%);
+}
+.dark .pp-dots {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.11) 1px, transparent 1.1px);
+}
+.dark .pp-lines {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+}
+
+/* Section rule with a centre node — a small custom signature between blocks. */
+.pp-rule {
+  position: relative;
+  border-top: 1px solid hsl(var(--border));
+}
+.pp-rule::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  background: hsl(var(--accent-blue));
+  box-shadow: 0 0 0 4px hsl(var(--background));
+}
+
+
+/* ------------------------------------------------
+   Console hero band — deep ink, a fine grid, prism light
+   from two corners. One strong surface per page.
+   ------------------------------------------------ */
+.pp-hero {
+  background-color: #0b1220;
+  background-image:
+    radial-gradient(70% 130% at 90% -20%, rgba(59, 130, 246, 0.32), transparent 62%),
+    radial-gradient(60% 120% at 0% 120%, rgba(139, 92, 246, 0.26), transparent 64%),
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: auto, auto, 30px 30px, 30px 30px;
+}
+
+/* Tables become stacked cards on phones — never a sideways scroll. */
+@media (max-width: 639px) {
+  .pp-table thead { display: none; }
+  .pp-table, .pp-table tbody, .pp-table tr, .pp-table td { display: block; width: 100%; }
+  .pp-table tbody { border: 0; }
+  .pp-table tr { padding: 14px 16px; border-top: 1px solid hsl(var(--border)); }
+  .pp-table tr:first-child { border-top: 0; }
+  .pp-table td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 4px 0;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+  .pp-table td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    text-align: left;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: hsl(var(--muted-foreground));
+  }
+  .pp-table td[data-label=""]::before { content: none; }
+  .pp-table td.pp-cell-primary {
+    display: block;
+    text-align: left;
+    font-size: 17.5px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    padding-bottom: 8px;
+  }
+  .pp-table td.pp-cell-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: stretch;
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 10px;
+    border-top: 1px dashed hsl(var(--border));
+  }
+  .pp-table td.pp-cell-actions::before { content: none; }
+  .pp-table td.pp-cell-actions > * { flex: 1 1 auto; }
+  .pp-table td.pp-cell-actions button { width: 100%; justify-content: center; }
+}
+
+/* Hairline divider, no gold slop. */
+.registry-rule { border-top: 1px solid hsl(var(--border)); }
+
+/* Flat ID header — white-safe, prints clean. */
+.guilloche {
+  background: hsl(var(--foreground));
+}
+
+.fineprint {
+  font-size: 12px;
+  line-height: 1.6;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Skeleton shimmer — the missing loading language. */
+@keyframes pp-shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.pp-skeleton {
+  background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--border)) 37%, hsl(var(--muted)) 63%);
+  background-size: 800px 100%;
+  animation: pp-shimmer 1.4s ease infinite;
+}
+
+/* Custom select chevron + clean scrollbars */
+.pp-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px !important;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 8px; border: 2px solid #fff; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+@media print {
+  .no-print { display: none !important; }
+  .print-card { box-shadow: none !important; border: 1px solid #999 !important; break-inside: avoid; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ------------------------------------------------
+   Interaction layer — crisp controls, quiet depth,
+   motion only where it explains something.
+   ------------------------------------------------ */
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(220 13% 85%); border: 3px solid #fff; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(220 9% 68%); }
+
+a, button, [role="button"], label[for] { -webkit-tap-highlight-color: transparent; }
+
+/* Row hover is a hint, not a highlight. */
+.pp-table tbody tr { transition: background-color 110ms ease; }
+
+/* Long-form links keep a visible affordance without shouting. */
+main a:not([class]) { color: hsl(var(--accent-blue)); text-underline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
-  }
-
-  [data-motion] {
-    opacity: 1 !important;
-    transform: none !important;
   }
 }

@@ -5,13 +5,12 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, BadgeCheck, IdCard, ScanLine, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { PrismPassLogo } from "@/components/brand/prism-pass-logo";
+import { BrandLogo } from "@/components/brand/logo";
 import { SyntaxureCredit } from "@/components/brand/syntaxure-credit";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 const PANEL_POINTS = [
   { Icon: IdCard, text: "One directory, one QR identity pass per member." },
@@ -45,38 +44,37 @@ export default function LoginPage() {
   return (
     <div className="grid min-h-dvh bg-background lg:grid-cols-2">
       {/* brand panel */}
-      <div className="relative hidden overflow-hidden bg-navy-deep text-white lg:block">
-        <div aria-hidden="true" className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-navy-deep via-navy to-[#070F22]" />
-          <div className="absolute -left-32 top-[-10%] h-[28rem] w-[28rem] rounded-full bg-[#1B3A6B]/70 blur-[120px]" />
-          <div className="absolute bottom-[-20%] right-[-10%] h-[26rem] w-[26rem] rounded-full bg-[#C9A24B]/20 blur-[120px]" />
-          <div className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(rgba(255,255,255,.5)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.5)_1px,transparent_1px)] [background-size:56px_56px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_40%,black,transparent)]" />
+      <div className="relative hidden overflow-hidden text-white lg:block">
+        <div aria-hidden="true" className="pp-hero absolute inset-0">
+          <div className="absolute -right-16 -top-24 size-[28rem] rounded-full bg-blue-500/25 blur-[110px]" />
+          <div className="absolute -bottom-24 -left-16 size-[24rem] rounded-full bg-violet-500/20 blur-[110px]" />
+          <BrandLogo variant="mark" size={460} decorative className="absolute -bottom-24 -right-20 opacity-[0.09]" />
         </div>
         <div className="relative flex h-full flex-col justify-between p-12">
           <Link href="/" aria-label="Prism Pass home" className="w-fit">
-            <PrismPassLogo onDark size={40} />
+            <BrandLogo onDark size={40} />
           </Link>
           <div className="max-w-md">
-            <span aria-hidden="true" className="mb-5 block h-px w-12 bg-gradient-to-r from-gold-soft to-transparent" />
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-gold-soft">Welcome back</p>
+            <span aria-hidden="true" className="mb-5 flex items-center gap-2"><span className="h-1 w-10 rounded-full bg-white" /><span className="h-1 w-3 rounded-full bg-white/50" /><span className="size-1.5 rounded-full bg-emerald-300" /></span>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-blue-100">Welcome back</p>
             <p className="mt-3 text-balance font-display text-4xl font-bold leading-tight xl:text-5xl">
               Attendance you can prove, not just record.
             </p>
             <ul className="mt-8 space-y-4">
               {PANEL_POINTS.map(({ Icon, text }) => (
                 <li key={text} className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-gold-soft">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white ring-1 ring-white/20">
                     <Icon className="size-4" aria-hidden="true" />
                   </span>
-                  <span className="text-[15px] text-white/80">{text}</span>
+                  <span className="text-[15px] text-white/90">{text}</span>
                 </li>
               ))}
             </ul>
             {/* mini verified-scan chip */}
-            <div className="mt-8 flex items-center gap-2.5 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur">
+            <div className="mt-8 flex items-center gap-2.5 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur">
               <BadgeCheck className="size-5 shrink-0 text-emerald-300" aria-hidden="true" />
-              <p className="text-xs text-white/70">
-                Verified check-in · Maria Santos · BSIT 3-A · <span className="font-mono">08:02:14</span>
+              <p className="text-[13px] text-white/85">
+                Verified check-in · Maria Santos · 8:02 AM
               </p>
             </div>
           </div>
@@ -86,25 +84,29 @@ export default function LoginPage() {
 
       {/* form panel */}
       <div className="relative flex flex-col">
+        <div aria-hidden="true" className="pp-dots pointer-events-none absolute inset-0 opacity-60 [mask-image:radial-gradient(70%_60%_at_50%_20%,#000,transparent)]" />
         <div className="flex h-16 items-center justify-between px-4 sm:px-8">
-          <Link href="/" className="lg:hidden" aria-label="Prism Pass home">
-            <PrismPassLogo size={30} />
-          </Link>
-          <span className="hidden text-sm text-muted-foreground lg:inline">
+          <span className="hidden text-sm text-slate-500 lg:inline">
             New to Prism Pass?{" "}
-            <Link href="/demo" className="font-semibold text-primary underline-offset-2 hover:underline">
+            <Link href="/demo" className="font-semibold text-blue-700 underline-offset-2 hover:underline">
               Book a demo
             </Link>
           </span>
-          <ThemeToggle />
+          
         </div>
         <main className="flex flex-1 items-center justify-center px-4 py-10 sm:px-8">
           <div className="w-full max-w-sm">
-            <div className="mb-6 lg:hidden">
-              <p className="text-balance font-display text-3xl font-bold tracking-tight">Welcome back</p>
-              <p className="mt-1.5 text-sm text-muted-foreground">Sign in to reach your organization consoles.</p>
+            <div className="pp-hero relative mb-5 overflow-hidden rounded-2xl px-5 py-6 text-white lg:hidden">
+              <span aria-hidden="true" className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-blue-400 via-violet-400 to-teal-300" />
+              <BrandLogo onDark size={32} />
+              <p className="mt-5 text-balance text-[23px] font-semibold leading-[1.15] tracking-[-0.02em]">
+                Attendance you can prove.
+              </p>
+              <p className="mt-1.5 text-[14px] leading-relaxed text-white/60">
+                Sign in to reach your organization consoles.
+              </p>
             </div>
-            <Card className="shadow-md">
+            <Card className="shadow-[0_1px_3px_rgba(15,23,42,0.08)]">
               <CardHeader>
                 <CardTitle as="h1">Sign in</CardTitle>
                 <CardDescription>Use your organization-issued email account.</CardDescription>
@@ -123,7 +125,7 @@ export default function LoginPage() {
                     <Input id="login-password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} type="password" autoComplete="current-password" required />
                   </FormField>
                   {err && (
-                    <p id="login-error" role="alert" className="rounded-lg border border-destructive bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    <p id="login-error" role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[14.5px] text-red-700">
                       Sign in failed — {err}
                     </p>
                   )}
@@ -131,19 +133,19 @@ export default function LoginPage() {
                     {busy ? "Signing in…" : (<>Sign in <ArrowRight aria-hidden="true" /></>)}
                   </Button>
                 </form>
-                <p className="mt-4 text-center text-sm text-muted-foreground">
+                <p className="mt-4 text-center text-sm text-slate-500">
                   Forgot your password?{" "}
-                  <Link href="/reset-password" className="font-medium text-primary underline underline-offset-2">
+                  <Link href="/reset-password" className="font-medium text-blue-700 underline underline-offset-2">
                     Reset it
                   </Link>
                 </p>
               </CardContent>
             </Card>
-            <p className="mt-6 text-center text-xs text-muted-foreground">
+            <p className="mt-6 text-center text-xs text-slate-500">
               Having trouble? Contact your organization administrator.
             </p>
-            <p className="mt-2 text-center text-xs text-muted-foreground">
-              <Link href="/privacy" className="font-semibold text-primary underline decoration-accent/60 underline-offset-2">
+            <p className="mt-2 text-center text-xs text-slate-500">
+              <Link href="/privacy" className="font-semibold text-blue-700 underline decoration-blue-300 underline-offset-2">
                 Privacy & your rights
               </Link>{" "}
               — what the platform records and how to exercise your rights.

@@ -68,9 +68,8 @@ export function AdminsConsole() {
   return (
     <>
       <PageHeader
-        eyebrow="Platform · Access control"
         title="Platform admins"
-        description="The platform_admins row is the only source of platform authority. An organization OWNER never inherits it (ADR-11). Every grant and revoke requires a recorded reason."
+        description="Platform access is granted here only. Being an organization owner does not include it. Every grant and revoke needs a reason."
         actions={
           <Button className="h-11" onClick={() => setGrantOpen(true)}>
             <UserPlus aria-hidden="true" /> Grant access
@@ -127,7 +126,7 @@ export function AdminsConsole() {
                     <th
                       key={heading}
                       scope="col"
-                      className="py-2 pr-4 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground last:pr-0 last:text-right"
+                      className="py-2 pr-4 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground last:pr-0 last:text-right"
                     >
                       {heading}
                     </th>
@@ -276,7 +275,7 @@ function GrantDialog({
   return (
     <Modal
       title="Grant platform admin access"
-      description="Platform authority is separate from organization membership (ADR-11). The grant is audited with your identity and the reason."
+      description="Platform access is separate from organization membership. Each grant records who gave it and why."
       onClose={() => {
         if (!busy) onClose();
       }}
@@ -293,7 +292,7 @@ function GrantDialog({
     >
       <form id={formId} onSubmit={submit} className="space-y-4">
         <div>
-          <label htmlFor={identifierId} className="block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <label htmlFor={identifierId} className="block text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             User e-mail or user id
           </label>
           <Input
@@ -311,7 +310,7 @@ function GrantDialog({
         </div>
 
         <div>
-          <label htmlFor={reasonId} className="block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <label htmlFor={reasonId} className="block text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Reason (required)
           </label>
           <textarea
