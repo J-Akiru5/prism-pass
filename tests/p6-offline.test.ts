@@ -19,6 +19,7 @@ import {
 } from "../modules/offline/schema";
 import { classifyBatchItems, summarizeDecisions } from "../modules/offline/classify";
 import { backoffDelayMs, isDue, markAcked, markFailed, markInflight, newQueueRecord } from "../modules/offline/queue-state";
+import { deviceSyncRejection, evaluateDeviceRevocation } from "../modules/devices/revocation";
 
 const NOW = new Date("2026-11-08T08:00:00.000Z");
 const NOW_MS = NOW.getTime();
@@ -263,5 +264,22 @@ describe("P6 client queue state", () => {
     expect(backoffDelayMs(100)).toBe(300_000);
     const failed = markFailed(newQueueRecord("key-2", NOW_MS), "network", NOW_MS);
     expect(markAcked(failed)).toMatchObject({ state: "pending", attempts: 0, lastError: null });
+  });
+});
+
+describe("P6 device revocation admission", () => {
+  it("rejects a revoked device with DEVICE_REVOKED, not a generic FORBIDDEN", () => {
+    const rejection = deviceSyncRejection({ revokedAt: NOW, secretHash: "a".repeat(64) });
+    expect(rejection?.code).toBe("DEVICE_REVOKED");
+    expect(rejection?.status).toBe(403);
+    expect(rejection?.reason).toBe("device_revoked");
+  });
+
+  it("keeps revocation idempotent and preserves the first timestamp", () => {
+    const first = evaluateDeviceRevocation({ revokedAt: null }, NOW);
+    const again = evaluateDeviceRevocation({ revokedAt: first.revokedAt }, new Date(NOW_MS + 86_400_000));
+    expect(first.already).toBe(false);
+    expect(again.already).toBe(true);
+    expect(again.revokedAt).toBe(NOW);
   });
 });

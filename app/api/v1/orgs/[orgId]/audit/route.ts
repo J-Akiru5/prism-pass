@@ -15,6 +15,12 @@ const auditFilters = z.object({
 
 // GET /api/v1/orgs/:orgId/audit?action&result&from&to&page&pageSize
 // organization.manage. Newest first; optional 366-day date window.
+//
+// Stays org-wide intentionally: `organization.manage` is held only by OWNER and
+// ADMIN, and both are org-wide in modules/reports/scope.ts. AuditLog has no
+// personId column (only an optional actorUserId), so a person/program allow-list
+// cannot be expressed against this table; hiding rows by actor would hide the
+// actions an admin must review. MANAGER/SUPERVISOR cannot read audit at all.
 export async function GET(req: Request, { params }: P) {
   try {
     const { orgId } = await params;
