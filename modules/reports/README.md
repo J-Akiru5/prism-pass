@@ -10,6 +10,7 @@ into a client bundle.
 | `csv.ts` | RFC 4180 serialization + spreadsheet formula-injection guard. |
 | `range.ts` | Calendar-date range validation (92-day DTR cap, 366-day audit cap). |
 | `masking.ts` | VIEWER PII minimization (initials + salted external-id hash). |
+| `scope.ts` | Pure person-scoping for DTR/records by role and program assignments. |
 | `approval.ts` | Record-level approval state transition. |
 
 ## DTR aggregation decisions
@@ -57,3 +58,28 @@ boundary:
   not reversible from a short student/employee number without the salt.
 - OWNER/ADMIN/MANAGER/SUPERVISOR/SCANNER/MEMBER exports remain unmasked, since
   the route has already checked `reports.export`.
+
+## Scoping decisions
+
+`scope.ts` decides which people a caller may read; `lib/report-scope.ts` loads
+only the rows the decision needs. The DTR route and `GET /records` share it.
+
+- OWNER/ADMIN → all people (`org`), unmasked.
+- MANAGER/SUPERVISOR → people with an **active** assignment in a program the
+  caller is also actively assigned to (`programs`). Expired/future assignments
+  and assignments from another organization are ignored. No program assignment
+  means an empty allow-list, never an implicit org-wide fallback.
+- MEMBER/SCANNER → only the caller's own `people` row (`self`); an unlinked user
+  sees no rows.
+- VIEWER → org-wide but always masked, and only when `reports.export` was
+  explicitly granted. Without the grant the allow-list is empty.
+- Scope is applied to the SQL query (`personId IN (...)`) before aggregation, so
+  out-of-scope rows are never loaded, and `masked` from the scope is passed to
+  `maskDtrRows` instead of re-deriving it from the role.
+
+**Schema limitation:** `person_assignments` has no supervisor/mentor person
+column, only `personId`, `programId`, a free-text `role` and a validity window.
+The manager scope is therefore program-wide: a manager co-assigned to a program
+sees all of its active members (including peers), and cannot be limited to a
+specific subset of mentees. Adding `supervisor_person_id` later would allow
+per-person delegation without changing the scope interface.
