@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useCallback, useEffect, useState } from "react";
-import { CalendarPlus, ScanLine, ShieldCheck, X } from "lucide-react";
+import { AlertTriangle, CalendarPlus, Lock, LockOpen, ScanLine, ShieldCheck, UserMinus, UserPlus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
@@ -14,7 +14,23 @@ import { AttendanceTimelineRows, type RecordRow } from "@/components/attendance-
 import { ErrorState, LoadingState, EmptyState } from "@/components/ui-states";
 
 type Policy = { id: string; name: string; graceMin: number; lateThresholdMin: number; duplicateWindowSec: number };
-type Session = AgendaSession & { policyId: string; timezone: string };
+type Session = AgendaSession & {
+  policyId: string;
+  timezone: string;
+  status: "OPEN" | "CLOSED";
+  closedAt?: string | null;
+  rosterEnforced: boolean;
+  walkInAllowed: boolean;
+  rosterCount?: number;
+};
+type RosterEntry = {
+  id: string;
+  personId: string;
+  source: string;
+  addedAt: string;
+  person: { id: string; displayName: string; status: string };
+};
+type PersonOption = { id: string; displayName: string; status: string };
 
 async function api(path: string, init?: RequestInit) {
   const r = await fetch(path, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
@@ -36,6 +52,16 @@ export default function AttendancePage({ params }: { params: Promise<{ orgId: st
   const [peopleNames, setPeopleNames] = useState<Record<string, string>>({});
   const [newSession, setNewSession] = useState(false);
   const [policyOpen, setPolicyOpen] = useState(false);
+  const [sessionType, setSessionType] = useState("EVENT");
+  const [rosterEnforced, setRosterEnforced] = useState(true);
+  const [walkInAllowed, setWalkInAllowed] = useState(false);
+  const [roster, setRoster] = useState<RosterEntry[]>([]);
+  const [rosterCount, setRosterCount] = useState(0);
+  const [people, setPeople] = useState<PersonOption[]>([]);
+  const [personToAdd, setPersonToAdd] = useState("");
+  const [statusBusy, setStatusBusy] = useState(false);
+  const [rosterBusy, setRosterBusy] = useState(false);
+  const [rosterReady, setRosterReady] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,8 +91,46 @@ export default function AttendancePage({ params }: { params: Promise<{ orgId: st
     } catch { /* keep previous */ }
   }, [orgId, activeSession, peopleNames]);
 
+  // Roster detail for the selected session: status is authoritative on the
+  // server, so reload it after a close/reopen or a roster change.
+  const loadSession = useCallback(async () => {
+    setPersonToAdd("");
+    if (!activeSession) { setRoster([]); setRosterCount(0); setRosterReady(true); return; }
+    setRosterReady(false);
+    try {
+      const [detail, list] = await Promise.all([
+        api(`/api/v1/orgs/${orgId}/sessions/${activeSession}`) as Promise<Session>,
+        api(`/api/v1/orgs/${orgId}/sessions/${activeSession}/roster?page=1&pageSize=100`),
+      ]);
+      setRosterCount(detail.rosterCount ?? 0);
+      setRoster(list.roster ?? []);
+      setRosterReady(true);
+      setSessions((rows) => rows.map((row) => (row.id === activeSession ? { ...row, ...detail } : row)));
+    } catch (e) { setError((e as Error).message); }
+  }, [orgId, activeSession]);
+
+  // Directory for the roster add control. A scanner role without members.manage
+  // simply gets no directory and keeps the read-only roster.
+  useEffect(() => {
+    let cancelled = false;
+    api(`/api/v1/orgs/${orgId}/people?page=1&pageSize=100`)
+      .then((rows: PersonOption[]) => { if (!cancelled) setPeople(rows); })
+      .catch(() => { /* scoped role */ });
+    return () => { cancelled = true; };
+  }, [orgId]);
+
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadRecords(); }, [loadRecords]);
+  useEffect(() => { loadSession(); }, [loadSession]);
+
+  function toggleNewSession() {
+    if (!newSession) {
+      setSessionType("EVENT");
+      setRosterEnforced(true);
+      setWalkInAllowed(false);
+    }
+    setNewSession((open) => !open);
+  }
 
   async function createPolicy(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); setError(null);
@@ -84,16 +148,63 @@ export default function AttendancePage({ params }: { params: Promise<{ orgId: st
     const fd = new FormData(form);
     try {
       const now = new Date();
-      await api(`/api/v1/orgs/${orgId}/sessions`, {
+      const created = await api(`/api/v1/orgs/${orgId}/sessions`, {
         method: "POST",
         body: JSON.stringify({
-          policyId: String(fd.get("policyId")), type: String(fd.get("type") ?? "EVENT"), title: String(fd.get("title")),
+          policyId: String(fd.get("policyId")), type: sessionType, title: String(fd.get("title")),
           startsAt: new Date(String(fd.get("starts")) || now.toISOString()).toISOString(),
           endsAt: new Date(String(fd.get("ends")) || new Date(now.getTime() + 4 * 3600000).toISOString()).toISOString(),
+          rosterEnforced,
+          walkInAllowed,
         }),
-      });
-      form.reset(); setNewSession(false); await load();
+      }) as Session;
+      form.reset();
+      setSessionType("EVENT");
+      setRosterEnforced(true);
+      setWalkInAllowed(false);
+      setNewSession(false);
+      await load();
+      setActiveSession(created.id);
     } catch (e) { setError((e as Error).message); }
+  }
+
+  async function changeStatus(next: "OPEN" | "CLOSED") {
+    if (!current) return;
+    const closing = next === "CLOSED";
+    if (!window.confirm(
+      closing
+        ? `Close “${current.title}”? New scans will be refused until you reopen it.`
+        : `Reopen “${current.title}”? Scans will be accepted again.`,
+    )) return;
+    setStatusBusy(true); setError(null);
+    try {
+      const updated = await api(`/api/v1/orgs/${orgId}/sessions/${current.id}`, {
+        method: "PATCH", body: JSON.stringify({ status: next }),
+      }) as Session;
+      setSessions((rows) => rows.map((row) => (row.id === updated.id ? { ...row, ...updated } : row)));
+    } catch (e) { setError((e as Error).message); } finally { setStatusBusy(false); }
+  }
+
+  async function addToRoster(e: React.FormEvent) {
+    e.preventDefault();
+    if (!activeSession || !personToAdd) return;
+    setRosterBusy(true); setError(null);
+    try {
+      await api(`/api/v1/orgs/${orgId}/sessions/${activeSession}/roster`, {
+        method: "POST", body: JSON.stringify({ personIds: [personToAdd] }),
+      });
+      setPersonToAdd("");
+      await loadSession();
+    } catch (e) { setError((e as Error).message); } finally { setRosterBusy(false); }
+  }
+
+  async function removeFromRoster(personId: string) {
+    if (!activeSession) return;
+    setRosterBusy(true); setError(null);
+    try {
+      await api(`/api/v1/orgs/${orgId}/sessions/${activeSession}/roster/${personId}`, { method: "DELETE" });
+      await loadSession();
+    } catch (e) { setError((e as Error).message); } finally { setRosterBusy(false); }
   }
 
   async function scan(e: React.FormEvent) {
@@ -102,13 +213,15 @@ export default function AttendancePage({ params }: { params: Promise<{ orgId: st
       const j = await api(`/api/v1/orgs/${orgId}/sessions/${activeSession}/scans`, {
         method: "POST", body: JSON.stringify({ credential: cred.trim(), clientTs: new Date().toISOString() }),
       });
-      setScanResult(`${j.event.type} · ${j.record?.status ?? "recorded"}${j.duplicate ? " (duplicate)" : ""}`);
+      setScanResult(`${j.personName} · ${j.event.type} · ${j.record?.status ?? "recorded"}${j.duplicate ? " (duplicate)" : ""}`);
       setCred(""); await loadRecords();
     } catch (e) { setError((e as Error).message); }
   }
 
   const enriched = records.map((r) => ({ ...r, personName: peopleNames[r.personId] }));
   const current = sessions.find((s) => s.id === activeSession);
+  const rosteredIds = new Set(roster.map((entry) => entry.personId));
+  const availablePeople = people.filter((p) => !rosteredIds.has(p.id));
   const onTime = records.filter((r) => r.status === "PRESENT").length;
   const late = records.filter((r) => r.status === "LATE").length;
   const pending = records.filter((r) => r.approvalStatus === "PENDING").length;
@@ -119,7 +232,7 @@ export default function AttendancePage({ params }: { params: Promise<{ orgId: st
         title="Attendance"
         description={loading ? "Loading your schedule…" : "Choose the session you are working, then scan passes. Everything below follows that session."}
         actions={
-          <Button variant={newSession ? "outline" : "default"} className="h-12 w-full sm:w-auto" onClick={() => setNewSession((v) => !v)}>
+          <Button variant={newSession ? "outline" : "default"} className="h-12 w-full sm:w-auto" onClick={toggleNewSession}>
             {newSession ? <><X aria-hidden="true" /> Close</> : <><CalendarPlus aria-hidden="true" /> New session</>}
           </Button>
         }
@@ -145,10 +258,43 @@ export default function AttendancePage({ params }: { params: Promise<{ orgId: st
                 </Select>
               </FormField>
               <FormField label="Type" htmlFor="sess-type">
-                <Select id="sess-type" name="type">{["EVENT", "OJT", "SHIFT", "CLASS", "VISITOR", "TRAINING"].map((t) => <option key={t} value={t}>{t}</option>)}</Select>
+                <Select
+                  id="sess-type"
+                  name="type"
+                  value={sessionType}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setSessionType(next);
+                    setRosterEnforced(next === "EVENT");
+                  }}
+                >{["EVENT", "OJT", "SHIFT", "CLASS", "VISITOR", "TRAINING"].map((t) => <option key={t} value={t}>{t}</option>)}</Select>
               </FormField>
               <FormField label="Starts" htmlFor="sess-starts"><Input id="sess-starts" name="starts" type="datetime-local" /></FormField>
               <FormField label="Ends" htmlFor="sess-ends"><Input id="sess-ends" name="ends" type="datetime-local" /></FormField>
+              <label className="flex cursor-pointer items-start gap-2.5 rounded-[10px] border border-slate-200 px-3 py-2.5">
+                <input
+                  type="checkbox"
+                  checked={rosterEnforced}
+                  onChange={(e) => setRosterEnforced(e.target.checked)}
+                  className="mt-0.5 size-5 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-600/30"
+                />
+                <span>
+                  <span className="block text-[14.5px] font-semibold text-slate-900">Only people on the roster</span>
+                  <span className="block text-[13px] leading-snug text-slate-500">Unlisted passes are refused unless walk-ins are allowed.</span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-2.5 rounded-[10px] border border-slate-200 px-3 py-2.5">
+                <input
+                  type="checkbox"
+                  checked={walkInAllowed}
+                  onChange={(e) => setWalkInAllowed(e.target.checked)}
+                  className="mt-0.5 size-5 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-600/30"
+                />
+                <span>
+                  <span className="block text-[14.5px] font-semibold text-slate-900">Allow walk-ins</span>
+                  <span className="block text-[13px] leading-snug text-slate-500">Anyone active in this organization can still scan in.</span>
+                </span>
+              </label>
               <Button type="submit" className="h-12 sm:col-span-2">Create session</Button>
             </form>
           </CardContent>
@@ -173,8 +319,13 @@ export default function AttendancePage({ params }: { params: Promise<{ orgId: st
       {activeSession && (
         <section className="mt-6" aria-labelledby="working-heading">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 id="working-heading" className="text-[19px] font-bold tracking-tight text-slate-900">
-              {current ? current.title : "Selected session"}
+            <h2 id="working-heading" className="flex flex-wrap items-center gap-2 text-[19px] font-bold tracking-tight text-slate-900">
+              <span>{current ? current.title : "Selected session"}</span>
+              {current && (
+                <Badge variant={current.status === "CLOSED" ? "danger" : "success"}>
+                  {current.status === "CLOSED" ? "Closed" : "Open"}
+                </Badge>
+              )}
             </h2>
             <p className="text-[14px] text-slate-500">
               {records.length} recorded · {onTime} on time · {late} late{pending > 0 ? ` · ${pending} awaiting approval` : ""}
@@ -192,6 +343,97 @@ export default function AttendancePage({ params }: { params: Promise<{ orgId: st
               </p>
             )}
           </div>
+
+          {current && (
+            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-[16px] font-bold text-slate-900">Event roster</h3>
+                  <p className="mt-0.5 text-[13.5px] text-slate-600">
+                    {rosterCount} {rosterCount === 1 ? "person" : "people"} on the list
+                    {" · "}
+                    {current.rosterEnforced ? "roster enforced" : "roster not enforced"}
+                    {" · "}
+                    {current.walkInAllowed ? "walk-ins allowed" : "no walk-ins"}
+                  </p>
+                </div>
+                <Button
+                  variant={current.status === "CLOSED" ? "outline" : "destructive"}
+                  size="sm"
+                  onClick={() => changeStatus(current.status === "CLOSED" ? "OPEN" : "CLOSED")}
+                  disabled={statusBusy}
+                >
+                  {current.status === "CLOSED"
+                    ? <><LockOpen aria-hidden="true" /> Reopen event</>
+                    : <><Lock aria-hidden="true" /> Close event</>}
+                </Button>
+              </div>
+
+              {current.status === "CLOSED" && (
+                <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-[13.5px] font-medium text-red-700 ring-1 ring-inset ring-red-200/70">
+                  This event is closed. New scans are refused until you reopen it.
+                </p>
+              )}
+
+              {current.status === "OPEN" && current.rosterEnforced && rosterReady && rosterCount === 0 && (
+                <p className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-[13.5px] text-amber-800 ring-1 ring-inset ring-amber-200/80">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                  <span>
+                    No one is on the roster.{" "}
+                    {current.walkInAllowed
+                      ? "Walk-ins are allowed, but add the expected attendees so they scan without a doubt."
+                      : "Roster enforcement is on, so every person will be refused. Add people or allow walk-ins."}
+                  </span>
+                </p>
+              )}
+
+              <form onSubmit={addToRoster} className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                <Select
+                  aria-label="Person to add to the roster"
+                  value={personToAdd}
+                  onChange={(e) => setPersonToAdd(e.target.value)}
+                  disabled={availablePeople.length === 0 || rosterBusy}
+                >
+                  <option value="">{availablePeople.length === 0 ? "No more people to add" : "Choose a person"}</option>
+                  {availablePeople.map((p) => <option key={p.id} value={p.id}>{p.displayName}</option>)}
+                </Select>
+                <Button type="submit" variant="outline" className="h-12" disabled={!personToAdd || rosterBusy}>
+                  <UserPlus aria-hidden="true" /> Add to roster
+                </Button>
+              </form>
+
+              {roster.length === 0 ? (
+                <p className="mt-3 rounded-lg border border-dashed border-slate-300 px-3 py-3 text-[14px] text-slate-600">
+                  No one on the roster yet.
+                </p>
+              ) : (
+                <ul className="mt-3 divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200">
+                  {roster.map((entry) => (
+                    <li key={entry.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                      <span className="min-w-0">
+                        <span className="block truncate text-[14.5px] font-semibold text-slate-900">{entry.person.displayName}</span>
+                        <span className="block text-[12.5px] text-slate-500">
+                          {entry.source} · added {new Date(entry.addedAt).toLocaleDateString()}
+                        </span>
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFromRoster(entry.personId)}
+                        disabled={rosterBusy}
+                        aria-label={`Remove ${entry.person.displayName} from the roster`}
+                      >
+                        <UserMinus aria-hidden="true" /> Remove
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {rosterCount > roster.length && (
+                <p className="mt-2 text-[13px] text-slate-500">Showing {roster.length} of {rosterCount} people.</p>
+              )}
+            </div>
+          )}
 
           <div className="mt-4">
             {records.length === 0 ? (

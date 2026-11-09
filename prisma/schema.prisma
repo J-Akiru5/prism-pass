@@ -43,6 +43,13 @@ enum SessionType {
   TRAINING
 }
 
+// M1 event lifecycle: an EVENT may be closed manually; a closed session refuses
+// new scans. Default OPEN keeps every existing session working after 0009.
+enum AttendanceSessionStatus {
+  OPEN
+  CLOSED
+}
+
 enum AttendanceEventType {
   SCAN
   CHECK_IN
@@ -115,6 +122,7 @@ model Organization {
   passes    Pass[]
   policies  AttendancePolicy[]
   sessions  AttendanceSession[]
+  sessionRoster SessionRoster[]
   events    AttendanceEvent[]
   records   AttendanceRecord[]
   geofences Geofence[]
@@ -231,6 +239,7 @@ model Person {
   identity       User? @relation("PersonIdentity", fields: [userId], references: [id])
   passes         Pass[]
   assignments    PersonAssignment[]
+  sessionRoster  SessionRoster[]
   @@index([organizationId, displayName])
 
   @@map("people")
@@ -293,13 +302,38 @@ model AttendanceSession {
   startsAt       DateTime @map("starts_at")
   endsAt         DateTime @map("ends_at")
   timezone       String
+  status         AttendanceSessionStatus @default(OPEN)
+  closedAt       DateTime? @map("closed_at")
+  rosterEnforced Boolean  @default(false) @map("roster_enforced")
+  walkInAllowed  Boolean  @default(false) @map("walk_in_allowed")
   organization   Organization @relation(fields: [organizationId], references: [id])
   policy         AttendancePolicy @relation(fields: [policyId], references: [id])
   events         AttendanceEvent[]
   records        AttendanceRecord[]
+  roster         SessionRoster[]
   @@index([organizationId, startsAt])
 
   @@map("attendance_sessions")
+}
+
+// M1 pilot roster: the per-event allow list checked before a scan is accepted.
+// M6 replaces this with event_access_grants; the uniqueness key is the same.
+model SessionRoster {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  sessionId      String @map("session_id")
+  personId       String @map("person_id")
+  source         String @default("manual")
+  addedByUserId  String? @map("added_by_user_id")
+  addedAt        DateTime @default(now()) @map("added_at")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  session        AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  person         Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, sessionId, personId])
+  @@index([organizationId, sessionId])
+  @@index([organizationId, personId])
+
+  @@map("session_roster")
 }
 
 model AttendanceEvent {
