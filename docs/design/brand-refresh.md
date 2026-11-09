@@ -65,11 +65,11 @@ const { ImageResponse } = require("next/dist/compiled/@vercel/og");
 
 No extra dependency, no `sharp`, no build step.
 
-## Out-of-scope finding (not changed here)
+## Out-of-scope finding (resolved 2026-11-09)
 
-`vercel.json` currently advertises `git.deploymentEnabled` with
+`vercel.json` previously advertised `git.deploymentEnabled` with
 `"staging": true` and no `"develop": true`. Under
 `instructions/deployment-governance.md` only `main` and `develop` may deploy;
-`staging` must be excluded. This is deployment configuration owned by the
-integration/deployment work, so it was reported, not edited, in the brand
-branch.
+`staging` must be excluded. The deployment hardening change now sets the
+allowlist to `main` + `develop` and retires `staging`; see
+`docs/security/deployment-governance.md`.

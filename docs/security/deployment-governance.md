@@ -28,11 +28,10 @@ Everything not named `main` or `develop` is ineligible, including pull-request p
 - Deployment eligibility is limited to `main` and `develop`. A staging deployment would need a
   separate owner decision, an isolated environment and data, and an update to this document and
   `vercel.json`.
-- The three-branch section in `docs/ops/branching-and-deployment.md` is **stale** as of this document.
-  Its deployment allowlist (`main` + `staging`) no longer describes the repository. The same applies to
-  the `staging` promotion steps in `docs/ops/release-and-versioning.md` and the branch table in
-  `README.md`. Do not follow those sections until the owner reconciles them; changing them is outside
-  the CI-hardening change that introduced this document.
+- The 2026-11-08 three-branch note (`main` + `staging`) was superseded by the owner on 2026-11-09.
+  `docs/ops/branching-and-deployment.md`, `docs/ops/release-and-versioning.md` and the `README.md`
+  branch table now describe the `main` + `develop` model; `staging` is retired and is neither
+  promoted to nor deployed.
 
 ## Enforcement in `vercel.json`
 
@@ -68,6 +67,8 @@ Everything not named `main` or `develop` is ineligible, including pull-request p
    are not part of this project's flow.
 4. **No preview deployments from task branches or pull requests.** Build and verify locally instead.
 5. **`develop` is pre-authorized.** Its automatic deployment is the normal integration feedback loop.
+   Until an isolated development Supabase project exists, `develop` deployments point at the same
+   project as production — treat development writes as real data.
 6. **`main` is production and owner-authorized.** An agent promotes to `main` only when the owner
    explicitly instructs that specific production deployment. The instruction authorizes that
    deployment, not future ones.
@@ -176,5 +177,5 @@ is validated statically; this change does not run or deploy it.
 - [ ] Branch protection/rulesets configured for `main` and `develop` (GitHub setting, owner action).
 - [ ] Required status check `typecheck / test / build` selected in the ruleset.
 - [ ] Vercel project settings and absence of deploy hooks verified in the dashboard.
-- [ ] `docs/ops/branching-and-deployment.md`, `docs/ops/release-and-versioning.md` and `README.md`
-      reconciled with this document (owner action).
+- [x] `docs/ops/branching-and-deployment.md`, `docs/ops/release-and-versioning.md` and `README.md`
+      reconciled with this document (2026-11-09).

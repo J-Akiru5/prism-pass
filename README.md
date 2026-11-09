@@ -136,8 +136,8 @@ Typecheck, tests and build are the enforced checks.
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `main`, `staging` and `develop`, and on pull
-requests:
+`.github/workflows/ci.yml` runs on every push to `main` and `develop`, and on pull requests targeting
+either branch:
 
 ```
 pnpm install --frozen-lockfile → pnpm prisma:generate → pnpm typecheck → pnpm test → pnpm build
@@ -151,14 +151,14 @@ gate once an ESLint config exists.
 | Branch | Role | Deploys |
 | --- | --- | --- |
 | `main` | Production | Yes — production |
-| `staging` | Preview | Yes — preview |
-| `develop` | Integration / reconciliation | No |
+| `develop` | Integration / reconciliation | Yes — development |
+| `staging` | Retired | No |
 | `feat/*`, `fix/*`, `chore/*`, `agent/*` | Task work | No |
 
-Task branches merge directly into `develop` (no pull request). `develop` promotes to `staging` at
-each phase exit, and `staging` promotes to `main` once the preview is verified. Only `main` and
-`staging` are deploy-eligible; everything else is refused before a build by the allowlist in
-`vercel.json`. Full detail: `docs/ops/branching-and-deployment.md`.
+Task branches merge directly into `develop` (no pull request). `develop` promotes to `main` only on
+an explicit owner-authorized production promotion. Only `main` and `develop` are deploy-eligible;
+everything else, including `staging`, is refused before a build by the allowlist in `vercel.json`.
+Full detail: `docs/ops/branching-and-deployment.md` and `docs/security/deployment-governance.md`.
 
 Releases are tagged `vX.Y.Z` on `main`, one minor per phase exit, with the version surfaced by
 `GET /api/v1/health`. See `docs/ops/release-and-versioning.md` and `CHANGELOG.md`.
