@@ -149,6 +149,17 @@ function mapQueueError(error: unknown): BundleClientError {
   );
 }
 
+/**
+ * Monotonic clock for cache-age math. `performance.now()` is unaffected by a
+ * device clock change; the Date fallback is only for environments without it.
+ */
+function monotonicNow(): number {
+  if (typeof performance !== "undefined" && typeof performance.now === "function") {
+    return performance.now();
+  }
+  return Date.now();
+}
+
 export type FetchAndCacheBundleInput = {
   organizationId: string;
   sessionId?: string;
@@ -259,6 +270,7 @@ export async function fetchAndCacheBundle(input: FetchAndCacheBundleInput): Prom
   const rttMs = Number.isFinite(drift.rttMs) ? drift.rttMs : null;
 
   const receivedAt = now();
+  const receivedAtMonoMs = monotonicNow();
   let sealed: string;
   try {
     const key = await loadOrCreateQueueKey();
@@ -274,6 +286,7 @@ export async function fetchAndCacheBundle(input: FetchAndCacheBundleInput): Prom
     deviceId,
     generatedAt: bundle.generatedAt,
     receivedAt,
+    receivedAtMonoMs,
     serverTime: bundle.serverTime,
     driftMs,
     rttMs,
@@ -294,6 +307,7 @@ export async function fetchAndCacheBundle(input: FetchAndCacheBundleInput): Prom
     bundle,
     generatedAt: record.generatedAt,
     receivedAt: record.receivedAt,
+    receivedAtMonoMs,
     serverTime: record.serverTime,
     driftMs: record.driftMs,
     rttMs: record.rttMs,
@@ -360,6 +374,10 @@ export async function loadCachedBundle(
   }
 
   const nowMs = (options.now ?? Date.now)();
+  const receivedAtMonoMs =
+    typeof record.receivedAtMonoMs === "number" && Number.isFinite(record.receivedAtMonoMs)
+      ? record.receivedAtMonoMs
+      : Math.max(0, monotonicNow() - Math.max(0, nowMs - record.receivedAt));
   // Prefer the sealed bundle's own timestamps over the plaintext metadata row:
   // `generatedAt`/`serverTime` are covered by the device signature, while the
   // cache row is only as trustworthy as the origin's storage.
@@ -367,6 +385,7 @@ export async function loadCachedBundle(
     bundle,
     generatedAt: bundle.generatedAt,
     receivedAt: record.receivedAt,
+    receivedAtMonoMs,
     serverTime: bundle.serverTime,
     driftMs: record.driftMs,
     rttMs: record.rttMs,

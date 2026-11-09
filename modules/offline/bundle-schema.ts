@@ -249,6 +249,8 @@ export type CachedBundleRecord = {
   deviceId: string | null;
   generatedAt: string;
   receivedAt: number;
+  /** Monotonic receipt stamp for drift-proof age math; absent on old cache rows. */
+  receivedAtMonoMs?: number;
   serverTime: string;
   /** `serverTime - device midpoint`; null when it could not be measured. */
   driftMs: number | null;
@@ -265,6 +267,8 @@ export type CachedBundle = {
   bundle: ScannerBundle;
   generatedAt: string;
   receivedAt: number;
+  /** Monotonic receipt stamp for drift-proof age math; absent on old cache rows. */
+  receivedAtMonoMs?: number;
   serverTime: string;
   driftMs: number | null;
   rttMs: number | null;
