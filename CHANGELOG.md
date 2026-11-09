@@ -17,10 +17,15 @@ All notable changes to this project are documented here. Format follows
 - Visible "Back to home" links on all public auth pages, plus a pilot Terms of Service page.
 - Offline queue: terminal `blocked` state for revoked/unregistered device keys, explicit rebind for
   rows captured under another device, a 30-second sync request timeout, and a single-tab sync lock.
+- Member landing: MEMBER accounts skip the console chooser and open their pass; the pass card now
+  displays a stable QR derived from `PASS_QR_SECRET`. Legacy random-secret passes can be re-issued
+  from the member page. No database migration.
 
 ### Fixed
 - Login now distinguishes an unconfirmed email from a wrong password, so the user is told to check
   their inbox instead of seeing a generic credential error.
+- The member pass card no longer prints the full QR secret as text; only the QR and public pass id
+  are shown.
 - Device revocation no longer causes an infinite retry loop; queued scans stay intact until the device
   is re-registered and retried explicitly.
 - Sync now honours a server `Retry-After` as a floor instead of retrying after the shorter 1-second

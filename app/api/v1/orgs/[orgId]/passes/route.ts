@@ -38,7 +38,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ orgId: 
     const person = await prisma.person.findUnique({ where: { id: input.personId } });
     if (!person || person.organizationId !== ctx.organizationId) return fail(404, "NOT_FOUND", "Person not found in this organization");
     const passPublicId = `pp_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
-    const { qrPayload, credentialHash } = newCredentialPair(passPublicId);
+    const { qrPayload, credentialHash } = newCredentialPair(passPublicId, 1);
     const pass = await prisma.pass.create({
       data: {
         organizationId: ctx.organizationId,

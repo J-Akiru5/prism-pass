@@ -4,6 +4,9 @@ import { constantTimeEqualHex, verifyCredentialHash } from "../modules/passes/cr
 import { hashCredential, newCredentialPair } from "../modules/passes/service";
 import { parseQrPayload, verifyPassStatus } from "../modules/passes/verify";
 
+// Deterministic pass-QR derivation requires a master key; tests use a fixed one.
+process.env.PASS_QR_SECRET = "test-pass-qr-secret-".padEnd(64, "a");
+
 const PASS_ID = "pp_0123456789abcdef";
 const LOWER = "a".repeat(64);
 const UPPER = "A".repeat(64);
