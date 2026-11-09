@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Keyboard, ScanLine } from "lucide-react";
 import { ScannerViewport } from "@/components/scanner-viewport";
-import { ScanResult, type ScanTone } from "@/components/scan-result";
+import { ScanResult } from "@/components/scan-result";
 import { OfflineQueuePanel } from "@/components/offline-queue-panel";
 import { ConsoleBar } from "@/components/console-bar";
 import { Button } from "@/components/ui/button";
@@ -21,18 +21,26 @@ import {
   saveDeviceContext,
   type DeviceContext,
 } from "@/lib/device-context";
+import {
+  isSessionClosed,
+  mapScanOutcome,
+  sessionOptionLabel,
+  type ScanPresentation,
+} from "@/modules/scanner/presentation";
 
-type SessionOption = { id: string; title: string; type: string; startsAt: string };
-type Outcome = { tone: ScanTone; title: string; message: string; at: string };
+type SessionOption = {
+  id: string;
+  title: string;
+  type: string;
+  startsAt: string;
+  endsAt: string;
+  status: "OPEN" | "CLOSED";
+};
+type Outcome = ScanPresentation & { at: string };
 
-function classify(code: number, message: string): ScanTone {
-  if (code === 200) return "success";
-  if (message.includes("duplicate") || message.includes("DUPLICATE")) return "warning";
-  if (code === 401 || code === 403) return "danger";
-  if (code === 404 || code === 400) return "info";
-  if (code === 410) return "warning";
-  return "muted";
-}
+// Closed-event copy is canonical in modules/scanner/presentation so the inline
+// notice and the refusal banner cannot drift apart.
+const EVENT_CLOSED_OUTCOME = mapScanOutcome({ status: 409, code: "EVENT_CLOSED" });
 
 /** A response that proves nothing was decided (retry is safe under the idempotency key). */
 function isTransientStatus(status: number): boolean {
@@ -98,6 +106,7 @@ export default function ScanPage() {
 
   const org = useMemo(() => orgs.find((o) => o.id === orgId), [orgs, orgId]);
   const activeSession = sessions.find((s) => s.id === sessionId);
+  const sessionClosed = isSessionClosed(activeSession);
 
   const pushHistory = useCallback((outcome: Outcome) => {
     setHistory((h) => [outcome, ...h].slice(0, 5));
@@ -347,6 +356,14 @@ export default function ScanPage() {
 
   const submit = useCallback(
     async (raw?: string) => {
+      // Closed sessions stay selectable for history, but this scanner will not
+      // even send a scan for one. The server remains authoritative if state is
+      // stale here (409 EVENT_CLOSED maps to the same copy).
+      if (sessionClosed) {
+        setResult({ ...EVENT_CLOSED_OUTCOME, at: new Date().toISOString() });
+        return;
+      }
+
       const credential = (raw ?? cred).trim();
       if (!credential || !orgId) {
         const outcome: Outcome = {
@@ -387,9 +404,7 @@ export default function ScanPage() {
             return;
           }
           const outcome: Outcome = {
-            tone: classify(v.status, vj?.error?.code ?? ""),
-            title: vj?.error?.code ?? `Error ${v.status}`,
-            message: vj?.error?.message ?? "Credential rejected.",
+            ...mapScanOutcome({ status: v.status, code: vj?.error?.code, message: vj?.error?.message }),
             at: new Date().toISOString(),
           };
           setResult(outcome);
@@ -419,9 +434,7 @@ export default function ScanPage() {
             return;
           }
           const outcome: Outcome = {
-            tone: classify(s.status, sj?.error?.code ?? ""),
-            title: sj?.error?.code ?? `Error ${s.status}`,
-            message: sj?.error?.message ?? "Scan rejected.",
+            ...mapScanOutcome({ status: s.status, code: sj?.error?.code, message: sj?.error?.message }),
             at: new Date().toISOString(),
           };
           setResult(outcome);
@@ -429,11 +442,7 @@ export default function ScanPage() {
           return;
         }
         const outcome: Outcome = {
-          tone: sj.data.duplicate ? "warning" : "success",
-          title: sj.data.duplicate ? "Duplicate scan" : sj.data.event.type === "CHECK_IN" ? "Checked in" : "Checked out",
-          message: `${sj.data.record?.status ?? "Recorded"}${
-            sj.data.duplicate ? " — already counted, not recorded twice." : `. Geo: ${sj.data.geoResult ?? "not captured"}.`
-          }`,
+          ...mapScanOutcome({ status: s.status, data: sj.data }),
           at: new Date().toISOString(),
         };
         setResult(outcome);
@@ -446,7 +455,7 @@ export default function ScanPage() {
         setBusy(false);
       }
     },
-    [cred, orgId, sessionId, queueOffline, pushHistory]
+    [cred, orgId, sessionId, sessionClosed, queueOffline, pushHistory]
   );
 
   const handleSaveKey = useCallback(
@@ -591,22 +600,36 @@ export default function ScanPage() {
                 >
                   <option value="">Check only — do not record</option>
                   {sessions.map((s) => (
-                    <option key={s.id} value={s.id}>{s.title}</option>
+                    <option key={s.id} value={s.id}>{sessionOptionLabel(s)}</option>
                   ))}
                 </select>
                 <p className="mt-1.5 text-[14.5px] text-slate-600">
                   {activeSession
-                    ? `Recording into “${activeSession.title}”.`
+                    ? sessionClosed
+                      ? `“${activeSession.title}” is closed. New scans are blocked here.`
+                      : `Recording into “${activeSession.title}”.`
                     : "Choose a session to save attendance. Otherwise this only checks the pass."}
                 </p>
+                {sessionClosed && (
+                  <p
+                    role="status"
+                    className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[13.5px] font-medium text-amber-800 ring-1 ring-inset ring-amber-200/80"
+                  >
+                    {EVENT_CLOSED_OUTCOME.message} Reopen the event in Attendance to resume scanning.
+                  </p>
+                )}
               </div>
             </section>
 
             <div className="mt-6">
               <ScannerViewport
                 onDecode={(d) => {
+                  if (sessionClosed) {
+                    setResult({ ...EVENT_CLOSED_OUTCOME, at: new Date().toISOString() });
+                    return;
+                  }
                   setCred(d);
-                  submit(d);
+                  void submit(d);
                 }}
               />
             </div>
@@ -634,15 +657,21 @@ export default function ScanPage() {
                   autoComplete="off"
                   spellCheck={false}
                 />
-                <Button type="submit" className="h-12" disabled={busy}>
-                  <ScanLine aria-hidden="true" /> {busy ? "Checking…" : "Check pass"}
+                <Button type="submit" className="h-12" disabled={busy || sessionClosed}>
+                  <ScanLine aria-hidden="true" /> {busy ? "Checking…" : sessionClosed ? "Event closed" : "Check pass"}
                 </Button>
               </form>
             </section>
 
             {result && (
               <div className="mt-6">
-                <ScanResult tone={result.tone} title={result.title} message={result.message} assertive={result.tone === "danger"} />
+                <ScanResult
+                  tone={result.tone}
+                  title={result.title}
+                  message={result.message}
+                  personName={result.personName}
+                  assertive={result.tone === "danger"}
+                />
               </div>
             )}
 
@@ -667,7 +696,7 @@ export default function ScanPage() {
                 <ul className="mt-1">
                   {history.slice(1).map((h, i) => (
                     <li key={`${h.at}-${i}`} className="flex items-baseline justify-between gap-4 border-b py-2 text-sm last:border-b-0">
-                      <span className="truncate">{h.title}</span>
+                      <span className="truncate">{h.personName ? `${h.personName} · ${h.title}` : h.title}</span>
                       <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
                         {new Date(h.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                       </span>
