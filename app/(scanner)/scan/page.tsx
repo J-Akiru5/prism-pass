@@ -6,12 +6,14 @@ import { Keyboard, ScanLine } from "lucide-react";
 import { ScannerViewport } from "@/components/scanner-viewport";
 import { ScanResult } from "@/components/scan-result";
 import { OfflineQueuePanel } from "@/components/offline-queue-panel";
+import { BundleStatus, type BundleStatusSync } from "@/components/bundle-status";
 import { ConsoleBar } from "@/components/console-bar";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { Input } from "@/components/ui/input";
-import { useOrgs } from "@/lib/use-orgs";
+import { useOrgs, type OrgOption } from "@/lib/use-orgs";
 import { enqueue, list, rebindDevice, releaseInflight, retry as retryQueuedScans, clear as clearQueuedScans, type OfflineQueueItem } from "@/lib/offline-queue";
+import { fetchAndCacheBundle, loadCachedBundle } from "@/lib/bundle-client";
 import { OfflineQueueError, INFLIGHT_LEASE_MS } from "@/modules/offline/queue-state";
 import { newUuid, syncQueuedScans } from "@/lib/sync-client";
 import {
@@ -21,12 +23,21 @@ import {
   saveDeviceContext,
   type DeviceContext,
 } from "@/lib/device-context";
+import type { CachedBundle } from "@/modules/offline/bundle-schema";
+import { verifyOffline } from "@/modules/offline/verify-offline";
 import {
   isSessionClosed,
   mapScanOutcome,
   sessionOptionLabel,
   type ScanPresentation,
 } from "@/modules/scanner/presentation";
+import {
+  mapOfflineVerdict,
+  mergeSessionOptions,
+  shouldQueueOfflineVerdict,
+  type MergedSessionOption,
+  type OfflineVerdictPresentation,
+} from "@/modules/scanner/offline-presentation";
 
 type SessionOption = {
   id: string;
@@ -41,6 +52,65 @@ type Outcome = ScanPresentation & { at: string };
 // Closed-event copy is canonical in modules/scanner/presentation so the inline
 // notice and the refusal banner cannot drift apart.
 const EVENT_CLOSED_OUTCOME = mapScanOutcome({ status: 409, code: "EVENT_CLOSED" });
+
+// The organization list is a network call. Remembering the last successful list
+// (ids and names only) lets a disconnected reload reopen the scanner with the
+// sessions carried by the cached bundle instead of stranding the operator on an
+// error page. No credentials, device secrets or queue data are stored here.
+const REMEMBERED_ORGS_KEY = "prism-pass:scanner-orgs:v1";
+const LAST_ORG_KEY = "prism-pass:scanner-last-org:v1";
+
+function readRememberedOrgs(): OrgOption[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(REMEMBERED_ORGS_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const orgs: OrgOption[] = [];
+    for (const value of parsed) {
+      if (typeof value !== "object" || value === null) continue;
+      const row = value as Partial<OrgOption>;
+      if (typeof row.id !== "string" || !row.id || typeof row.name !== "string") continue;
+      orgs.push({
+        id: row.id,
+        name: row.name,
+        slug: typeof row.slug === "string" ? row.slug : "",
+        role: typeof row.role === "string" ? row.role : "",
+      });
+    }
+    return orgs;
+  } catch {
+    return [];
+  }
+}
+
+function rememberOrgs(orgs: OrgOption[]): void {
+  if (typeof window === "undefined" || orgs.length === 0) return;
+  try {
+    window.localStorage.setItem(REMEMBERED_ORGS_KEY, JSON.stringify(orgs));
+  } catch {
+    // Storage blocked: the live list still works, only offline reload is affected.
+  }
+}
+
+function readLastOrgId(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return window.localStorage.getItem(LAST_ORG_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function rememberLastOrgId(organizationId: string): void {
+  if (typeof window === "undefined" || !organizationId) return;
+  try {
+    window.localStorage.setItem(LAST_ORG_KEY, organizationId);
+  } catch {
+    // Storage blocked: fall back to the first organization.
+  }
+}
 
 /** A response that proves nothing was decided (retry is safe under the idempotency key). */
 function isTransientStatus(status: number): boolean {
@@ -58,7 +128,7 @@ export default function ScanPage() {
   const { orgs, loading: orgsLoading, error: orgsError } = useOrgs();
   const [orgId, setOrgId] = useState("");
   const [sessionId, setSessionId] = useState("");
-  const [sessions, setSessions] = useState<SessionOption[]>([]);
+  const [liveSessions, setLiveSessions] = useState<SessionOption[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [cred, setCred] = useState("");
   const [busy, setBusy] = useState(false);
@@ -75,13 +145,53 @@ export default function ScanPage() {
   const [retryAt, setRetryAt] = useState<number | null>(null);
   const [leaseAt, setLeaseAt] = useState<number | null>(null);
 
-  // Preselect: ?org= from the URL, else the only/first organization.
+  // Last successful organization list, used when a reload happens with no
+  // network (see readRememberedOrgs).
+  const [rememberedOrgs, setRememberedOrgs] = useState<OrgOption[]>([]);
+
+  // M2 cached event bundle and its presentation state. `cachedBundle` is the
+  // signed roster snapshot used by verifyOffline and the session picker.
+  const [cachedBundle, setCachedBundle] = useState<CachedBundle | null>(null);
+  const [bundleLoading, setBundleLoading] = useState(false);
+  const [bundleNotice, setBundleNotice] = useState<string | null>(null);
+  const [lastSync, setLastSync] = useState<BundleStatusSync | null>(null);
+
+  // Remember the last organization list so a disconnected reload can still
+  // reopen the scanner from the cached bundle.
   useEffect(() => {
-    if (orgId || orgs.length === 0) return;
+    setRememberedOrgs(readRememberedOrgs());
+  }, []);
+
+  useEffect(() => {
+    if (orgs.length === 0) return;
+    setRememberedOrgs(orgs);
+    rememberOrgs(orgs);
+  }, [orgs]);
+
+  const orgsUnreachable =
+    Boolean(orgsError) &&
+    (!online || /failed to fetch|network|load failed/i.test(orgsError ?? ""));
+  const usingRememberedOrgs =
+    orgs.length === 0 && orgsUnreachable && rememberedOrgs.length > 0;
+  const availableOrgs = orgs.length > 0 ? orgs : usingRememberedOrgs ? rememberedOrgs : [];
+
+  // Preselect: ?org= from the URL, else the last organization on this device,
+  // else the only/first organization.
+  useEffect(() => {
+    if (orgId || availableOrgs.length === 0) return;
     const fromUrl = new URLSearchParams(window.location.search).get("org");
-    const match = fromUrl ? orgs.find((o) => o.id === fromUrl) : undefined;
-    setOrgId(match?.id ?? orgs[0].id);
-  }, [orgs, orgId]);
+    const lastOrgId = readLastOrgId();
+    const match = fromUrl
+      ? availableOrgs.find((o) => o.id === fromUrl)
+      : lastOrgId
+        ? availableOrgs.find((o) => o.id === lastOrgId)
+        : undefined;
+    setOrgId(match?.id ?? availableOrgs[0].id);
+  }, [availableOrgs, orgId]);
+
+  useEffect(() => {
+    if (orgId) rememberLastOrgId(orgId);
+  }, [orgId]);
 
   useEffect(() => {
     if (!orgId) return;
@@ -91,10 +201,11 @@ export default function ScanPage() {
     fetch(`/api/v1/orgs/${orgId}/sessions?page=1&pageSize=50`, { credentials: "include" })
       .then(async (r) => (r.ok ? (await r.json()).data ?? [] : []))
       .then((list) => {
-        if (alive) setSessions(list as SessionOption[]);
+        if (alive) setLiveSessions(list as SessionOption[]);
       })
       .catch(() => {
-        if (alive) setSessions([]);
+        // Offline reload: the cached bundle still supplies the session picker.
+        if (alive) setLiveSessions([]);
       })
       .finally(() => {
         if (alive) setSessionsLoading(false);
@@ -104,7 +215,16 @@ export default function ScanPage() {
     };
   }, [orgId]);
 
-  const org = useMemo(() => orgs.find((o) => o.id === orgId), [orgs, orgId]);
+  // Cached bundle sessions hydrate the picker first; live rows dedupe over them.
+  const cachedSessions = useMemo(
+    () => cachedBundle?.bundle.sessions ?? [],
+    [cachedBundle]
+  );
+  const sessions = useMemo<MergedSessionOption[]>(
+    () => mergeSessionOptions(liveSessions, cachedSessions),
+    [liveSessions, cachedSessions]
+  );
+
   const activeSession = sessions.find((s) => s.id === sessionId);
   const sessionClosed = isSessionClosed(activeSession);
 
@@ -170,11 +290,80 @@ export default function ScanPage() {
     };
   }, []);
 
+  // Load the cached event bundle when the organization changes. This works
+  // offline, which is what makes a disconnected reload still usable.
+  useEffect(() => {
+    if (!orgId) {
+      setCachedBundle(null);
+      setBundleNotice(null);
+      setBundleLoading(false);
+      return;
+    }
+    let alive = true;
+    setCachedBundle(null);
+    setBundleNotice(null);
+    setBundleLoading(true);
+    loadCachedBundle(orgId)
+      .then((bundle) => {
+        if (alive && bundle) setCachedBundle(bundle);
+      })
+      .catch((e) => {
+        // A lost local key is reported, never silently treated as "no bundle".
+        if (alive) setBundleNotice(`Offline bundle unavailable: ${(e as Error).message}`);
+      })
+      .finally(() => {
+        if (alive) setBundleLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [orgId]);
+
+  // While online, download and cache the signed event bundle for the selected
+  // session with the device key. Offline this effect does nothing; verification
+  // then uses whatever the last successful download cached.
+  useEffect(() => {
+    if (!online || !orgId || !sessionId || !device) return;
+    let alive = true;
+    setBundleLoading(true);
+    setBundleNotice(null);
+    fetchAndCacheBundle({
+      organizationId: orgId,
+      sessionId,
+      deviceId: device.deviceId,
+      secret: device.deviceSecret,
+    })
+      .then((bundle) => {
+        if (!alive) return;
+        setCachedBundle(bundle);
+        const roster = bundle.bundle.roster.length;
+        setBundleNotice(
+          `Offline bundle downloaded: ${roster} roster ${roster === 1 ? "entry" : "entries"}.`
+        );
+      })
+      .catch((e) => {
+        if (!alive) return;
+        setBundleNotice(`Could not download the offline bundle: ${(e as Error).message}`);
+      })
+      .finally(() => {
+        if (alive) setBundleLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [online, orgId, sessionId, device]);
+
   const syncNow = useCallback(
     async (source: "manual" | "online" = "manual") => {
       if (!orgId) return;
       if (!device) {
         if (source === "manual") setQueueNotice("Set the device signing key before syncing.");
+        setLastSync({
+          at: Date.now(),
+          outcome: "fatal",
+          message: "No device signing key is configured for this browser.",
+          driftMs: null,
+        });
         return;
       }
       setSyncing(true);
@@ -198,6 +387,12 @@ export default function ScanPage() {
           { includeDeferred: true }
         );
         refreshed = await refreshQueue();
+        setLastSync({
+          at: Date.now(),
+          outcome: summary.outcome,
+          message: summary.message,
+          driftMs: summary.driftMs,
+        });
         // Reconnecting with an empty queue should stay quiet.
         if (!(source === "online" && summary.outcome === "idle")) setQueueNotice(summary.message);
         if (summary.outcome === "acked" && summary.attempted > 0) {
@@ -223,7 +418,9 @@ export default function ScanPage() {
           setRetryAt(Number.isFinite(earliest) ? earliest : null);
         }
       } catch (e) {
-        setQueueNotice(`Sync failed: ${(e as Error).message}`);
+        const message = `Sync failed: ${(e as Error).message}`;
+        setQueueNotice(message);
+        setLastSync({ at: Date.now(), outcome: "fatal", message, driftMs: null });
       } finally {
         setSyncing(false);
         if (!refreshed) void refreshQueue();
@@ -296,7 +493,12 @@ export default function ScanPage() {
   }, [online, device, refreshQueue]);
 
   const queueOffline = useCallback(
-    async (credential: string, idempotencyKey: string, clientTs: string) => {
+    async (
+      credential: string,
+      idempotencyKey: string,
+      clientTs: string,
+      verified?: OfflineVerdictPresentation
+    ) => {
       if (!orgId) return;
       const at = new Date().toISOString();
       if (!sessionId) {
@@ -326,16 +528,18 @@ export default function ScanPage() {
         });
         const waiting = (await refreshQueue()).length;
         const short = idempotencyKey.slice(0, 8);
-        const outcome: Outcome = {
-          tone: "queued",
-          title: "Queued offline — provisional",
-          message:
-            `Saved on this device as ${short}… It is NOT recorded yet. ` +
-            (device
-              ? "The server revalidates the pass when you sync."
-              : "Set a device signing key in the queue panel, then sync; the server revalidates the pass."),
-          at,
-        };
+        const outcome: Outcome = verified
+          ? { ...verified, at }
+          : {
+              tone: "queued",
+              title: "Queued offline — provisional",
+              message:
+                `Saved on this device as ${short}… It is NOT recorded yet. ` +
+                (device
+                  ? "The server revalidates the pass when you sync."
+                  : "Set a device signing key in the queue panel, then sync; the server revalidates the pass."),
+              at,
+            };
         setResult(outcome);
         pushHistory(outcome);
         setQueueNotice(`${waiting} ${waiting === 1 ? "scan" : "scans"} waiting on this device.`);
@@ -352,6 +556,123 @@ export default function ScanPage() {
       }
     },
     [orgId, sessionId, device, refreshQueue, pushHistory]
+  );
+
+  // M2 disconnected path: verify against the cached signed event bundle before
+  // anything is queued. Only VALID is enqueued, and it stays provisional until
+  // the server accepts it at sync (docs/security/rbac-ssot.md 12.7).
+  const submitOffline = useCallback(
+    async (credential: string, idempotencyKey: string, clientTs: string) => {
+      if (!orgId) return;
+      const at = new Date().toISOString();
+
+      if (!sessionId) {
+        const outcome: Outcome = {
+          tone: "info",
+          title: "Offline — session required",
+          message:
+            "Pick a session before queueing a scan. The server needs to know which attendance session it belongs to.",
+          at,
+        };
+        setResult(outcome);
+        pushHistory(outcome);
+        return;
+      }
+
+      // A closed session in the bundle is blocked before verification, even if
+      // a stale live list still shows it open. Offline scans into a closed event
+      // would only be rejected at sync.
+      const bundleSession = cachedBundle?.bundle.sessions.find((s) => s.id === sessionId);
+      if (sessionClosed || isSessionClosed(bundleSession)) {
+        setResult({ ...EVENT_CLOSED_OUTCOME, at });
+        return;
+      }
+
+      if (!cachedBundle) {
+        const outcome: Outcome = {
+          tone: "warning",
+          title: "No offline bundle",
+          message: "Download this event while online before scanning offline. Nothing was queued.",
+          at,
+        };
+        setResult(outcome);
+        pushHistory(outcome);
+        return;
+      }
+
+      // The cache holds one bundle per organization. Verifying a scan for
+      // session B against session A's roster would decide the wrong question,
+      // so a mismatched cache is blocked rather than queued.
+      if (cachedBundle.sessionId !== sessionId) {
+        const outcome: Outcome = {
+          tone: "warning",
+          title: "Offline bundle is for another session",
+          message:
+            "The downloaded bundle covers a different session. Download this event while online before scanning offline. Nothing was queued.",
+          at,
+        };
+        setResult(outcome);
+        pushHistory(outcome);
+        return;
+      }
+
+      // Offline verification needs the one-time device secret; without it the
+      // snapshot's signature cannot be checked and nothing may be admitted.
+      if (!device?.deviceSecret) {
+        const outcome: Outcome = {
+          tone: "warning",
+          title: "Device signing key required",
+          message:
+            "Set the device signing key in the queue panel before scanning offline. Nothing was queued.",
+          at,
+        };
+        setResult(outcome);
+        pushHistory(outcome);
+        return;
+      }
+
+      const verdict = await verifyOffline({
+        credential,
+        cachedBundle,
+        expectedOrganizationId: orgId,
+        deviceSecret: device.deviceSecret,
+        nowMs: Date.now(),
+        nowMonoMs: performance.now(),
+      });
+
+      const presentation = mapOfflineVerdict(verdict, {
+        bundleAgeMs: verdict.verdict === "VALID" ? verdict.bundleAgeMs : cachedBundle.ageMs,
+        driftMs: cachedBundle.driftMs,
+        sessionLabel: activeSession?.title ?? null,
+      });
+
+      // Refusals and unusable bundles stop at the banner. Only a VALID verdict
+      // reaches the queue, under the same idempotency key and client timestamp
+      // the online path would have used.
+      if (!shouldQueueOfflineVerdict(verdict)) {
+        const outcome: Outcome = {
+          tone: presentation.tone,
+          title: presentation.title,
+          message: presentation.message,
+          at: new Date().toISOString(),
+        };
+        setResult(outcome);
+        pushHistory(outcome);
+        return;
+      }
+
+      await queueOffline(credential, idempotencyKey, clientTs, presentation);
+    },
+    [
+      orgId,
+      sessionId,
+      cachedBundle,
+      device,
+      sessionClosed,
+      activeSession,
+      queueOffline,
+      pushHistory,
+    ]
   );
 
   const submit = useCallback(
@@ -382,7 +703,7 @@ export default function ScanPage() {
       const clientTs = new Date().toISOString();
 
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
-        await queueOffline(credential, idempotencyKey, clientTs);
+        await submitOffline(credential, idempotencyKey, clientTs);
         return;
       }
 
@@ -455,7 +776,7 @@ export default function ScanPage() {
         setBusy(false);
       }
     },
-    [cred, orgId, sessionId, sessionClosed, queueOffline, pushHistory]
+    [cred, orgId, sessionId, sessionClosed, queueOffline, submitOffline, pushHistory]
   );
 
   const handleSaveKey = useCallback(
@@ -549,12 +870,12 @@ export default function ScanPage() {
       <main className="mx-auto w-full max-w-2xl px-4 pb-16 pt-6 md:px-6 md:pb-16 md:pt-8">
         <PageHeader
           title="Scanner"
-          description="Scan a pass with the camera, or paste the scan code. Every check is verified on the server."
+          description="Scan a pass with the camera, or paste the scan code. Online checks are verified on the server; offline scans are verified against the downloaded event bundle and stay provisional until sync."
         />
 
-        {orgsLoading && <p className="mt-6 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Loading organizations…</p>}
+        {orgsLoading && availableOrgs.length === 0 && <p className="mt-6 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Loading organizations…</p>}
 
-        {!orgsLoading && orgsError && (
+        {!orgsLoading && orgsError && availableOrgs.length === 0 && (
           <div className="mt-6 border-y py-4 text-sm">
             <p className="font-medium">Could not load your organizations</p>
             <p className="mt-1 text-muted-foreground">{orgsError}</p>
@@ -562,20 +883,27 @@ export default function ScanPage() {
           </div>
         )}
 
-        {!orgsLoading && !orgsError && orgs.length === 0 && (
+        {!orgsLoading && !orgsError && availableOrgs.length === 0 && (
           <div className="mt-6 border-y py-4 text-sm">
             <p className="font-medium">No organization yet</p>
             <p className="mt-1 text-muted-foreground">Your account has no active membership, so there is nothing to scan into.</p>
           </div>
         )}
 
-        {orgs.length > 0 && (
+        {usingRememberedOrgs && (
+          <p className="mt-5 rounded-lg bg-slate-100 px-3 py-2 text-[13.5px] text-slate-700">
+            The organization list could not be refreshed. Using the last list saved on this device; the
+            downloaded bundle still supplies its sessions.
+          </p>
+        )}
+
+        {availableOrgs.length > 0 && (
           <>
             <section className="mt-6 space-y-4">
               <div>
                 <p className="mb-1.5 text-[15px] font-semibold text-slate-700">Organization</p>
-                {orgs.length === 1 ? (
-                  <p className="text-[17px] font-semibold text-slate-900">{orgs[0].name}</p>
+                {availableOrgs.length === 1 ? (
+                  <p className="text-[17px] font-semibold text-slate-900">{availableOrgs[0].name}</p>
                 ) : (
                   <select
                     aria-label="Organization"
@@ -583,7 +911,7 @@ export default function ScanPage() {
                     onChange={(e) => setOrgId(e.target.value)}
                     className="pp-select h-12 w-full rounded-[10px] border border-slate-200 bg-white px-3.5 text-[16px] font-medium text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)_inset] transition-[border-color,box-shadow] hover:border-slate-300 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-600/12"
                   >
-                    {orgs.map((o) => (
+                    {availableOrgs.map((o) => (
                       <option key={o.id} value={o.id}>{o.name}</option>
                     ))}
                   </select>
@@ -595,12 +923,14 @@ export default function ScanPage() {
                   id="scan-session"
                   value={sessionId}
                   onChange={(e) => setSessionId(e.target.value)}
-                  disabled={sessionsLoading}
+                  disabled={sessionsLoading && sessions.length === 0}
                   className="pp-select h-12 w-full rounded-[10px] border border-slate-200 bg-white px-3.5 text-[16px] font-medium text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)_inset] transition-[border-color,box-shadow] hover:border-slate-300 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-600/12 disabled:opacity-60"
                 >
                   <option value="">Check only — do not record</option>
                   {sessions.map((s) => (
-                    <option key={s.id} value={s.id}>{sessionOptionLabel(s)}</option>
+                    <option key={s.id} value={s.id}>
+                      {s.offline && !s.live ? `${sessionOptionLabel(s)} · offline copy` : sessionOptionLabel(s)}
+                    </option>
                   ))}
                 </select>
                 <p className="mt-1.5 text-[14.5px] text-slate-600">
@@ -610,6 +940,12 @@ export default function ScanPage() {
                       : `Recording into “${activeSession.title}”.`
                     : "Choose a session to save attendance. Otherwise this only checks the pass."}
                 </p>
+                {sessions.some((s) => s.offline && !s.live) && (
+                  <p className="mt-1.5 text-[13.5px] text-slate-600">
+                    Sessions marked “offline copy” come from the downloaded bundle because the live list is
+                    unavailable.
+                  </p>
+                )}
                 {sessionClosed && (
                   <p
                     role="status"
@@ -620,6 +956,17 @@ export default function ScanPage() {
                 )}
               </div>
             </section>
+
+            <BundleStatus
+              bundle={cachedBundle}
+              loading={bundleLoading}
+              online={online}
+              sessionSelected={Boolean(sessionId)}
+              deviceReady={Boolean(device)}
+              sessionBundleMatches={!cachedBundle || cachedBundle.sessionId === sessionId}
+              notice={bundleNotice}
+              lastSync={lastSync}
+            />
 
             <div className="mt-6">
               <ScannerViewport
