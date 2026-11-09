@@ -25,6 +25,17 @@ export const ROLE_PRESETS = {
 
 export const ROLE_PRESET_ORDER: readonly RolePreset[] = ["OWNER", "ADMIN", "STAFF", "ATTENDEE"];
 
+// Raw-role rank used only by the role-change guard. Presets never widen it.
+export const ROLE_RANK: Record<Role, number> = {
+  OWNER: 5,
+  ADMIN: 4,
+  MANAGER: 3,
+  SUPERVISOR: 2,
+  SCANNER: 1,
+  MEMBER: 0,
+  VIEWER: 0,
+};
+
 const ROLE_TO_PRESET = new Map<Role, RolePreset>();
 for (const preset of ROLE_PRESET_ORDER) {
   for (const role of ROLE_PRESETS[preset].roles) {
@@ -86,6 +97,7 @@ export type RoleChangeDeniedReason =
   | "revoked"
   | "self_role_change"
   | "owner_or_admin_protected"
+  | "rank_protected"
   | "last_active_owner";
 
 export type RoleChangeDecision =
@@ -147,6 +159,22 @@ export function decideMembershipRoleChange(input: RoleChangeInput): RoleChangeDe
       status: 403,
       code: "FORBIDDEN",
       message: "Only an OWNER can grant or change OWNER or ADMIN roles",
+    };
+  }
+
+  // A non-owner cannot modify a row at or above their own rank, or promote
+  // someone into a role at or above it. This stops a MANAGER from creating
+  // peers or escalating a MEMBER into MANAGER.
+  if (
+    actorRole !== "OWNER" &&
+    (ROLE_RANK[target.role] >= ROLE_RANK[actorRole] || ROLE_RANK[nextRole] >= ROLE_RANK[actorRole])
+  ) {
+    return {
+      allowed: false,
+      reason: "rank_protected",
+      status: 403,
+      code: "FORBIDDEN",
+      message: "You cannot change a role at or above your own rank",
     };
   }
 
