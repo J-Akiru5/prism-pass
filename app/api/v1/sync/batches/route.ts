@@ -221,6 +221,9 @@ export async function POST(req: Request) {
     return ok({
       batch: { id: received.id, batchId: batch.batchId, accepted, rejected },
       receipts,
+      // Additive telemetry for the scanner's clock-drift indicator. The signed
+      // request and receipt semantics are unchanged.
+      serverTime: new Date().toISOString(),
     });
   } catch (e) { return handleRouteError(e); }
 }

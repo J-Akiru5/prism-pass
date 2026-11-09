@@ -1,4 +1,5 @@
 import { canonicalBatchPayload, DEVICE_KEY_PREFIX } from "@/modules/offline/canonical";
+import { estimateClockDrift } from "@/modules/offline/clock";
 import { backoffDelayMs, MAX_BACKOFF_MS } from "@/modules/offline/queue-state";
 import {
   MAX_BATCH_EVENTS,
@@ -71,6 +72,10 @@ export type SyncSummary = {
   message: string;
   replayed: boolean;
   receipts: BatchReceipt[];
+  /** Server clock from the last HTTP response, or null when it was unavailable. */
+  serverTimeMs: number | null;
+  /** Server minus device midpoint; positive means the device clock is behind. */
+  driftMs: number | null;
 };
 
 const DEFAULT_ENDPOINT = "/api/v1/sync/batches";
@@ -338,6 +343,71 @@ export function parseRetryAfter(value: string | null, nowMs = Date.now()): numbe
 /** A hung sync must not leave rows inflight until the lease expires. */
 export const SYNC_REQUEST_TIMEOUT_MS = 30_000;
 
+export type ResponseClock = {
+  /** Server clock in epoch ms, or null when the response carried none. */
+  serverTimeMs: number | null;
+  /** Server minus device midpoint; positive means the device clock is behind. */
+  driftMs: number | null;
+  /** Measured request round trip, or null when no server clock was available. */
+  rttMs: number | null;
+};
+
+export type BatchHttpResult = ResponseClock & {
+  status: number;
+  body: unknown;
+  retryAfterMs?: number;
+};
+
+function timestampMs(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value !== "string" || value.trim() === "") return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Prefer the body's millisecond-precise `serverTime` (under `data`, or at the
+ * top level for clients that unwrap `data`), then fall back to the HTTP `Date`
+ * header. A malformed body value falls through to the header rather than
+ * poisoning the sample.
+ */
+export function parseServerTimeMs(body: unknown, dateHeader?: string | null): number | null {
+  if (isRecord(body)) {
+    const data = isRecord(body.data) ? body.data : body;
+    const fromBody = timestampMs(data.serverTime) ?? timestampMs(body.serverTime);
+    if (fromBody !== null) return fromBody;
+  }
+  return timestampMs(dateHeader ?? null);
+}
+
+/**
+ * Pure mapping from one HTTP response sample to the clock fields exposed by
+ * `SyncSummary`. If the response has no usable server clock every field is
+ * null; if device timings are unusable the server time is kept but drift is
+ * null rather than guessed.
+ */
+export function readResponseClock(input: {
+  body: unknown;
+  dateHeader?: string | null;
+  deviceBeforeMs: number;
+  deviceAfterMs: number;
+}): ResponseClock {
+  const serverTimeMs = parseServerTimeMs(input.body, input.dateHeader);
+  if (serverTimeMs === null) return { serverTimeMs: null, driftMs: null, rttMs: null };
+
+  const estimate = estimateClockDrift({
+    deviceBeforeMs: input.deviceBeforeMs,
+    deviceAfterMs: input.deviceAfterMs,
+    serverTimeMs,
+  });
+  const verified = Number.isFinite(estimate.driftMs);
+  return {
+    serverTimeMs,
+    driftMs: verified ? estimate.driftMs : null,
+    rttMs: verified ? estimate.rttMs : null,
+  };
+}
+
 export type PostBatchOptions = {
   endpoint?: string;
   fetchImpl?: typeof fetch;
@@ -348,13 +418,14 @@ export type PostBatchOptions = {
 export async function postBatch(
   envelope: BatchEnvelope,
   options: PostBatchOptions = {},
-): Promise<{ status: number; body: unknown; retryAfterMs?: number }> {
+): Promise<BatchHttpResult> {
   const doFetch = options.fetchImpl ?? fetch;
   const timeoutMs = Math.max(1, options.timeoutMs ?? SYNC_REQUEST_TIMEOUT_MS);
   const signal =
     typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function"
       ? AbortSignal.timeout(timeoutMs)
       : undefined;
+  const deviceBeforeMs = Date.now();
   const response = await doFetch(options.endpoint ?? DEFAULT_ENDPOINT, {
     method: "POST",
     credentials: "include",
@@ -366,9 +437,20 @@ export async function postBatch(
     body: JSON.stringify(envelope),
     ...(signal ? { signal } : {}),
   });
+  const deviceAfterMs = Date.now();
   const retryAfterMs = parseRetryAfter(response.headers.get("retry-after"));
   const body: unknown = await response.json().catch(() => null);
-  return { status: response.status, body, ...(retryAfterMs !== undefined ? { retryAfterMs } : {}) };
+  return {
+    status: response.status,
+    body,
+    ...readResponseClock({
+      body,
+      dateHeader: response.headers.get("date"),
+      deviceBeforeMs,
+      deviceAfterMs,
+    }),
+    ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
+  };
 }
 
 export type SyncQueueOptions = {
@@ -519,6 +601,8 @@ async function runSyncQueuedScans(
     message,
     replayed: false,
     receipts: [],
+    serverTimeMs: null,
+    driftMs: null,
   });
 
   if (!context.organizationId || !context.deviceId.trim() || !context.deviceSecret) {
@@ -550,6 +634,12 @@ async function runSyncQueuedScans(
   }
 
   let replayed = false;
+  // Additive clock telemetry: the latest response wins, and stays null when the
+  // server (or an intermediary) did not expose a clock.
+  let responseClock: Pick<ResponseClock, "serverTimeMs" | "driftMs"> = {
+    serverTimeMs: null,
+    driftMs: null,
+  };
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const batch: BatchPayload = {
       ...built.batch,
@@ -587,6 +677,7 @@ async function runSyncQueuedScans(
       };
     }
 
+    responseClock = { serverTimeMs: response.serverTimeMs, driftMs: response.driftMs };
     const decision = decideBatchResponse(response);
 
     if (decision.kind === "ack") {
@@ -613,6 +704,7 @@ async function runSyncQueuedScans(
             : ""),
         replayed,
         receipts: decision.receipts,
+        ...responseClock,
       };
     }
 
@@ -667,6 +759,7 @@ async function runSyncQueuedScans(
               : decision.message,
       replayed,
       receipts: [],
+      ...responseClock,
     };
   }
 
@@ -683,5 +776,6 @@ async function runSyncQueuedScans(
     message: "The server rejected the replacement batch id as a replay.",
     replayed: true,
     receipts: [],
+    ...responseClock,
   };
 }
