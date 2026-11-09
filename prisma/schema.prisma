@@ -415,9 +415,18 @@ model Document {
   status         DocumentStatus @default(DRAFT)
   sealedAt       DateTime? @map("sealed_at")
   createdAt      DateTime @default(now()) @map("created_at")
+  // M3 certificate provenance. Null for every generic (non-generated)
+  // document; the composite unique key below makes a generate call idempotent
+  // per (organization, event, person) while Postgres still permits many rows
+  // with null source columns.
+  sourceSessionId String? @map("source_session_id")
+  sourcePersonId  String? @map("source_person_id")
+  batchId         String? @map("batch_id")
   organization   Organization @relation(fields: [organizationId], references: [id])
   signatures     SignatureRequest[]
 
+  @@unique([organizationId, sourceSessionId, sourcePersonId])
+  @@index([organizationId, batchId])
   @@index([organizationId, status])
   @@map("documents")
 }
