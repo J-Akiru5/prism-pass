@@ -23,14 +23,8 @@ import { CERTIFICATE_TEMPLATE_KEY, certificatePayloadV1 } from "@/modules/certif
 
 type P = { params: Promise<{ orgId: string; sessionId: string }> };
 
-// The shared node_modules Prisma client predates migration 0010: `prisma
-// generate` currently fails with EPERM because two local dev servers hold
-// query_engine-windows.dll. The schema and migration remain authoritative; the
-// narrow row/insert types below keep this route typed against the intended
-// shape, and `prisma generate` during build/CI makes the generated client agree.
-//
-// Keep these structurally identical to prisma/schema.prisma Document. The read
-// cast is limited to the one query that uses the new columns.
+// Keep these structurally identical to prisma/schema.prisma Document. The
+// generated client now includes the M3 columns; no casts are needed.
 type CertificateDocumentRow = {
   id: string;
   sourcePersonId: string | null;
@@ -44,7 +38,6 @@ type CertificateDocumentInsert = Prisma.DocumentCreateManyInput & {
   sourcePersonId: string;
   batchId: string;
 };
-
 const generateInput = z
   .object({
     // Internal User.id (membership.userId), never a Supabase auth id.
@@ -105,23 +98,21 @@ async function loadRecords(organizationId: string, sessionId: string): Promise<C
 }
 
 async function loadExistingDocuments(organizationId: string, sessionId: string): Promise<CertificateDocumentRow[]> {
-  const rows = await prisma.document.findMany({
-    // Cast: the generated client predates the M3 columns (see the note above).
+  return prisma.document.findMany({
     where: {
       organizationId,
       sourceSessionId: sessionId,
       sourcePersonId: { not: null },
-    } as unknown as Prisma.DocumentWhereInput,
+    },
     select: {
       id: true,
       sourcePersonId: true,
       batchId: true,
       status: true,
       createdAt: true,
-    } as unknown as Prisma.DocumentSelect,
+    },
     orderBy: { createdAt: "asc" },
   });
-  return rows as unknown as CertificateDocumentRow[];
 }
 
 function existingKeysOf(sessionId: string, documents: Array<{ sourcePersonId: string | null }>): string[] {
