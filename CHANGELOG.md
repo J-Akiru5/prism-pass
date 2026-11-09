@@ -15,6 +15,16 @@ All notable changes to this project are documented here. Format follows
 - Show/hide password control on login, signup and reset forms, with accessible labels and no layout
   shift.
 - Visible "Back to home" links on all public auth pages, plus a pilot Terms of Service page.
+- Offline queue: terminal `blocked` state for revoked/unregistered device keys, explicit rebind for
+  rows captured under another device, a 30-second sync request timeout, and a single-tab sync lock.
+
+### Fixed
+- Device revocation no longer causes an infinite retry loop; queued scans stay intact until the device
+  is re-registered and retried explicitly.
+- Sync now honours a server `Retry-After` as a floor instead of retrying after the shorter 1-second
+  backoff.
+- A hung sync request can no longer leave rows `inflight` until the lease expires; it fails into the
+  normal backoff path.
 
 ### Security
 - Login now validates the `next` parameter with the shared same-origin guard, closing an open-redirect

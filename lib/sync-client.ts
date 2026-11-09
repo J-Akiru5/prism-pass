@@ -8,6 +8,7 @@ import {
 } from "@/modules/offline/schema";
 import {
   ack,
+  block,
   fail,
   peek,
   reject,
@@ -50,7 +51,15 @@ export type BatchDecision =
   | { kind: "fatal"; status: number; code: string; message: string }
   | { kind: "retry"; code: string; message: string; retryAfterMs?: number };
 
-export type SyncOutcome = "idle" | "offline" | "acked" | "replay" | "retry" | "rejected" | "fatal";
+export type SyncOutcome =
+  | "idle"
+  | "offline"
+  | "acked"
+  | "replay"
+  | "retry"
+  | "rejected"
+  | "blocked"
+  | "fatal";
 
 export type SyncSummary = {
   outcome: SyncOutcome;
@@ -326,9 +335,14 @@ export function parseRetryAfter(value: string | null, nowMs = Date.now()): numbe
   return Math.max(0, at - nowMs);
 }
 
+/** A hung sync must not leave rows inflight until the lease expires. */
+export const SYNC_REQUEST_TIMEOUT_MS = 30_000;
+
 export type PostBatchOptions = {
   endpoint?: string;
   fetchImpl?: typeof fetch;
+  /** Request timeout; defaults to SYNC_REQUEST_TIMEOUT_MS. */
+  timeoutMs?: number;
 };
 
 export async function postBatch(
@@ -336,6 +350,11 @@ export async function postBatch(
   options: PostBatchOptions = {},
 ): Promise<{ status: number; body: unknown; retryAfterMs?: number }> {
   const doFetch = options.fetchImpl ?? fetch;
+  const timeoutMs = Math.max(1, options.timeoutMs ?? SYNC_REQUEST_TIMEOUT_MS);
+  const signal =
+    typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function"
+      ? AbortSignal.timeout(timeoutMs)
+      : undefined;
   const response = await doFetch(options.endpoint ?? DEFAULT_ENDPOINT, {
     method: "POST",
     credentials: "include",
@@ -345,6 +364,7 @@ export async function postBatch(
       "x-org-id": envelope.organizationId,
     },
     body: JSON.stringify(envelope),
+    ...(signal ? { signal } : {}),
   });
   const retryAfterMs = parseRetryAfter(response.headers.get("retry-after"));
   const body: unknown = await response.json().catch(() => null);
@@ -354,6 +374,7 @@ export async function postBatch(
 export type SyncQueueOptions = {
   fetchImpl?: typeof fetch;
   endpoint?: string;
+  timeoutMs?: number;
   limit?: number;
   now?: () => Date;
   batchId?: () => string;
@@ -407,9 +428,15 @@ export function routeReceipts(
   return { acknowledgedIds, rejected, missingIds };
 }
 
-async function failItems(items: readonly OfflineQueueItem[], reason: string): Promise<void> {
+async function failItems(
+  items: readonly OfflineQueueItem[],
+  reason: string,
+  minDelayMs = 0,
+): Promise<void> {
   await Promise.all(
-    items.map((item) => (item.id === undefined ? Promise.resolve() : fail(item.id, reason))),
+    items.map((item) =>
+      item.id === undefined ? Promise.resolve() : fail(item.id, reason, minDelayMs),
+    ),
   );
 }
 
@@ -417,6 +444,23 @@ async function rejectItems(items: readonly OfflineQueueItem[], reason: string): 
   await Promise.all(
     items.map((item) => (item.id === undefined ? Promise.resolve() : reject(item.id, reason))),
   );
+}
+
+async function blockItems(items: readonly OfflineQueueItem[], reason: string): Promise<void> {
+  await Promise.all(
+    items.map((item) => (item.id === undefined ? Promise.resolve() : block(item.id, reason))),
+  );
+}
+
+/**
+ * Device-identity failures are not transient: the same key will keep failing
+ * until the scanner registers a new device. Keep the rows, stop auto-retry, and
+ * let the user retry explicitly after re-registering.
+ */
+const DEVICE_BLOCK_CODES = new Set(["DEVICE_REVOKED", "DEVICE_UNREGISTERED", "DEVICE_NOT_FOUND"]);
+
+export function isDeviceBlockCode(code: string): boolean {
+  return DEVICE_BLOCK_CODES.has(code.toUpperCase());
 }
 
 function summaryOf(
@@ -442,7 +486,29 @@ function summaryOf(
  * A 409 is retried once with a new batch id, reusing the original idempotency
  * keys so the server resolves them as duplicates.
  */
-export async function syncQueuedScans(context: SyncContext, options: SyncQueueOptions = {}): Promise<SyncSummary> {
+const activeSyncs = new Map<string, Promise<SyncSummary>>();
+
+/**
+ * Serialise sync attempts per org/device in this tab. Leases protect rows across
+ * tabs; this prevents the online event, retry timer and manual button from
+ * racing the same queue in one tab.
+ */
+export function syncQueuedScans(
+  context: SyncContext,
+  options: SyncQueueOptions = {},
+): Promise<SyncSummary> {
+  const key = `${context.organizationId}:${context.deviceId}`;
+  const existing = activeSyncs.get(key);
+  if (existing) return existing;
+  const run = runSyncQueuedScans(context, options).finally(() => activeSyncs.delete(key));
+  activeSyncs.set(key, run);
+  return run;
+}
+
+async function runSyncQueuedScans(
+  context: SyncContext,
+  options: SyncQueueOptions = {},
+): Promise<SyncSummary> {
   const empty = (outcome: SyncOutcome, message: string, remaining: number): SyncSummary => ({
     outcome,
     attempted: 0,
@@ -508,6 +574,7 @@ export async function syncQueuedScans(context: SyncContext, options: SyncQueueOp
       response = await postBatch(envelope, {
         endpoint: context.endpoint ?? options.endpoint,
         fetchImpl: context.fetchImpl ?? options.fetchImpl,
+        timeoutMs: options.timeoutMs,
       });
     } catch (error) {
       // Network failure: no authoritative receipt, so keep every row and back
@@ -561,26 +628,37 @@ export async function syncQueuedScans(context: SyncContext, options: SyncQueueOp
         ? "replay_rejected_twice"
         : failureText(decision.code, decision.message);
     // A 400/4xx batch rejection is structural: resending the same rows cannot
-    // help, so it is terminal. Fatal auth/device failures and repeated replay
-    // collisions stay retryable after the user fixes the cause.
+    // help, so it is terminal. A device-key rejection is also terminal for
+    // auto-sync (re-register, then retry explicitly). Other fatal auth/org
+    // failures and replay collisions stay retryable after the user fixes them.
+    const deviceBlocked = decision.kind === "fatal" && isDeviceBlockCode(decision.code);
+    const retryAfterMs = decision.kind === "retry" ? decision.retryAfterMs : undefined;
     if (decision.kind === "reject") {
       await rejectItems(built.items, reason);
+    } else if (deviceBlocked) {
+      await blockItems(built.items, reason);
     } else {
-      await failItems(built.items, reason);
+      await failItems(built.items, reason, retryAfterMs);
     }
-    const outcome: SyncOutcome =
-      decision.kind === "fatal" ? "fatal" : decision.kind === "reject" || decision.kind === "replay" ? "rejected" : "retry";
+    const outcome: SyncOutcome = deviceBlocked
+      ? "blocked"
+      : decision.kind === "fatal"
+        ? "fatal"
+        : decision.kind === "reject" || decision.kind === "replay"
+          ? "rejected"
+          : "retry";
     return {
       outcome,
       attempted: built.items.length,
       accepted: 0,
       duplicates: 0,
-      // Only a structural `reject` is terminal; fatal auth/device failures and
-      // replay collisions stay retryable, so they are not counted as rejected.
+      // Only a structural `reject` is terminal; blocked/device, fatal auth and
+      // replay collisions stay in the queue, so they are not counted as rejected.
       rejected: decision.kind === "reject" ? built.items.length : 0,
       remaining: await size(),
-      message:
-        decision.kind === "retry"
+      message: deviceBlocked
+        ? "This device's signing key is revoked or unregistered. Re-register the device, then retry the queued scans."
+        : decision.kind === "retry"
           ? `${decision.message} The queue will retry automatically.`
           : decision.kind === "replay"
             ? "The server rejected the replacement batch id as a replay."
