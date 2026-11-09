@@ -1,0 +1,1075 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prism Pass — Project Portal</title>
+<meta name="description" content="Prism Pass scope of work, MVP, Definition of Done and project tracker, verified against the repository on 9 November 2026.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050505; --text:#ededed; --line:rgba(255,255,255,.10);
+  --panel:rgba(255,255,255,.045); --panel-2:rgba(255,255,255,.07);
+  --muted:#8A93A0; --soft:#b9c0c9;
+  --accent:#22D3EE; --accent-2:#A855F7;
+  --ok:#34D399; --warn:#FBBF24; --bad:#F87171;
+  --r-sm:6px; --r-lg:16px;
+  --topbar-h:64px; --side-w:264px; --rail-w:300px;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:calc(var(--topbar-h) + 20px)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;
+  background:radial-gradient(900px 500px at 85% -10%,rgba(168,85,247,.10),transparent 60%),
+             radial-gradient(800px 500px at -10% 10%,rgba(34,211,238,.08),transparent 60%)}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--mono);font-size:.86em;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:1px 5px;color:#d7f7fc}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:var(--r-sm)}
+
+/* ---------- top bar ---------- */
+.topbar{position:sticky;top:0;z-index:50;height:var(--topbar-h);display:flex;align-items:center;gap:16px;
+  padding:0 clamp(16px,2.5vw,32px);background:rgba(5,5,5,.78);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.wordmark{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+.wordmark .mark{width:28px;height:28px;border-radius:var(--r-sm);background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:#050505;font-weight:800;font-size:15px}
+.wordmark small{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.tabs{display:flex;gap:4px;margin:0 auto;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{appearance:none;border:1px solid transparent;background:none;color:var(--soft);font:500 14px var(--sans);
+  padding:0 14px;height:40px;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap}
+.tabs button:hover{color:var(--text);background:var(--panel)}
+.tabs button[aria-selected=true]{color:var(--text);background:var(--panel-2);border-color:var(--line);box-shadow:inset 0 -2px 0 var(--accent)}
+.utility{display:flex;align-items:center;gap:10px;position:relative}
+.search{width:200px;height:36px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel);color:var(--text);
+  font:14px var(--sans);padding:0 12px}
+.search::placeholder{color:var(--muted)}
+.search-results{position:absolute;right:46px;top:44px;width:320px;max-height:60vh;overflow:auto;background:#0d0f12;border:1px solid var(--line);
+  border-radius:var(--r-lg);padding:6px;display:none;box-shadow:0 20px 50px rgba(0,0,0,.6)}
+.search-results.open{display:block}
+.search-results button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--text);font:14px var(--sans);
+  padding:9px 10px;border-radius:var(--r-sm);cursor:pointer}
+.search-results button:hover,.search-results button:focus{background:var(--panel-2)}
+.search-results button span{display:block;font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.search-results .none{padding:10px;color:var(--muted);font-size:14px}
+.avatar{width:32px;height:32px;display:grid;place-items:center;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel);
+  font:600 12px var(--mono);color:var(--accent)}
+.hamburger,.search-toggle{display:none;appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--text);
+  width:40px;height:40px;border-radius:var(--r-sm);cursor:pointer;place-items:center}
+
+/* ---------- shell ---------- */
+.shell{display:grid;grid-template-columns:var(--side-w) minmax(0,1fr) var(--rail-w);gap:clamp(16px,2vw,32px);
+  padding:24px clamp(16px,2.5vw,32px) 80px;align-items:start;max-width:1680px;margin:0 auto}
+.sidebar,.rail{position:sticky;top:calc(var(--topbar-h) + 20px);max-height:calc(100vh - var(--topbar-h) - 40px);overflow-y:auto;scrollbar-width:thin}
+.side-label{font:500 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:4px 10px 10px}
+#sectionNav a,#appendixNav a{display:block;padding:8px 10px;border-radius:var(--r-sm);color:var(--soft);font-size:14px;line-height:1.35;border-left:2px solid transparent}
+#sectionNav a:hover,#appendixNav a:hover{background:var(--panel);color:var(--text);text-decoration:none}
+#sectionNav a.active{color:var(--text);background:var(--panel-2);border-left-color:var(--accent)}
+.side-divider{height:1px;background:var(--line);margin:16px 6px}
+.backdrop{display:none}
+
+main{min-width:0}
+.panel-head{margin:6px 0 30px}
+.eyebrow{font:500 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+h1{font-size:clamp(28px,4.2vw,44px);line-height:1.12;letter-spacing:-.025em;margin:10px 0 14px;font-weight:700}
+h2{font-size:clamp(21px,2.6vw,27px);letter-spacing:-.015em;line-height:1.25;margin:0 0 14px;font-weight:650}
+h3{font-size:17px;margin:22px 0 8px;font-weight:600;letter-spacing:-.005em}
+.abstract{font-size:clamp(16.5px,1.6vw,18.5px);color:var(--soft);max-width:76ch;margin:0}
+.section{padding:34px 0;border-top:1px solid var(--line)}
+.section:first-of-type{border-top:0;padding-top:0}
+.section p,.section li{max-width:76ch}
+.section p{margin:0 0 14px}
+.section ul,.section ol{padding-left:22px;margin:0 0 14px}
+.section li{margin:4px 0}
+.muted{color:var(--muted)}
+.stat-row{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 4px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-sm);
+  font:500 11.5px var(--mono);letter-spacing:.04em;padding:4px 9px;text-transform:uppercase;color:var(--accent);white-space:nowrap}
+.chip b{color:var(--text);font-weight:600}
+.chip.ok{color:var(--ok)} .chip.warn{color:var(--warn)} .chip.bad{color:var(--bad)} .chip.violet{color:var(--accent-2)} .chip.dim{color:var(--muted)}
+
+.callout{position:relative;padding:18px 22px 16px 24px;border-radius:var(--r-lg);background:var(--panel);border:1px solid var(--line);
+  backdrop-filter:blur(14px);margin:18px 0;max-width:86ch}
+.callout::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--accent),var(--accent-2));border-radius:var(--r-lg) 0 0 var(--r-lg)}
+.callout.warn::before{background:var(--warn)} .callout.bad::before{background:var(--bad)}
+.callout .tag{float:right;margin:0 0 6px 12px}
+.callout h3{margin:0 0 6px;font-size:16px}
+.callout p:last-child{margin-bottom:0}
+
+/* tables */
+.table-wrap{overflow-x:auto;margin:14px 0 18px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:640px}
+caption{text-align:left;padding:12px 16px 0;font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+th,td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:500 11.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:rgba(255,255,255,.02)}
+tr:last-child td{border-bottom:0}
+td .chip{font-size:10.5px}
+td.mono,.mono{font-family:var(--mono);font-size:13px}
+
+/* status bars */
+.bars{display:grid;gap:10px;margin:18px 0 8px;max-width:820px}
+.bar-row{display:grid;grid-template-columns:200px 1fr 92px;gap:14px;align-items:center;font-size:14.5px}
+.bar{height:10px;border-radius:var(--r-sm);background:rgba(255,255,255,.06);overflow:hidden;display:flex}
+.bar i{display:block;height:100%}
+.bar .b1{background:var(--accent)} .bar .b2{background:var(--accent-2);opacity:.75} .bar .b3{background:transparent}
+.bar-row .mono{color:var(--muted);text-align:right}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--muted);margin:6px 0 0}
+.legend span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px;background:var(--c)}
+
+/* diagrams */
+.diagram{margin:24px 0;padding:18px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);backdrop-filter:blur(14px);overflow-x:auto}
+.diagram svg{display:block;margin:0 auto;max-width:100%;height:auto}
+.diagram.wide svg{min-width:640px}
+.diagram figcaption{margin-top:12px;font:12px var(--mono);color:var(--muted);text-align:center}
+
+/* two-col lists */
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px;margin:16px 0}
+.col{padding:18px 20px;border-radius:var(--r-lg);background:var(--panel);border:1px solid var(--line)}
+.col h3{margin-top:0}
+.col ul{margin:0;padding-left:18px}
+
+/* DoD checklist (static) */
+.dod{list-style:none;padding:0!important;margin:12px 0 18px;max-width:86ch}
+.dod li{position:relative;padding:10px 12px 10px 40px;border-bottom:1px solid var(--line);max-width:none}
+.dod li:last-child{border-bottom:0}
+.dod li::before{content:'';position:absolute;left:12px;top:14px;width:14px;height:14px;border-radius:4px;border:1.5px solid var(--accent)}
+.dod li b{font-weight:600}
+
+/* tracker */
+.tracker-top{position:sticky;top:calc(var(--topbar-h) + 8px);z-index:5;padding:16px 18px;border-radius:var(--r-lg);background:rgba(12,14,17,.92);
+  border:1px solid var(--line);backdrop-filter:blur(14px);margin:6px 0 22px}
+.tracker-meta{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.tracker-pct{font:600 26px var(--sans);letter-spacing:-.02em}
+.tracker-sub{font:12px var(--mono);color:var(--muted)}
+.tracker-bar{height:10px;border-radius:var(--r-sm);background:rgba(255,255,255,.07);overflow:hidden;margin-top:10px}
+.tracker-fill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .35s ease}
+.tracker-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.btn{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--text);font:500 13px var(--sans);height:36px;padding:0 12px;border-radius:var(--r-sm);cursor:pointer}
+.btn:hover{background:var(--panel-2)}
+.ms{margin:0 0 26px}
+.ms-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 8px;flex-wrap:wrap}
+.ms-head h3{margin:0}
+.ms-count{font:12px var(--mono);color:var(--muted)}
+.tracker-list{list-style:none;padding:0!important;margin:0;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--panel);max-width:none}
+.tracker-list li{border-bottom:1px solid var(--line);max-width:none;margin:0}
+.tracker-list li:last-child{border-bottom:0}
+.tracker-list label{display:grid;grid-template-columns:22px 1fr auto;gap:12px;align-items:start;padding:12px 16px;cursor:pointer;min-height:44px}
+.tracker-list input{width:18px;height:18px;margin:3px 0 0;accent-color:var(--accent);cursor:pointer}
+.tracker-list .t{font-size:15px;line-height:1.45}
+.tracker-list .t small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.tracker-list li.done .t>span{color:var(--muted);text-decoration:line-through;text-decoration-color:rgba(255,255,255,.25)}
+
+/* rail */
+.rail .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);backdrop-filter:blur(14px);padding:16px 18px;margin-bottom:14px}
+.progress{display:flex;align-items:center;gap:14px}
+.ring-label b{display:block;font-size:20px}
+.ring-label span{font:12px var(--mono);color:var(--muted)}
+.facts dl{margin:0;display:grid;gap:10px}
+.facts dt{font:500 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.facts dd{margin:2px 0 0;font-size:14px;line-height:1.4}
+.quote{margin:0;font-size:15.5px;line-height:1.5;color:var(--soft)}
+.quote cite{display:block;margin-top:10px;font:normal 11.5px var(--mono);color:var(--muted)}
+.rail-inline{display:none}
+
+footer.doc-foot{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);font:12px var(--mono);color:var(--muted)}
+
+@media (max-width:1200px){
+  .shell{grid-template-columns:var(--side-w) minmax(0,1fr)}
+  .rail{display:none}
+  .rail-inline{display:block;margin:22px 0 0}
+  .rail-inline .facts dl{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+}
+@media (max-width:900px){
+  .shell{grid-template-columns:minmax(0,1fr);padding-top:18px}
+  .hamburger,.search-toggle{display:grid}
+  .sidebar{position:fixed;top:0;left:0;bottom:0;width:min(84vw,300px);max-height:none;background:#0b0c0f;border-right:1px solid var(--line);
+    padding:20px 12px;transform:translateX(-100%);transition:transform .22s ease;z-index:70}
+  .sidebar.open{transform:none}
+  .backdrop.open{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:65}
+  .topbar{gap:10px}
+  .wordmark small{display:none}
+  .search{display:none;position:absolute;right:0;top:46px;width:min(86vw,320px)}
+  .utility.searching .search{display:block}
+  .search-results{right:0;top:88px;width:min(86vw,320px)}
+  .avatar{display:none}
+  .tabs{margin:0;flex:1}
+  .bar-row{grid-template-columns:1fr 70px}
+  .bar-row .bar{grid-column:1 / -1;grid-row:2}
+}
+@media (max-width:560px){
+  .wordmark .name{display:none}
+  .tracker-list label{grid-template-columns:22px 1fr}
+  .tracker-list label .chip{grid-column:2;justify-self:start}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <button class="hamburger" aria-label="Open section navigation" aria-expanded="false" aria-controls="sidebar">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <div class="wordmark"><span class="mark" aria-hidden="true">P</span><span class="name">Prism Pass<small>Project portal</small></span></div>
+  <nav class="tabs" role="tablist" aria-label="Document sections">
+    <button role="tab" id="tab-overview" aria-controls="panel-overview" aria-selected="true" data-tab="overview">Overview</button>
+    <button role="tab" id="tab-built" aria-controls="panel-built" aria-selected="false" data-tab="built" tabindex="-1">What's built</button>
+    <button role="tab" id="tab-scope" aria-controls="panel-scope" aria-selected="false" data-tab="scope" tabindex="-1">Scope of work</button>
+    <button role="tab" id="tab-mvp" aria-controls="panel-mvp" aria-selected="false" data-tab="mvp" tabindex="-1">MVP &amp; DoD</button>
+    <button role="tab" id="tab-tracker" aria-controls="panel-tracker" aria-selected="false" data-tab="tracker" tabindex="-1">Tracker</button>
+  </nav>
+  <div class="utility">
+    <button class="search-toggle" aria-label="Search sections">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    </button>
+    <input class="search" id="search" type="search" placeholder="Search sections…" aria-label="Search sections" autocomplete="off">
+    <div class="search-results" id="searchResults" role="listbox" aria-label="Matching sections"></div>
+    <div class="avatar" title="Jeff Martinez">JM</div>
+  </div>
+</header>
+
+<div class="backdrop" id="backdrop"></div>
+
+<div class="shell">
+  <aside class="sidebar" id="sidebar" aria-label="Sections">
+    <div class="side-label" id="sideLabel">Overview</div>
+    <nav id="sectionNav"></nav>
+    <div class="side-divider"></div>
+    <div class="side-label">Appendix</div>
+    <nav id="appendixNav">
+      <a href="#a-evidence" data-tabjump="built">Evidence and file paths</a>
+      <a href="#a-rbac" data-tabjump="built">RBAC SSOT vs. code</a>
+      <a href="#a-glossary" data-tabjump="scope">Glossary</a>
+    </nav>
+  </aside>
+
+  <main id="main">
+
+  <!-- ================= OVERVIEW ================= -->
+  <section role="tabpanel" id="panel-overview" aria-labelledby="tab-overview" data-panel="overview">
+    <article class="section" id="o-summary" data-title="Summary">
+      <div class="panel-head">
+        <div class="eyebrow">Prism Pass · Project portal · Inspected 9 Nov 2026</div>
+        <h1>Scope, MVP and tracker, built from the repo — not from the docs</h1>
+        <p class="abstract">Prism Pass already has a working core: tenants, roles, QR passes, a scanner, an offline queue, server-side geofencing, e-signature APIs and DTR exports, all at <code>v0.3.1</code> in production. What it does not have yet is the event workflow the summit validated: rosters, event close-out, trustworthy offline verification, a name on the scan screen, and certificates. The MVP below is <b>events-first</b>: an organizer runs a real event with no signal at the door and ends with signed certificates. DTR stays as a paid add-on for small companies.</p>
+      </div>
+      <div class="stat-row" aria-label="Key numbers">
+        <span class="chip"><b>v0.3.1</b> in production</span>
+        <span class="chip"><b>48</b> API routes</span>
+        <span class="chip"><b>24</b> data models</span>
+        <span class="chip"><b>289</b> test cases</span>
+        <span class="chip ok"><b>8 / 35</b> MVP items in repo</span>
+        <span class="chip violet"><b>27</b> MVP items to build</span>
+      </div>
+      <div class="rail-inline">
+        <div class="panel facts" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 18px">
+          <dl>
+            <div><dt>Production</dt><dd><code>main</code> · v0.3.1 · pass.syntaxure.dev</dd></div>
+            <div><dt>Integration</dt><dd><code>develop</code> · 9 commits unreleased</dd></div>
+            <div><dt>Stack</dt><dd>Next.js 15 · Supabase · Prisma · Vercel (syd1)</dd></div>
+            <div><dt>Direction</dt><dd>Events-first · DTR as add-on</dd></div>
+          </dl>
+        </div>
+      </div>
+    </article>
+
+    <article class="section" id="o-decision" data-title="The product decision">
+      <h2>The product decision this plan is built on</h2>
+      <p>At the HR Leaders Innovation Summit the interest came from one feature: scanning that keeps working with no signal. The follow-up discussion settled where Prism Pass should compete. Government agencies already record DTR with biometric terminals, and they will not swap those for a QR code. What biometrics do not cover is everything that happens away from the office door: trainings, seminars, flag ceremonies, off-site events, and the days the biometric terminal is down and staff fall back to a paper logbook.</p>
+      <p>So the plan treats Prism Pass as an <b>event attendance and certificates platform</b>, sold to organizations first. DTR is kept, but as an add-on for small companies that have no fingerprint scanner, and it is the only place where the heavier anti-cheating controls (selfie plus geofence) apply. Events use the QR plus a staff member looking at the person.</p>
+      <div class="callout">
+        <span class="tag chip">Decision</span>
+        <h3>Why this matters for scope</h3>
+        <p>Most of what is missing is event plumbing, not new technology. The repo can already record a scan, survive offline and sign a document. It cannot yet say "only these 120 people are invited", "this event is closed", or "here is your certificate". Those three gaps are the MVP.</p>
+      </div>
+      <p>Competitors already offer offline scanning, geofencing and multi-tenancy, so none of those are the selling point on their own. The pitch that holds up is the outcome an HR office actually needs at the end of a training: an attendance record nobody has to encode, and a signed certificate for every attendee, even when the venue had no signal.</p>
+    </article>
+
+    <article class="section" id="o-state" data-title="State at a glance">
+      <h2>State at a glance</h2>
+      <p>The bars below score each area by what a user can actually do today. "Built with UI" means a person can use it in the app. "API only" means the server logic exists and is tested but there is no screen for it, which for a pilot is the same as not having it. Counts are the MVP tracker items in each area.</p>
+      <div class="bars" role="img" aria-label="Build status by area">
+        <div class="bar-row"><span>Tenancy, roles, platform</span><div class="bar"><i class="b1" style="width:80%"></i><i class="b2" style="width:0%"></i></div><span class="mono">mostly built</span></div>
+        <div class="bar-row"><span>People and QR passes</span><div class="bar"><i class="b1" style="width:65%"></i><i class="b2" style="width:0%"></i></div><span class="mono">built, per org</span></div>
+        <div class="bar-row"><span>Event attendance</span><div class="bar"><i class="b1" style="width:35%"></i><i class="b2" style="width:0%"></i></div><span class="mono">core only</span></div>
+        <div class="bar-row"><span>Offline scanning</span><div class="bar"><i class="b1" style="width:45%"></i><i class="b2" style="width:15%"></i></div><span class="mono">queue only</span></div>
+        <div class="bar-row"><span>Certificates and e-sign</span><div class="bar"><i class="b1" style="width:0%"></i><i class="b2" style="width:40%"></i></div><span class="mono">API only</span></div>
+        <div class="bar-row"><span>Geofence and selfie (DTR)</span><div class="bar"><i class="b1" style="width:10%"></i><i class="b2" style="width:25%"></i></div><span class="mono">server only</span></div>
+        <div class="bar-row"><span>Reports and exports</span><div class="bar"><i class="b1" style="width:55%"></i><i class="b2" style="width:0%"></i></div><span class="mono">DTR CSV</span></div>
+      </div>
+      <div class="legend"><span style="--c:var(--accent)">Built with UI</span><span style="--c:var(--accent-2)">API or server only</span><span style="--c:rgba(255,255,255,.12)">Not built</span></div>
+      <p class="muted" style="margin-top:12px;font-size:14px">These widths are judgement calls from the inventory on the "What's built" tab, not a measured metric. The tracker gives the countable version.</p>
+    </article>
+
+    <article class="section" id="o-risks" data-title="Five things to fix first">
+      <h2>Five things to fix before planning anything new</h2>
+      <p>These are ordered by how badly they would hurt a pilot. Each one is verified against the code on <code>develop</code> at commit <code>b902aed</code>.</p>
+      <div class="callout bad">
+        <span class="tag chip bad">Critical</span>
+        <h3>1. Offline scans are queued blind</h3>
+        <p>When the scanner is offline it stores the scan and shows "Queued offline — provisional". It never checks the pass on the device, so the staff member at the door cannot tell a valid attendee from a revoked pass, a pass from another organization, or a random QR. The server already builds a pass cache for exactly this (<code>GET /sync-bundle</code> returns pass hashes), but nothing in the scanner downloads or uses it. The feature that won the summit is the one that most needs finishing.</p>
+      </div>
+      <div class="callout bad">
+        <span class="tag chip bad">Critical</span>
+        <h3>2. Public production still has <code>password123</code> demo accounts</h3>
+        <p><code>admin@syntaxure.dev</code> is an organization Owner and a platform admin, and its password is documented in the README of a public repository. The repo's own known-limitations file says these must be rotated or gated before any real pilot. This is a five-minute fix with a large blast radius if skipped.</p>
+      </div>
+      <div class="callout warn">
+        <span class="tag chip warn">High</span>
+        <h3>3. The scanner does not show who was scanned</h3>
+        <p>An accepted scan does not return or display the attendee's name, so staff cannot do the one check that makes a static QR safe: look at the person. Neither the scan route, the scan service nor the scanner page reads the person's display name.</p>
+      </div>
+      <div class="callout warn">
+        <span class="tag chip warn">High</span>
+        <h3>4. Any active pass can check into any session</h3>
+        <p>The scan service checks that the pass is valid for the organization and the person is active. It does not check whether that person belongs to that event. Every event in an organization is effectively open to every member. That is fine for an office, wrong for a training with a fixed list of participants.</p>
+      </div>
+      <div class="callout warn">
+        <span class="tag chip warn">High</span>
+        <h3>5. Geofencing works on the server but the scanner never sends a location</h3>
+        <p>The scan service evaluates geofences with <code>off</code>, <code>flag</code> and <code>enforce</code> modes, and it was verified live in v0.2.0 with a crafted request. The scanner page never calls the browser location API, so real scans arrive without coordinates and are recorded as <code>NOT_CAPTURED</code>. There is also no screen for drawing a geofence. Per the decision above, this only matters for the DTR add-on, which is why it is not in the event MVP.</p>
+      </div>
+    </article>
+
+    <article class="section" id="o-branches" data-title="Branch and release state">
+      <h2>Branch and release state</h2>
+      <p>A full clone was used to compare all long-lived branches. The repo retired <code>staging</code> on 9 November: <code>vercel.json</code> now deploys only <code>main</code> (production) and <code>develop</code>. The staging branch still exists, sits at v0.3.0 and is 21 commits behind <code>develop</code>, but nothing deploys from it. <code>lou</code> is fully merged into <code>develop</code>.</p>
+      <!-- mermaid source:
+flowchart LR
+  L["lou<br/>fully merged"] —> D
+  D["develop · b902aed<br/>v0.3.1 + 9 unreleased<br/>signup · recovery · terms"] — "next promotion" —> M["main · 0f172b4<br/>v0.3.1 · production<br/>pass.syntaxure.dev"]
+  S["staging · v0.3.0<br/>retired · 21 behind<br/>deploys disabled"]
+  classDef retired stroke-dasharray:5 5,color:#8A93A0
+  class S retired
+-->
+      <figure class="diagram"><svg id="d-branches" width="100%" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" style="max-width: 844.094px; background-color: transparent;" viewBox="0 0 844.09375 249.75" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#d-branches{font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-size:15px;fill:#ededed;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#d-branches .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#d-branches .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#d-branches .error-icon{fill:#0a0c10;}#d-branches .error-text{fill:#f5f3ef;stroke:#f5f3ef;}#d-branches .edge-thickness-normal{stroke-width:1px;}#d-branches .edge-thickness-thick{stroke-width:3.5px;}#d-branches .edge-pattern-solid{stroke-dasharray:0;}#d-branches .edge-thickness-invisible{stroke-width:0;fill:none;}#d-branches .edge-pattern-dashed{stroke-dasharray:3;}#d-branches .edge-pattern-dotted{stroke-dasharray:2;}#d-branches .marker{fill:#5b6472;stroke:#5b6472;}#d-branches .marker.cross{stroke:#5b6472;}#d-branches svg{font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-size:15px;}#d-branches p{margin:0;}#d-branches .label{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#ededed;}#d-branches .cluster-label text{fill:#f5f3ef;}#d-branches .cluster-label span{color:#f5f3ef;}#d-branches .cluster-label span p{background-color:transparent;}#d-branches .label text,#d-branches span{fill:#ededed;color:#ededed;}#d-branches .node rect,#d-branches .node circle,#d-branches .node ellipse,#d-branches .node polygon,#d-branches .node path{fill:#12151b;stroke:rgba(255,255,255,0.16);stroke-width:1px;}#d-branches .rough-node .label text,#d-branches .node .label text,#d-branches .image-shape .label,#d-branches .icon-shape .label{text-anchor:middle;}#d-branches .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#d-branches .rough-node .label,#d-branches .node .label,#d-branches .image-shape .label,#d-branches .icon-shape .label{text-align:center;}#d-branches .node.clickable{cursor:pointer;}#d-branches .root .anchor path{fill:#5b6472!important;stroke-width:0;stroke:#5b6472;}#d-branches .arrowheadPath{fill:rgba(255, 255, 255, 0);}#d-branches .edgePath .path{stroke:#5b6472;stroke-width:1px;}#d-branches .flowchart-link{stroke:#5b6472;fill:none;}#d-branches .edgeLabel{background-color:#050505;text-align:center;}#d-branches .edgeLabel p{background-color:#050505;}#d-branches .edgeLabel rect{opacity:0.5;background-color:#050505;fill:#050505;}#d-branches .labelBkg{background-color:rgba(5, 5, 5, 0.5);}#d-branches .cluster rect{fill:#0a0c10;stroke:rgba(255,255,255,0.12);stroke-width:1px;}#d-branches .cluster text{fill:#f5f3ef;}#d-branches .cluster span{color:#f5f3ef;}#d-branches div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-size:12px;background:#0a0c10;border:1px solid hsl(220, 0%, 0%);border-radius:2px;pointer-events:none;z-index:100;}#d-branches .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#ededed;}#d-branches rect.text{fill:none;stroke-width:0;}#d-branches .icon-shape,#d-branches .image-shape{background-color:#050505;text-align:center;}#d-branches .icon-shape p,#d-branches .image-shape p{background-color:#050505;padding:2px;}#d-branches .icon-shape .label rect,#d-branches .image-shape .label rect{opacity:0.5;background-color:#050505;fill:#050505;}#d-branches .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#d-branches .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#d-branches .node .neo-node{stroke:rgba(255,255,255,0.16);}#d-branches [data-look="neo"].node rect,#d-branches [data-look="neo"].cluster rect,#d-branches [data-look="neo"].node polygon{stroke:url(#d-branches-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-branches [data-look="neo"].swimlane.cluster rect{filter:none;}#d-branches [data-look="neo"].node path{stroke:url(#d-branches-gradient);stroke-width:1px;}#d-branches [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-branches [data-look="neo"].node .neo-line path{stroke:rgba(255,255,255,0.16);filter:none;}#d-branches [data-look="neo"].node circle{stroke:url(#d-branches-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-branches [data-look="neo"].node circle .state-start{fill:#000000;}#d-branches [data-look="neo"].icon-shape .icon{fill:url(#d-branches-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-branches [data-look="neo"].icon-shape .icon-neo path{stroke:url(#d-branches-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-branches :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}#d-branches .retired&gt;*{stroke-dasharray:5,5!important;color:rgb(138, 147, 160)!important;}#d-branches .retired span{stroke-dasharray:5,5!important;color:rgb(138, 147, 160)!important;}#d-branches .retired tspan{fill:rgb(138, 147, 160)!important;}</style><g><marker id="d-branches_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="d-branches_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="d-branches_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="d-branches_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="d-branches_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="d-branches_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="d-branches_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="d-branches_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="d-branches_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><marker id="d-branches_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><marker id="d-branches_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"/></marker><marker id="d-branches_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"/></marker><g class="root"><g class="clusters"/><g class="edgePaths"><path d="M175.773,56.75L183.098,56.75C190.422,56.75,205.07,56.75,215.895,56.75C226.719,56.75,233.719,56.75,237.219,56.75L240.719,56.75" id="d-branches-L_L_D_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_L_D_0" data-points="W3sieCI6MTc1Ljc3MzQzNzUsInkiOjU2Ljc1fSx7IngiOjIxOS43MTg3NSwieSI6NTYuNzV9LHsieCI6MjQ0LjcxODc1LCJ5Ijo1Ni43NX1d" data-look="classic" marker-end="url(#d-branches_flowchart-v2-pointEnd)"/><path d="M480.969,56.75L494.052,56.75C507.135,56.75,533.302,56.75,558.802,56.75C584.302,56.75,609.135,56.75,621.552,56.75L633.969,56.75" id="d-branches-L_D_M_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_D_M_0" data-points="W3sieCI6NDgwLjk2ODc1LCJ5Ijo1Ni43NX0seyJ4Ijo1NTkuNDY4NzUsInkiOjU2Ljc1fSx7IngiOjYzNy45Njg3NSwieSI6NTYuNzV9XQ==" data-look="classic" marker-end="url(#d-branches_flowchart-v2-pointEnd)"/></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_L_D_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(559.46875, 56.75)"><g class="label" data-id="L_D_M_0" transform="translate(-53.5, -11.25)"><foreignObject width="107" height="22.5"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"><p>next promotion</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="d-branches-flowchart-L-0" data-look="classic" transform="translate(101.359375, 56.75)"><rect class="basic label-container" style="" x="-74.4140625" y="-37.5" width="148.828125" height="75"/><g class="label" style="" transform="translate(-44.4140625, -22.5)"><rect/><foreignObject width="88.828125" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>lou<br />fully merged</p></span></div></foreignObject></g></g><g class="node default" id="d-branches-flowchart-D-1" data-look="classic" transform="translate(362.84375, 56.75)"><rect class="basic label-container" style="" x="-118.125" y="-48.75" width="236.25" height="97.5"/><g class="label" style="" transform="translate(-88.125, -33.75)"><rect/><foreignObject width="176.25" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>develop · b902aed<br />v0.3.1 + 9 unreleased<br />signup · recovery · terms</p></span></div></foreignObject></g></g><g class="node default" id="d-branches-flowchart-M-3" data-look="classic" transform="translate(737.03125, 56.75)"><rect class="basic label-container" style="" x="-99.0625" y="-48.75" width="198.125" height="97.5"/><g class="label" style="" transform="translate(-69.0625, -33.75)"><rect/><foreignObject width="138.125" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>main · 0f172b4<br />v0.3.1 · production<br />pass.syntaxure.dev</p></span></div></foreignObject></g></g><g class="node default retired" id="d-branches-flowchart-S-4" data-look="classic" transform="translate(101.359375, 193)"><rect class="basic label-container" style="stroke-dasharray:5 5 !important" x="-93.359375" y="-48.75" width="186.71875" height="97.5"/><g class="label" style="color:#8A93A0 !important" transform="translate(-63.359375, -33.75)"><rect/><foreignObject width="126.71875" height="67.5"><div style="color: rgb(138, 147, 160) !important; display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span style="color:#8A93A0 !important" class="nodeLabel"><p>staging · v0.3.0<br />retired · 21 behind<br />deploys disabled</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="d-branches-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"/></filter></defs><defs><filter id="d-branches-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"/></filter></defs><linearGradient id="d-branches-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#22D3EE" stop-opacity="1"/><stop offset="100%" stop-color="hsl(220, 0%, 0%)" stop-opacity="1"/></linearGradient></svg><figcaption>Fig. 1 — Branch state on 9 Nov 2026 (full clone)</figcaption></figure>
+      <p><code>main</code> has two commits that <code>develop</code> lacks, but both are a merge and an empty deployment trigger; the content difference is zero. <code>develop</code> is 9 commits ahead with self-serve signup, password recovery, a terms page and an open-redirect fix on login. Those are ready-looking but unreleased. Separately, <code>CHANGELOG.md</code> and <code>package.json</code> say v0.3.1 is in production, but there is no <code>v0.3.1</code> git tag; the last tag is <code>v0.3.0</code>.</p>
+    </article>
+  </section>
+
+  <!-- ================= WHAT'S BUILT ================= -->
+  <section role="tabpanel" id="panel-built" aria-labelledby="tab-built" data-panel="built" hidden>
+    <article class="section" id="b-method" data-title="How this was verified">
+      <div class="panel-head">
+        <div class="eyebrow">What's built</div>
+        <h1>Inventory, verified against the code</h1>
+        <p class="abstract">Every row on this tab was checked by reading routes, services, schema and pages on <code>develop</code> at <code>b902aed</code>, not by trusting the README or the plan. Where the docs and the code disagree, the code wins and the disagreement is listed separately.</p>
+      </div>
+      <p>The repo has 24 pages, 48 API route handlers, 24 Prisma models, 8 SQL migrations and 23 test files. Labels used below:</p>
+      <ul>
+        <li><span class="chip ok">Built</span> a user can do it in the app today.</li>
+        <li><span class="chip violet">API only</span> server logic exists and has tests, but there is no screen, or the screen does not send the data.</li>
+        <li><span class="chip dim">Not built</span> no code found.</li>
+      </ul>
+      <div class="callout warn">
+        <span class="tag chip warn">Limit</span>
+        <h3>Tests were counted, not run</h3>
+        <p>Installing dependencies was blocked in this session, so the test suite was not executed here. The 289 figure is a static count of <code>it()</code>/<code>test()</code> cases across the 23 files. The repo's own record says 272 tests passed at v0.3.1, and the 16 new auth tests on <code>develop</code> account for the difference. CI runs secret scan, typecheck, tests and build on every push to <code>main</code> and <code>develop</code>, so a green CI badge on the latest commit is the real proof.</p>
+      </div>
+    </article>
+
+    <article class="section" id="b-scanpath" data-title="How a scan flows today">
+      <h2>How a scan flows today</h2>
+      <p>The strongest part of the codebase is that online and offline scans share one rule set. Both the live scan route and the batch sync route call <code>performScan</code> in <code>modules/attendance/scan-service.ts</code>, so a scan that syncs later is judged exactly like one recorded live. Offline items are encrypted at rest with a key the browser cannot export, leased so two tabs cannot send the same scan, and signed with a device key so the server can reject replays.</p>
+      <!-- mermaid source:
+flowchart TD
+  A["Scanner /scan<br/>camera or typed credential"] —>|online| B["POST /sessions/:id/scans"]
+  A —>|"offline · fetch fail · 5xx"| Q[("IndexedDB queue<br/>AES-GCM at rest · 2-min leases")]
+  Q —>|"reconnect · HMAC-signed batch"| C["POST /sync/batches"]
+  K["GET /sync-bundle<br/>pass hashes · geofences"] -.->|"built, never consumed"| A
+  B —> P["scan-service.performScan · one rule set<br/>format · credential hash · person active · expiry<br/>then evaluateGeo (off / flag / enforce)"]
+  C —> P
+  P —>|fail| X["4xx + audit row"]
+  P —>|ok| E[("attendance_events<br/>→ derived records")]
+  classDef gap stroke-dasharray:6 4
+  class K gap
+-->
+      <figure class="diagram"><svg id="d-scanpath" width="100%" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" style="max-width: 518.062px; background-color: transparent;" viewBox="0 0 518.0625 976.566162109375" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#d-scanpath{font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-size:15px;fill:#ededed;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#d-scanpath .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#d-scanpath .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#d-scanpath .error-icon{fill:#0a0c10;}#d-scanpath .error-text{fill:#f5f3ef;stroke:#f5f3ef;}#d-scanpath .edge-thickness-normal{stroke-width:1px;}#d-scanpath .edge-thickness-thick{stroke-width:3.5px;}#d-scanpath .edge-pattern-solid{stroke-dasharray:0;}#d-scanpath .edge-thickness-invisible{stroke-width:0;fill:none;}#d-scanpath .edge-pattern-dashed{stroke-dasharray:3;}#d-scanpath .edge-pattern-dotted{stroke-dasharray:2;}#d-scanpath .marker{fill:#5b6472;stroke:#5b6472;}#d-scanpath .marker.cross{stroke:#5b6472;}#d-scanpath svg{font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-size:15px;}#d-scanpath p{margin:0;}#d-scanpath .label{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#ededed;}#d-scanpath .cluster-label text{fill:#f5f3ef;}#d-scanpath .cluster-label span{color:#f5f3ef;}#d-scanpath .cluster-label span p{background-color:transparent;}#d-scanpath .label text,#d-scanpath span{fill:#ededed;color:#ededed;}#d-scanpath .node rect,#d-scanpath .node circle,#d-scanpath .node ellipse,#d-scanpath .node polygon,#d-scanpath .node path{fill:#12151b;stroke:rgba(255,255,255,0.16);stroke-width:1px;}#d-scanpath .rough-node .label text,#d-scanpath .node .label text,#d-scanpath .image-shape .label,#d-scanpath .icon-shape .label{text-anchor:middle;}#d-scanpath .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#d-scanpath .rough-node .label,#d-scanpath .node .label,#d-scanpath .image-shape .label,#d-scanpath .icon-shape .label{text-align:center;}#d-scanpath .node.clickable{cursor:pointer;}#d-scanpath .root .anchor path{fill:#5b6472!important;stroke-width:0;stroke:#5b6472;}#d-scanpath .arrowheadPath{fill:rgba(255, 255, 255, 0);}#d-scanpath .edgePath .path{stroke:#5b6472;stroke-width:1px;}#d-scanpath .flowchart-link{stroke:#5b6472;fill:none;}#d-scanpath .edgeLabel{background-color:#050505;text-align:center;}#d-scanpath .edgeLabel p{background-color:#050505;}#d-scanpath .edgeLabel rect{opacity:0.5;background-color:#050505;fill:#050505;}#d-scanpath .labelBkg{background-color:rgba(5, 5, 5, 0.5);}#d-scanpath .cluster rect{fill:#0a0c10;stroke:rgba(255,255,255,0.12);stroke-width:1px;}#d-scanpath .cluster text{fill:#f5f3ef;}#d-scanpath .cluster span{color:#f5f3ef;}#d-scanpath div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-size:12px;background:#0a0c10;border:1px solid hsl(220, 0%, 0%);border-radius:2px;pointer-events:none;z-index:100;}#d-scanpath .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#ededed;}#d-scanpath rect.text{fill:none;stroke-width:0;}#d-scanpath .icon-shape,#d-scanpath .image-shape{background-color:#050505;text-align:center;}#d-scanpath .icon-shape p,#d-scanpath .image-shape p{background-color:#050505;padding:2px;}#d-scanpath .icon-shape .label rect,#d-scanpath .image-shape .label rect{opacity:0.5;background-color:#050505;fill:#050505;}#d-scanpath .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#d-scanpath .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#d-scanpath .node .neo-node{stroke:rgba(255,255,255,0.16);}#d-scanpath [data-look="neo"].node rect,#d-scanpath [data-look="neo"].cluster rect,#d-scanpath [data-look="neo"].node polygon{stroke:url(#d-scanpath-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-scanpath [data-look="neo"].swimlane.cluster rect{filter:none;}#d-scanpath [data-look="neo"].node path{stroke:url(#d-scanpath-gradient);stroke-width:1px;}#d-scanpath [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-scanpath [data-look="neo"].node .neo-line path{stroke:rgba(255,255,255,0.16);filter:none;}#d-scanpath [data-look="neo"].node circle{stroke:url(#d-scanpath-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-scanpath [data-look="neo"].node circle .state-start{fill:#000000;}#d-scanpath [data-look="neo"].icon-shape .icon{fill:url(#d-scanpath-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-scanpath [data-look="neo"].icon-shape .icon-neo path{stroke:url(#d-scanpath-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-scanpath :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}#d-scanpath .gap&gt;*{stroke-dasharray:6,4!important;}#d-scanpath .gap span{stroke-dasharray:6,4!important;}</style><g><marker id="d-scanpath_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="d-scanpath_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="d-scanpath_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="d-scanpath_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="d-scanpath_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="d-scanpath_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="d-scanpath_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="d-scanpath_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="d-scanpath_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><marker id="d-scanpath_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><marker id="d-scanpath_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"/></marker><marker id="d-scanpath_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"/></marker><g class="root"><g class="clusters"/><g class="edgePaths"><path d="M196.108,230.5L184.896,236.542C173.684,242.583,151.26,254.667,140.048,277.577C128.836,300.488,128.836,334.225,128.836,369.838C128.836,405.451,128.836,442.939,128.836,468.933C128.836,494.926,128.836,509.426,128.836,516.676L128.836,523.926" id="d-scanpath-L_A_B_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_A_B_0" data-points="W3sieCI6MTk2LjEwNzcxOTgwOTMyMjAyLCJ5IjoyMzAuNX0seyJ4IjoxMjguODM1OTM3NSwieSI6MjY2Ljc1fSx7IngiOjEyOC44MzU5Mzc1LCJ5IjozNjcuOTYzMjQxNTc3MTQ4NDR9LHsieCI6MTI4LjgzNTkzNzUsInkiOjQ4MC40MjY0ODMxNTQyOTY5fSx7IngiOjEyOC44MzU5Mzc1LCJ5Ijo1MjcuOTI2NDgzMTU0Mjk2OX1d" data-look="classic" marker-end="url(#d-scanpath_flowchart-v2-pointEnd)"/><path d="M335.291,230.5L346.503,236.542C357.715,242.583,380.139,254.667,391.351,266.083C402.563,277.5,402.563,288.25,402.563,293.625L402.563,299" id="d-scanpath-L_A_Q_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_A_Q_0" data-points="W3sieCI6MzM1LjI5MDcxNzY5MDY3OCwieSI6MjMwLjV9LHsieCI6NDAyLjU2MjUsInkiOjI2Ni43NX0seyJ4Ijo0MDIuNTYyNSwieSI6MzAzfV0=" data-look="classic" marker-end="url(#d-scanpath_flowchart-v2-pointEnd)"/><path d="M402.563,432.926L402.563,440.843C402.563,448.76,402.563,464.593,402.563,479.76C402.563,494.926,402.563,509.426,402.563,516.676L402.563,523.926" id="d-scanpath-L_Q_C_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_Q_C_0" data-points="W3sieCI6NDAyLjU2MjUsInkiOjQzMi45MjY0ODMxNTQyOTY5fSx7IngiOjQwMi41NjI1LCJ5Ijo0ODAuNDI2NDgzMTU0Mjk2OX0seyJ4Ijo0MDIuNTYyNSwieSI6NTI3LjkyNjQ4MzE1NDI5Njl9XQ==" data-look="classic" marker-end="url(#d-scanpath_flowchart-v2-pointEnd)"/><path d="M265.699,83L265.699,89.042C265.699,95.083,265.699,107.167,265.699,118.583C265.699,130,265.699,140.75,265.699,146.125L265.699,151.5" id="d-scanpath-L_K_A_0" class="edge-thickness-normal edge-pattern-dotted edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_K_A_0" data-points="W3sieCI6MjY1LjY5OTIxODc1LCJ5Ijo4M30seyJ4IjoyNjUuNjk5MjE4NzUsInkiOjExOS4yNX0seyJ4IjoyNjUuNjk5MjE4NzUsInkiOjE1NS41fV0=" data-look="classic" marker-end="url(#d-scanpath_flowchart-v2-pointEnd)"/><path d="M128.836,580.426L128.836,584.593C128.836,588.76,128.836,597.093,133.616,605.015C138.397,612.936,147.958,620.446,152.738,624.201L157.519,627.956" id="d-scanpath-L_B_P_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_B_P_0" data-points="W3sieCI6MTI4LjgzNTkzNzUsInkiOjU4MC40MjY0ODMxNTQyOTY5fSx7IngiOjEyOC44MzU5Mzc1LCJ5Ijo2MDUuNDI2NDgzMTU0Mjk2OX0seyJ4IjoxNjAuNjY0NjA3NTU4MTM5NTUsInkiOjYzMC40MjY0ODMxNTQyOTY5fV0=" data-look="classic" marker-end="url(#d-scanpath_flowchart-v2-pointEnd)"/><path d="M402.563,580.426L402.563,584.593C402.563,588.76,402.563,597.093,397.782,605.015C393.001,612.936,383.44,620.446,378.66,624.201L373.879,627.956" id="d-scanpath-L_C_P_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_C_P_0" data-points="W3sieCI6NDAyLjU2MjUsInkiOjU4MC40MjY0ODMxNTQyOTY5fSx7IngiOjQwMi41NjI1LCJ5Ijo2MDUuNDI2NDgzMTU0Mjk2OX0seyJ4IjozNzAuNzMzODI5OTQxODYwNDUsInkiOjYzMC40MjY0ODMxNTQyOTY5fV0=" data-look="classic" marker-end="url(#d-scanpath_flowchart-v2-pointEnd)"/><path d="M193.116,795.426L187.8,801.468C182.485,807.51,171.854,819.593,166.538,835.021C161.223,850.45,161.223,869.223,161.223,878.61L161.223,887.996" id="d-scanpath-L_P_X_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_P_X_0" data-points="W3sieCI6MTkzLjExNTUwMTY0NDczNjg0LCJ5Ijo3OTUuNDI2NDgzMTU0Mjk2OX0seyJ4IjoxNjEuMjIyNjU2MjUsInkiOjgzMS42NzY0ODMxNTQyOTY5fSx7IngiOjE2MS4yMjI2NTYyNSwieSI6ODkxLjk5NjMxODgxNzEzODd9XQ==" data-look="classic" marker-end="url(#d-scanpath_flowchart-v2-pointEnd)"/><path d="M338.283,795.426L343.598,801.468C348.914,807.51,359.545,819.593,364.86,831.01C370.176,842.426,370.176,853.176,370.176,858.551L370.176,863.926" id="d-scanpath-L_P_E_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_P_E_0" data-points="W3sieCI6MzM4LjI4MjkzNTg1NTI2MzIsInkiOjc5NS40MjY0ODMxNTQyOTY5fSx7IngiOjM3MC4xNzU3ODEyNSwieSI6ODMxLjY3NjQ4MzE1NDI5Njl9LHsieCI6MzcwLjE3NTc4MTI1LCJ5Ijo4NjcuOTI2NDgzMTU0Mjk2OX1d" data-look="classic" marker-end="url(#d-scanpath_flowchart-v2-pointEnd)"/></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(128.8359375, 367.96324157714844)"><g class="label" data-id="L_A_B_0" transform="translate(-21.3671875, -11.25)"><foreignObject width="42.734375" height="22.5"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"><p>online</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(402.5625, 266.75)"><g class="label" data-id="L_A_Q_0" transform="translate(-78.34375, -11.25)"><foreignObject width="156.6875" height="22.5"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"><p>offline · fetch fail · 5xx</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(402.5625, 480.4264831542969)"><g class="label" data-id="L_Q_C_0" transform="translate(-100, -22.5)"><foreignObject width="200" height="45"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="edgeLabel"><p>reconnect · HMAC-signed batch</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(265.69921875, 119.25)"><g class="label" data-id="L_K_A_0" transform="translate(-78.671875, -11.25)"><foreignObject width="157.34375" height="22.5"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"><p>built, never consumed</p></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_B_P_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_C_P_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(161.22265625, 831.6764831542969)"><g class="label" data-id="L_P_X_0" transform="translate(-10.5078125, -11.25)"><foreignObject width="21.015625" height="22.5"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"><p>fail</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(370.17578125, 831.6764831542969)"><g class="label" data-id="L_P_E_0" transform="translate(-8.6171875, -11.25)"><foreignObject width="17.234375" height="22.5"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"><p>ok</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="d-scanpath-flowchart-A-0" data-look="classic" transform="translate(265.69921875, 193)"><rect class="basic label-container" style="" x="-125.625" y="-37.5" width="251.25" height="75"/><g class="label" style="" transform="translate(-95.625, -22.5)"><rect/><foreignObject width="191.25" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>Scanner /scan<br />camera or typed credential</p></span></div></foreignObject></g></g><g class="node default" id="d-scanpath-flowchart-B-1" data-look="classic" transform="translate(128.8359375, 554.1764831542969)"><rect class="basic label-container" style="" x="-120.8359375" y="-26.25" width="241.671875" height="52.5"/><g class="label" style="" transform="translate(-90.8359375, -11.25)"><rect/><foreignObject width="181.671875" height="22.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>POST /sessions/:id/scans</p></span></div></foreignObject></g></g><g class="node default" id="d-scanpath-flowchart-Q-3" data-look="classic" transform="translate(402.5625, 367.96324157714844)"><path d="M0,15.808823529411764 a107.5,15.808823529411764 0,0,0 215,0 a107.5,15.808823529411764 0,0,0 -215,0 l0,98.30882352941177 a107.5,15.808823529411764 0,0,0 215,0 l0,-98.30882352941177" class="basic label-container outer-path" style="" transform="translate(-107.5, -64.96323529411765)"/><g class="label" style="" transform="translate(-100, -23.75)"><rect/><foreignObject width="200" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel"><p>IndexedDB queue<br />AES-GCM at rest · 2-min leases</p></span></div></foreignObject></g></g><g class="node default" id="d-scanpath-flowchart-C-5" data-look="classic" transform="translate(402.5625, 554.1764831542969)"><rect class="basic label-container" style="" x="-102.890625" y="-26.25" width="205.78125" height="52.5"/><g class="label" style="" transform="translate(-72.890625, -11.25)"><rect/><foreignObject width="145.78125" height="22.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>POST /sync/batches</p></span></div></foreignObject></g></g><g class="node default gap" id="d-scanpath-flowchart-K-6" data-look="classic" transform="translate(265.69921875, 45.5)"><rect class="basic label-container" style="stroke-dasharray:6 4 !important" x="-118.1015625" y="-37.5" width="236.203125" height="75"/><g class="label" style="" transform="translate(-88.1015625, -22.5)"><rect/><foreignObject width="176.203125" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>GET /sync-bundle<br />pass hashes · geofences</p></span></div></foreignObject></g></g><g class="node default" id="d-scanpath-flowchart-P-9" data-look="classic" transform="translate(265.69921875, 712.9264831542969)"><rect class="basic label-container" style="" x="-130" y="-82.5" width="260" height="165"/><g class="label" style="" transform="translate(-100, -67.5)"><rect/><foreignObject width="200" height="135"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="nodeLabel"><p>scan-service.performScan · one rule set<br />format · credential hash · person active · expiry<br />then evaluateGeo (off / flag / enforce)</p></span></div></foreignObject></g></g><g class="node default" id="d-scanpath-flowchart-X-13" data-look="classic" transform="translate(161.22265625, 918.2463188171387)"><rect class="basic label-container" style="" x="-85.03125" y="-26.25" width="170.0625" height="52.5"/><g class="label" style="" transform="translate(-55.03125, -11.25)"><rect/><foreignObject width="110.0625" height="22.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>4xx + audit row</p></span></div></foreignObject></g></g><g class="node default" id="d-scanpath-flowchart-E-15" data-look="classic" transform="translate(370.17578125, 918.2463188171387)"><path d="M0,13.546558240751345 a73.921875,13.546558240751345 0,0,0 147.84375,0 a73.921875,13.546558240751345 0,0,0 -147.84375,0 l0,73.54655824075135 a73.921875,13.546558240751345 0,0,0 147.84375,0 l0,-73.54655824075135" class="basic label-container outer-path" style="" transform="translate(-73.921875, -50.31983736112702)"/><g class="label" style="" transform="translate(-66.421875, -12.5)"><rect/><foreignObject width="132.84375" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>attendance_events<br />→ derived records</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="d-scanpath-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"/></filter></defs><defs><filter id="d-scanpath-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"/></filter></defs><linearGradient id="d-scanpath-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#22D3EE" stop-opacity="1"/><stop offset="100%" stop-color="hsl(220, 0%, 0%)" stop-opacity="1"/></linearGradient></svg><figcaption>Fig. 2 — Scan path in code today. Dashed: built on the server, unused by the scanner</figcaption></figure>
+      <p>The dashed box is the gap. The server can hand a device everything it needs to verify passes offline, but the scanner skips that step and defers every offline judgement to the server. The result is correct data after sync, but no useful answer at the door while offline.</p>
+    </article>
+
+    <article class="section" id="b-inventory" data-title="Inventory by area">
+      <h2>Inventory by area</h2>
+      <div class="table-wrap"><table>
+        <caption>Foundation, access and platform</caption>
+        <thead><tr><th>Capability</th><th>Status</th><th>Evidence and notes</th></tr></thead>
+        <tbody>
+          <tr><td>Multi-tenant organizations, memberships</td><td><span class="chip ok">Built</span></td><td>RLS deny-by-default plus server checks via <code>requireOrganizationPermission</code>; cross-tenant isolation tests.</td></tr>
+          <tr><td>Roles and per-user overrides</td><td><span class="chip ok">Built</span></td><td>Seven roles (Owner, Admin, Manager, Supervisor, Scanner, Member, Viewer) with allow/deny overrides, deny wins.</td></tr>
+          <tr><td>Platform console</td><td><span class="chip ok">Built</span></td><td><code>/platform</code>: overview, org ledger, plan and entitlement editor, admin grants, cross-tenant audit with CSV, health.</td></tr>
+          <tr><td>Plan entitlement enforcement</td><td><span class="chip dim">Not built</span></td><td>Entitlements can be edited but tenant routes do not check them (listed as open in PLAN.md §12).</td></tr>
+          <tr><td>Email/password login</td><td><span class="chip ok">Built</span></td><td>In production.</td></tr>
+          <tr><td>Self-serve signup, password recovery, terms</td><td><span class="chip warn">develop only</span></td><td>Built and tested on <code>develop</code>; not yet promoted to production.</td></tr>
+          <tr><td>Google sign-in</td><td><span class="chip dim">Not built</span></td><td>No OAuth provider code.</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="table-wrap"><table>
+        <caption>Identity and passes</caption>
+        <thead><tr><th>Capability</th><th>Status</th><th>Evidence and notes</th></tr></thead>
+        <tbody>
+          <tr><td>People directory (add, edit, list)</td><td><span class="chip ok">Built</span></td><td><code>/org/[orgId]/people</code>.</td></tr>
+          <tr><td>Bulk import of people (CSV)</td><td><span class="chip dim">Not built</span></td><td>No import path on the people page or API.</td></tr>
+          <tr><td>QR passes: issue, revoke, rotate, verify</td><td><span class="chip ok">Built</span></td><td>Opaque <code>PRISM1:publicId:secret</code>, only a hash stored, constant-time comparison, strict payload parsing.</td></tr>
+          <tr><td>Printable ID card</td><td><span class="chip ok">Built</span></td><td>"ID card" view on the passes page.</td></tr>
+          <tr><td>Member portal (own QR, own history)</td><td><span class="chip ok">Built</span></td><td><code>/member</code>.</td></tr>
+          <tr><td>One QR per person across organizations</td><td><span class="chip dim">Not built</span></td><td>Passes are unique per organization. The global <code>PRISMID1</code> identity is in the proposed SSOT only.</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="table-wrap"><table>
+        <caption>Attendance and events</caption>
+        <thead><tr><th>Capability</th><th>Status</th><th>Evidence and notes</th></tr></thead>
+        <tbody>
+          <tr><td>Policies (grace, late threshold, duplicate window)</td><td><span class="chip ok">Built</span></td><td>Created on the attendance page.</td></tr>
+          <tr><td>Sessions with type EVENT, OJT, SHIFT, CLASS, VISITOR, TRAINING</td><td><span class="chip ok">Built</span></td><td>Start and end time, timezone; one engine for every type.</td></tr>
+          <tr><td>Scan in/out, duplicates, idempotency</td><td><span class="chip ok">Built</span></td><td>Shared scan service, audited outcomes.</td></tr>
+          <tr><td>Manual adjust, approve, reject</td><td><span class="chip ok">Built</span></td><td>Event- and record-level routes with reasons.</td></tr>
+          <tr><td>Attendee name shown on accepted scan</td><td><span class="chip dim">Not built</span></td><td>Scan response and scanner page never read the person's name.</td></tr>
+          <tr><td>Event roster (who may attend)</td><td><span class="chip dim">Not built</span></td><td>Any active pass in the organization can check into any session.</td></tr>
+          <tr><td>Event lifecycle (open, close, cancel)</td><td><span class="chip dim">Not built</span></td><td>Sessions have only start and end times; no status, so nothing stops scans after an event.</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="table-wrap"><table>
+        <caption>Offline, geo, documents, reports</caption>
+        <thead><tr><th>Capability</th><th>Status</th><th>Evidence and notes</th></tr></thead>
+        <tbody>
+          <tr><td>Offline queue with signed batch sync</td><td><span class="chip ok">Built</span></td><td>AES-GCM at rest, 2,000-row cap, leases, retry and remove, queue panel.</td></tr>
+          <tr><td>On-device pass verification offline</td><td><span class="chip violet">API only</span></td><td><code>GET /sync-bundle</code> exists; scanner never calls it.</td></tr>
+          <tr><td>Geofence evaluation</td><td><span class="chip violet">API only</span></td><td>Haversine with off/flag/enforce; geofence CRUD API; no admin screen; scanner sends no coordinates.</td></tr>
+          <tr><td>Selfie capture</td><td><span class="chip dim">Not built</span></td><td>No camera-photo capture or storage for punches.</td></tr>
+          <tr><td>Documents and e-signature</td><td><span class="chip violet">API only</span></td><td>Canonical hash, hash-chained signature events, signing order, consent, seal, public verify. No screens; body stored inline, no PDF.</td></tr>
+          <tr><td>Certificates of attendance</td><td><span class="chip dim">Not built</span></td><td>No templates, generation or certificate records.</td></tr>
+          <tr><td>DTR report with CSV export</td><td><span class="chip ok">Built</span></td><td>Date range up to 92 days, role scoping, Viewer masking, formula-injection guard.</td></tr>
+          <tr><td>Per-event attendance report</td><td><span class="chip dim">Not built</span></td><td>The only export is the DTR report.</td></tr>
+          <tr><td>Audit ledger</td><td><span class="chip ok">Built</span></td><td>Org audit on settings page; platform-wide audit with CSV.</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="table-wrap"><table>
+        <caption>Security and operations</caption>
+        <thead><tr><th>Capability</th><th>Status</th><th>Evidence and notes</th></tr></thead>
+        <tbody>
+          <tr><td>CI gate</td><td><span class="chip ok">Built</span></td><td>Node 22: secret scan (blocking), Prisma generate, typecheck, tests, build.</td></tr>
+          <tr><td>Deployment allowlist</td><td><span class="chip ok">Built</span></td><td>Only <code>main</code> and <code>develop</code> deploy; region pinned to <code>syd1</code>.</td></tr>
+          <tr><td>Security headers, rate limits, body limits</td><td><span class="chip ok">Built</span></td><td>CSP is still Report-Only; rate limits are per server instance, not shared.</td></tr>
+          <tr><td>Demo accounts rotated or gated</td><td><span class="chip bad">Open</span></td><td><code>password123</code> on public production.</td></tr>
+          <tr><td>Signed-in browser walkthrough</td><td><span class="chip bad">Open</span></td><td>Known-limitations says org and member screens were verified by code and API, never by a signed-in session.</td></tr>
+        </tbody>
+      </table></div>
+    </article>
+
+    <article class="section" id="b-drift" data-title="Where docs and code disagree">
+      <h2>Where the docs and the code disagree</h2>
+      <p>The repo has good documentation discipline, but three files have fallen behind <code>docs/roadmap/PLAN.md</code>. Anyone onboarding from the README will get the wrong picture, and that includes another AI agent.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>File</th><th>What it says</th><th>What the code shows</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">README.md status table</td><td>P4 geo, P5 e-sign, P6 offline, P7 workflows, P8 SaaS ops: "Not started"</td><td>First slices of all five shipped in v0.2.0 and v0.3.x, per PLAN.md §11–13 and the code.</td></tr>
+          <tr><td class="mono">known-limitations.md</td><td>Offline sync API not built; <code>geoResult</code> always <code>NOT_CAPTURED</code>; Viewer masking not done</td><td>Sync API, geo evaluation and masking all exist. The real remaining gaps are the scanner sides listed above.</td></tr>
+          <tr><td class="mono">Git tags</td><td>Latest tag v0.3.0</td><td>CHANGELOG and package.json say v0.3.1 is in production.</td></tr>
+        </tbody>
+      </table></div>
+      <p>The fix is one small docs commit in milestone M0, and a rule in the Definition of Done that a change to a phase's status updates the README table in the same commit.</p>
+    </article>
+
+    <article class="section" id="a-rbac" data-title="Appendix · RBAC SSOT vs. code">
+      <h2>Appendix: the proposed RBAC and Access SSOT vs. the code</h2>
+      <p>The "Prism Pass — RBAC and Access SSOT" document is marked <i>Proposed</i>, and that is accurate: none of it is in the code yet. There is no <code>TENANT_ADMIN</code>, <code>SUPERADMIN</code>, <code>PRISMID1</code>, <code>identity_credentials</code> or <code>event_access_grants</code> anywhere in the repo.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Topic</th><th>In the code today</th><th>In the proposed SSOT</th><th>Recommendation</th></tr></thead>
+        <tbody>
+          <tr><td>Roles</td><td>7 org roles + platform admin</td><td>4 base roles + custom roles + Superadmin</td><td>Keep 7 in the data; show 4 presets in the UI for the pilot.</td></tr>
+          <tr><td>QR</td><td>One pass per person per org</td><td>One identity QR per person, global</td><td>Decide before printing IDs at scale (see open decisions).</td></tr>
+          <tr><td>Event access</td><td>Any active member</td><td>Per-event grants that expire</td><td>Build a simple roster now; grants later.</td></tr>
+          <tr><td>Event lifecycle</td><td>None</td><td>Scheduled → active → ended → closed / cancelled</td><td>Build open/close now; the 24-hour grace later.</td></tr>
+          <tr><td>Sign-in</td><td>Email/password</td><td>Google + invite claim</td><td>After pilot.</td></tr>
+        </tbody>
+      </table></div>
+      <p>The SSOT also has internal contradictions worth fixing before anyone implements it: an Owner is view-only and lacks <code>users.manage</code>, yet section 10 lets the Owner assign Staff, which needs that capability; and the rule that an actor cannot grant what they do not hold conflicts with an Owner appointing Tenant Admins. Its offline rules ("a revoked QR fails immediately", "closing an event denies the next scan immediately") cannot hold on a disconnected device and need an explicit offline section.</p>
+    </article>
+
+    <article class="section" id="a-evidence" data-title="Appendix · Evidence and file paths">
+      <h2>Appendix: evidence and file paths</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Claim</th><th>Where to look</th></tr></thead>
+        <tbody>
+          <tr><td>One rule set for online and offline scans</td><td class="mono">modules/attendance/scan-service.ts · app/api/v1/sync/batches/route.ts</td></tr>
+          <tr><td>Offline queue and encryption</td><td class="mono">lib/offline-queue.ts · lib/sync-client.ts · modules/offline/*</td></tr>
+          <tr><td>Unused offline pass cache</td><td class="mono">app/api/v1/orgs/[orgId]/sync-bundle/route.ts (no consumer)</td></tr>
+          <tr><td>Scanner sends no location, shows no name</td><td class="mono">app/(scanner)/scan/page.tsx</td></tr>
+          <tr><td>No roster check</td><td class="mono">modules/attendance/scan-service.ts lines 34–80</td></tr>
+          <tr><td>E-sign API</td><td class="mono">modules/documents/* · app/api/v1/orgs/[orgId]/documents/** · signature-requests/**</td></tr>
+          <tr><td>Roles and overrides</td><td class="mono">packages/authorization/permissions.ts · docs/security/permission-matrix.md</td></tr>
+          <tr><td>Deployment allowlist</td><td class="mono">vercel.json · .github/workflows/ci.yml</td></tr>
+          <tr><td>Demo credentials</td><td class="mono">README.md · docs/security/demo-accounts.md</td></tr>
+        </tbody>
+      </table></div>
+    </article>
+  </section>
+
+  <!-- ================= SCOPE OF WORK ================= -->
+  <section role="tabpanel" id="panel-scope" aria-labelledby="tab-scope" data-panel="scope" hidden>
+    <article class="section" id="s-purpose" data-title="Purpose and product statement">
+      <div class="panel-head">
+        <div class="eyebrow">Scope of work</div>
+        <h1>What we are building, and what we are not</h1>
+        <p class="abstract">This scope covers the work from today's v0.3.1 to a first real pilot, plus the two follow-on tracks that come after it. It is written so anyone on the team, or an AI agent, can tell whether a piece of work belongs in the current milestone.</p>
+      </div>
+      <div class="callout">
+        <span class="tag chip">Product statement</span>
+        <p><b>Prism Pass lets an organization run an event, record who attended even with no signal at the venue, and hand every attendee a signed certificate, without anyone encoding a sign-in sheet.</b></p>
+      </div>
+      <p>The first customers are organizations that run recurring trainings and events: agency HR and training units, schools and student councils, and associations. They already own the attendee list and the reason to issue certificates. The scope deliberately does not chase daily office timekeeping, because that market is held by biometric terminals in government and by free apps in the private sector.</p>
+    </article>
+
+    <article class="section" id="s-inscope" data-title="In scope">
+      <h2>In scope</h2>
+      <p>The MVP is the end-to-end event flow below. The outlined steps already work; the dashed steps are the build.</p>
+      <!-- mermaid source:
+flowchart TB
+  subgraph r1[" "]
+    direction LR
+    O["1 · Organizer<br/>creates event"] —> R["2 · Adds attendees<br/>roster or CSV"] —> Q["3 · Attendee QR<br/>phone or printed ID"] —> S["4 · Staff scans<br/>online or offline"]
+  end
+  subgraph r2[" "]
+    direction LR
+    A["5 · Attendance<br/>record"] —> C["6 · Certificate<br/>generated"] —> E["7 · E-signed<br/>by the head"] —> X["8 · Report<br/>and export"]
+  end
+  S —> A
+  style r1 fill:transparent,stroke:transparent
+  style r2 fill:transparent,stroke:transparent
+  classDef built stroke:#22D3EE,stroke-width:2px
+  classDef todo stroke:#A855F7,stroke-width:2px,stroke-dasharray:6 4
+  class Q,S,A built
+  class O,R,C,E,X todo
+-->
+      <figure class="diagram wide"><svg id="d-mvpflow" width="100%" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" style="max-width: 1031.98px; background-color: transparent;" viewBox="0 0 1031.984375 356" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#d-mvpflow{font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-size:15px;fill:#ededed;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#d-mvpflow .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#d-mvpflow .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#d-mvpflow .error-icon{fill:#0a0c10;}#d-mvpflow .error-text{fill:#f5f3ef;stroke:#f5f3ef;}#d-mvpflow .edge-thickness-normal{stroke-width:1px;}#d-mvpflow .edge-thickness-thick{stroke-width:3.5px;}#d-mvpflow .edge-pattern-solid{stroke-dasharray:0;}#d-mvpflow .edge-thickness-invisible{stroke-width:0;fill:none;}#d-mvpflow .edge-pattern-dashed{stroke-dasharray:3;}#d-mvpflow .edge-pattern-dotted{stroke-dasharray:2;}#d-mvpflow .marker{fill:#5b6472;stroke:#5b6472;}#d-mvpflow .marker.cross{stroke:#5b6472;}#d-mvpflow svg{font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-size:15px;}#d-mvpflow p{margin:0;}#d-mvpflow .label{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#ededed;}#d-mvpflow .cluster-label text{fill:#f5f3ef;}#d-mvpflow .cluster-label span{color:#f5f3ef;}#d-mvpflow .cluster-label span p{background-color:transparent;}#d-mvpflow .label text,#d-mvpflow span{fill:#ededed;color:#ededed;}#d-mvpflow .node rect,#d-mvpflow .node circle,#d-mvpflow .node ellipse,#d-mvpflow .node polygon,#d-mvpflow .node path{fill:#12151b;stroke:rgba(255,255,255,0.16);stroke-width:1px;}#d-mvpflow .rough-node .label text,#d-mvpflow .node .label text,#d-mvpflow .image-shape .label,#d-mvpflow .icon-shape .label{text-anchor:middle;}#d-mvpflow .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#d-mvpflow .rough-node .label,#d-mvpflow .node .label,#d-mvpflow .image-shape .label,#d-mvpflow .icon-shape .label{text-align:center;}#d-mvpflow .node.clickable{cursor:pointer;}#d-mvpflow .root .anchor path{fill:#5b6472!important;stroke-width:0;stroke:#5b6472;}#d-mvpflow .arrowheadPath{fill:rgba(255, 255, 255, 0);}#d-mvpflow .edgePath .path{stroke:#5b6472;stroke-width:1px;}#d-mvpflow .flowchart-link{stroke:#5b6472;fill:none;}#d-mvpflow .edgeLabel{background-color:#050505;text-align:center;}#d-mvpflow .edgeLabel p{background-color:#050505;}#d-mvpflow .edgeLabel rect{opacity:0.5;background-color:#050505;fill:#050505;}#d-mvpflow .labelBkg{background-color:rgba(5, 5, 5, 0.5);}#d-mvpflow .cluster rect{fill:#0a0c10;stroke:rgba(255,255,255,0.12);stroke-width:1px;}#d-mvpflow .cluster text{fill:#f5f3ef;}#d-mvpflow .cluster span{color:#f5f3ef;}#d-mvpflow div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-size:12px;background:#0a0c10;border:1px solid hsl(220, 0%, 0%);border-radius:2px;pointer-events:none;z-index:100;}#d-mvpflow .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#ededed;}#d-mvpflow rect.text{fill:none;stroke-width:0;}#d-mvpflow .icon-shape,#d-mvpflow .image-shape{background-color:#050505;text-align:center;}#d-mvpflow .icon-shape p,#d-mvpflow .image-shape p{background-color:#050505;padding:2px;}#d-mvpflow .icon-shape .label rect,#d-mvpflow .image-shape .label rect{opacity:0.5;background-color:#050505;fill:#050505;}#d-mvpflow .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#d-mvpflow .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#d-mvpflow .node .neo-node{stroke:rgba(255,255,255,0.16);}#d-mvpflow [data-look="neo"].node rect,#d-mvpflow [data-look="neo"].cluster rect,#d-mvpflow [data-look="neo"].node polygon{stroke:url(#d-mvpflow-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-mvpflow [data-look="neo"].swimlane.cluster rect{filter:none;}#d-mvpflow [data-look="neo"].node path{stroke:url(#d-mvpflow-gradient);stroke-width:1px;}#d-mvpflow [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-mvpflow [data-look="neo"].node .neo-line path{stroke:rgba(255,255,255,0.16);filter:none;}#d-mvpflow [data-look="neo"].node circle{stroke:url(#d-mvpflow-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-mvpflow [data-look="neo"].node circle .state-start{fill:#000000;}#d-mvpflow [data-look="neo"].icon-shape .icon{fill:url(#d-mvpflow-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-mvpflow [data-look="neo"].icon-shape .icon-neo path{stroke:url(#d-mvpflow-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-mvpflow :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}#d-mvpflow .built&gt;*{stroke:rgb(34, 211, 238)!important;stroke-width:2px!important;}#d-mvpflow .built span{stroke:rgb(34, 211, 238)!important;stroke-width:2px!important;}#d-mvpflow .todo&gt;*{stroke:rgb(168, 85, 247)!important;stroke-width:2px!important;stroke-dasharray:6,4!important;}#d-mvpflow .todo span{stroke:rgb(168, 85, 247)!important;stroke-width:2px!important;stroke-dasharray:6,4!important;}</style><g><marker id="d-mvpflow_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="d-mvpflow_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="d-mvpflow_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="d-mvpflow_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="d-mvpflow_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="d-mvpflow_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="d-mvpflow_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="d-mvpflow_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="d-mvpflow_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><marker id="d-mvpflow_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><marker id="d-mvpflow_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"/></marker><marker id="d-mvpflow_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"/></marker><g class="root"><g class="clusters"/><g class="edgePaths"><path d="M515.992,153L515.992,157.167C515.992,161.333,515.992,169.667,515.992,177.333C515.992,185,515.992,192,515.992,195.5L515.992,199" id="d-mvpflow-L_S_A_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_S_A_0" data-points="W3sieCI6NTE1Ljk5MjE4NzUsInkiOjE1M30seyJ4Ijo1MTUuOTkyMTg3NSwieSI6MTc4fSx7IngiOjUxNS45OTIxODc1LCJ5IjoyMDN9XQ==" data-look="classic" marker-end="url(#d-mvpflow_flowchart-v2-pointEnd)"/></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_S_A_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="root" transform="translate(58.171875, 195)"><g class="clusters"><g class="cluster" id="d-mvpflow-r2" data-look="classic"><rect style="fill:transparent !important;stroke:transparent !important" x="8" y="8" width="899.640625" height="145"/><g class="cluster-label" transform="translate(457.8203125, 8)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5;"><span class="nodeLabel"></span></div></foreignObject></g></g></g><g class="edgePaths"><path d="M208.141,80.5L214.391,80.5C220.641,80.5,233.141,80.5,244.974,80.5C256.807,80.5,267.974,80.5,273.557,80.5L279.141,80.5" id="d-mvpflow-L_A_C_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_A_C_0" data-points="W3sieCI6MjA4LjE0MDYyNSwieSI6ODAuNX0seyJ4IjoyNDUuNjQwNjI1LCJ5Ijo4MC41fSx7IngiOjI4My4xNDA2MjUsInkiOjgwLjV9XQ==" data-look="classic" marker-end="url(#d-mvpflow_flowchart-v2-pointEnd)"/><path d="M439.156,80.5L445.406,80.5C451.656,80.5,464.156,80.5,475.99,80.5C487.823,80.5,498.99,80.5,504.573,80.5L510.156,80.5" id="d-mvpflow-L_C_E_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_C_E_0" data-points="W3sieCI6NDM5LjE1NjI1LCJ5Ijo4MC41fSx7IngiOjQ3Ni42NTYyNSwieSI6ODAuNX0seyJ4Ijo1MTQuMTU2MjUsInkiOjgwLjV9XQ==" data-look="classic" marker-end="url(#d-mvpflow_flowchart-v2-pointEnd)"/><path d="M658.875,80.5L665.125,80.5C671.375,80.5,683.875,80.5,695.708,80.5C707.542,80.5,718.708,80.5,724.292,80.5L729.875,80.5" id="d-mvpflow-L_E_X_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_E_X_0" data-points="W3sieCI6NjU4Ljg3NSwieSI6ODAuNX0seyJ4Ijo2OTYuMzc1LCJ5Ijo4MC41fSx7IngiOjczMy44NzUsInkiOjgwLjV9XQ==" data-look="classic" marker-end="url(#d-mvpflow_flowchart-v2-pointEnd)"/></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_A_C_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_C_E_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_E_X_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default built" id="d-mvpflow-flowchart-A-4" data-look="classic" transform="translate(126.8203125, 80.5)"><rect class="basic label-container" style="stroke:#22D3EE !important;stroke-width:2px !important" x="-81.3203125" y="-37.5" width="162.640625" height="75"/><g class="label" style="" transform="translate(-51.3203125, -22.5)"><rect/><foreignObject width="102.640625" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>5 · Attendance<br />record</p></span></div></foreignObject></g></g><g class="node default todo" id="d-mvpflow-flowchart-C-5" data-look="classic" transform="translate(361.1484375, 80.5)"><rect class="basic label-container" style="stroke:#A855F7 !important;stroke-width:2px !important;stroke-dasharray:6 4 !important" x="-78.0078125" y="-37.5" width="156.015625" height="75"/><g class="label" style="" transform="translate(-48.0078125, -22.5)"><rect/><foreignObject width="96.015625" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>6 · Certificate<br />generated</p></span></div></foreignObject></g></g><g class="node default todo" id="d-mvpflow-flowchart-E-6" data-look="classic" transform="translate(586.515625, 80.5)"><rect class="basic label-container" style="stroke:#A855F7 !important;stroke-width:2px !important;stroke-dasharray:6 4 !important" x="-72.359375" y="-37.5" width="144.71875" height="75"/><g class="label" style="" transform="translate(-42.359375, -22.5)"><rect/><foreignObject width="84.71875" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>7 · E-signed<br />by the head</p></span></div></foreignObject></g></g><g class="node default todo" id="d-mvpflow-flowchart-X-7" data-look="classic" transform="translate(802.0078125, 80.5)"><rect class="basic label-container" style="stroke:#A855F7 !important;stroke-width:2px !important;stroke-dasharray:6 4 !important" x="-68.1328125" y="-37.5" width="136.265625" height="75"/><g class="label" style="" transform="translate(-38.1328125, -22.5)"><rect/><foreignObject width="76.265625" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>8 · Report<br />and export</p></span></div></foreignObject></g></g></g></g><g class="root" transform="translate(0, 0)"><g class="clusters"><g class="cluster" id="d-mvpflow-r1" data-look="classic"><rect style="fill:transparent !important;stroke:transparent !important" x="8" y="8" width="1015.984375" height="145"/><g class="cluster-label" transform="translate(515.9921875, 8)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5;"><span class="nodeLabel"></span></div></foreignObject></g></g></g><g class="edgePaths"><path d="M201.531,80.5L207.781,80.5C214.031,80.5,226.531,80.5,238.365,80.5C250.198,80.5,261.365,80.5,266.948,80.5L272.531,80.5" id="d-mvpflow-L_O_R_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_O_R_0" data-points="W3sieCI6MjAxLjUzMTI1LCJ5Ijo4MC41fSx7IngiOjIzOS4wMzEyNSwieSI6ODAuNX0seyJ4IjoyNzYuNTMxMjUsInkiOjgwLjV9XQ==" data-look="classic" marker-end="url(#d-mvpflow_flowchart-v2-pointEnd)"/><path d="M469.219,80.5L475.469,80.5C481.719,80.5,494.219,80.5,506.052,80.5C517.885,80.5,529.052,80.5,534.635,80.5L540.219,80.5" id="d-mvpflow-L_R_Q_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_R_Q_0" data-points="W3sieCI6NDY5LjIxODc1LCJ5Ijo4MC41fSx7IngiOjUwNi43MTg3NSwieSI6ODAuNX0seyJ4Ijo1NDQuMjE4NzUsInkiOjgwLjV9XQ==" data-look="classic" marker-end="url(#d-mvpflow_flowchart-v2-pointEnd)"/><path d="M741.281,80.5L747.531,80.5C753.781,80.5,766.281,80.5,778.115,80.5C789.948,80.5,801.115,80.5,806.698,80.5L812.281,80.5" id="d-mvpflow-L_Q_S_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_Q_S_0" data-points="W3sieCI6NzQxLjI4MTI1LCJ5Ijo4MC41fSx7IngiOjc3OC43ODEyNSwieSI6ODAuNX0seyJ4Ijo4MTYuMjgxMjUsInkiOjgwLjV9XQ==" data-look="classic" marker-end="url(#d-mvpflow_flowchart-v2-pointEnd)"/></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_O_R_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_R_Q_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_Q_S_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default todo" id="d-mvpflow-flowchart-O-0" data-look="classic" transform="translate(123.515625, 80.5)"><rect class="basic label-container" style="stroke:#A855F7 !important;stroke-width:2px !important;stroke-dasharray:6 4 !important" x="-78.015625" y="-37.5" width="156.03125" height="75"/><g class="label" style="" transform="translate(-48.015625, -22.5)"><rect/><foreignObject width="96.03125" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>1 · Organizer<br />creates event</p></span></div></foreignObject></g></g><g class="node default todo" id="d-mvpflow-flowchart-R-1" data-look="classic" transform="translate(372.875, 80.5)"><rect class="basic label-container" style="stroke:#A855F7 !important;stroke-width:2px !important;stroke-dasharray:6 4 !important" x="-96.34375" y="-37.5" width="192.6875" height="75"/><g class="label" style="" transform="translate(-66.34375, -22.5)"><rect/><foreignObject width="132.6875" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>2 · Adds attendees<br />roster or CSV</p></span></div></foreignObject></g></g><g class="node default built" id="d-mvpflow-flowchart-Q-2" data-look="classic" transform="translate(642.75, 80.5)"><rect class="basic label-container" style="stroke:#22D3EE !important;stroke-width:2px !important" x="-98.53125" y="-37.5" width="197.0625" height="75"/><g class="label" style="" transform="translate(-68.53125, -22.5)"><rect/><foreignObject width="137.0625" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>3 · Attendee QR<br />phone or printed ID</p></span></div></foreignObject></g></g><g class="node default built" id="d-mvpflow-flowchart-S-3" data-look="classic" transform="translate(901.3828125, 80.5)"><rect class="basic label-container" style="stroke:#22D3EE !important;stroke-width:2px !important" x="-85.1015625" y="-37.5" width="170.203125" height="75"/><g class="label" style="" transform="translate(-55.1015625, -22.5)"><rect/><foreignObject width="110.203125" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>4 · Staff scans<br />online or offline</p></span></div></foreignObject></g></g></g></g></g></g></g><defs><filter id="d-mvpflow-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"/></filter></defs><defs><filter id="d-mvpflow-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"/></filter></defs><linearGradient id="d-mvpflow-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#22D3EE" stop-opacity="1"/><stop offset="100%" stop-color="hsl(220, 0%, 0%)" stop-opacity="1"/></linearGradient></svg><figcaption>Fig. 3 — MVP event flow. Solid cyan: works today. Dashed violet: to build</figcaption></figure>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Workstream</th><th>What it delivers</th><th>Milestone</th></tr></thead>
+        <tbody>
+          <tr><td>W0 · Truth-up</td><td>Release what is finished, tag it, rotate demo access, walk every console signed in, make the docs match the code.</td><td class="mono">M0</td></tr>
+          <tr><td>W1 · Events core</td><td>Roster per event (with a walk-in toggle), open and close, CSV import, attendee name on scan, per-event report, four role presets in the UI.</td><td class="mono">M1</td></tr>
+          <tr><td>W2 · Offline you can trust</td><td>Scanner downloads the event bundle before going offline, verifies passes on the device, shows how old its data is, flags clock drift.</td><td class="mono">M2</td></tr>
+          <tr><td>W3 · Certificates</td><td>Certificate template, automatic generation for attendees with a complete record, signing screen, PDF with a verify QR.</td><td class="mono">M3</td></tr>
+          <tr><td>W4 · Pilot</td><td>One real event with one organization, a privacy notice at registration, a planned offline segment, feedback and pricing answers.</td><td class="mono">M4</td></tr>
+        </tbody>
+      </table></div>
+    </article>
+
+    <article class="section" id="s-outscope" data-title="Out of scope and later">
+      <h2>Out of scope for the MVP, and when it comes back</h2>
+      <p>Everything here is a real plan, not a rejection. It is held back because it does not help the first pilot succeed, and several items would force rework if built before the pilot answers the open questions.</p>
+      <div class="cols">
+        <div class="col">
+          <h3>M5 · DTR add-on</h3>
+          <ul>
+            <li>GPS capture on DTR punches</li>
+            <li>Selfie on each DTR punch, reviewable later</li>
+            <li>Geofence admin screen</li>
+            <li>DTR PDF export</li>
+          </ul>
+        </div>
+        <div class="col">
+          <h3>M6 · Network</h3>
+          <ul>
+            <li>One identity QR per person across organizations</li>
+            <li>Google sign-in and invite claim</li>
+            <li>Public organizer signup with verification</li>
+            <li>RBAC SSOT, trimmed</li>
+            <li>Billing and entitlement enforcement</li>
+          </ul>
+        </div>
+        <div class="col">
+          <h3>Not planned</h3>
+          <ul>
+            <li>Replacing biometric DTR in government</li>
+            <li>Payroll computation</li>
+            <li>Native mobile apps (the PWA covers the pilot)</li>
+            <li>PNPKI digital signatures (revisit if a buyer requires it)</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="section" id="s-milestones" data-title="Milestones">
+      <h2>Milestones</h2>
+      <p>No dates are set here on purpose: dates should come from the team's capacity, not from this document. The order matters more than the dates. M0 is days of work; M1 to M3 are the bulk; M4 is the pilot event itself. M5 and M6 can run in parallel after the pilot, and which goes first should follow what the pilot organization asks for.</p>
+      <!-- mermaid source:
+flowchart LR
+  M0["M0<br/>Truth-up"] —> M1["M1<br/>Events core"]
+  M1 —> M2["M2<br/>Offline you<br/>can trust"]
+  M2 —> M3["M3<br/>Certificates<br/>+ e-sign UI"]
+  M3 —> M4["M4<br/>Pilot"]
+  M4 —> M5["M5<br/>DTR add-on"]
+  M4 —> M6["M6<br/>Network:<br/>global QR · open signup"]
+  classDef mvp stroke:#22D3EE,stroke-width:2px
+  classDef later stroke:#A855F7,stroke-dasharray:6 4
+  class M0,M1,M2,M3,M4 mvp
+  class M5,M6 later
+-->
+      <figure class="diagram wide"><svg id="d-milestones" width="100%" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" style="max-width: 1130.17px; background-color: transparent;" viewBox="0 0 1130.171875 238.5" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#d-milestones{font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-size:15px;fill:#ededed;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#d-milestones .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#d-milestones .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#d-milestones .error-icon{fill:#0a0c10;}#d-milestones .error-text{fill:#f5f3ef;stroke:#f5f3ef;}#d-milestones .edge-thickness-normal{stroke-width:1px;}#d-milestones .edge-thickness-thick{stroke-width:3.5px;}#d-milestones .edge-pattern-solid{stroke-dasharray:0;}#d-milestones .edge-thickness-invisible{stroke-width:0;fill:none;}#d-milestones .edge-pattern-dashed{stroke-dasharray:3;}#d-milestones .edge-pattern-dotted{stroke-dasharray:2;}#d-milestones .marker{fill:#5b6472;stroke:#5b6472;}#d-milestones .marker.cross{stroke:#5b6472;}#d-milestones svg{font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-size:15px;}#d-milestones p{margin:0;}#d-milestones .label{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#ededed;}#d-milestones .cluster-label text{fill:#f5f3ef;}#d-milestones .cluster-label span{color:#f5f3ef;}#d-milestones .cluster-label span p{background-color:transparent;}#d-milestones .label text,#d-milestones span{fill:#ededed;color:#ededed;}#d-milestones .node rect,#d-milestones .node circle,#d-milestones .node ellipse,#d-milestones .node polygon,#d-milestones .node path{fill:#12151b;stroke:rgba(255,255,255,0.16);stroke-width:1px;}#d-milestones .rough-node .label text,#d-milestones .node .label text,#d-milestones .image-shape .label,#d-milestones .icon-shape .label{text-anchor:middle;}#d-milestones .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#d-milestones .rough-node .label,#d-milestones .node .label,#d-milestones .image-shape .label,#d-milestones .icon-shape .label{text-align:center;}#d-milestones .node.clickable{cursor:pointer;}#d-milestones .root .anchor path{fill:#5b6472!important;stroke-width:0;stroke:#5b6472;}#d-milestones .arrowheadPath{fill:rgba(255, 255, 255, 0);}#d-milestones .edgePath .path{stroke:#5b6472;stroke-width:1px;}#d-milestones .flowchart-link{stroke:#5b6472;fill:none;}#d-milestones .edgeLabel{background-color:#050505;text-align:center;}#d-milestones .edgeLabel p{background-color:#050505;}#d-milestones .edgeLabel rect{opacity:0.5;background-color:#050505;fill:#050505;}#d-milestones .labelBkg{background-color:rgba(5, 5, 5, 0.5);}#d-milestones .cluster rect{fill:#0a0c10;stroke:rgba(255,255,255,0.12);stroke-width:1px;}#d-milestones .cluster text{fill:#f5f3ef;}#d-milestones .cluster span{color:#f5f3ef;}#d-milestones div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-size:12px;background:#0a0c10;border:1px solid hsl(220, 0%, 0%);border-radius:2px;pointer-events:none;z-index:100;}#d-milestones .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#ededed;}#d-milestones rect.text{fill:none;stroke-width:0;}#d-milestones .icon-shape,#d-milestones .image-shape{background-color:#050505;text-align:center;}#d-milestones .icon-shape p,#d-milestones .image-shape p{background-color:#050505;padding:2px;}#d-milestones .icon-shape .label rect,#d-milestones .image-shape .label rect{opacity:0.5;background-color:#050505;fill:#050505;}#d-milestones .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#d-milestones .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#d-milestones .node .neo-node{stroke:rgba(255,255,255,0.16);}#d-milestones [data-look="neo"].node rect,#d-milestones [data-look="neo"].cluster rect,#d-milestones [data-look="neo"].node polygon{stroke:url(#d-milestones-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-milestones [data-look="neo"].swimlane.cluster rect{filter:none;}#d-milestones [data-look="neo"].node path{stroke:url(#d-milestones-gradient);stroke-width:1px;}#d-milestones [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-milestones [data-look="neo"].node .neo-line path{stroke:rgba(255,255,255,0.16);filter:none;}#d-milestones [data-look="neo"].node circle{stroke:url(#d-milestones-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-milestones [data-look="neo"].node circle .state-start{fill:#000000;}#d-milestones [data-look="neo"].icon-shape .icon{fill:url(#d-milestones-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-milestones [data-look="neo"].icon-shape .icon-neo path{stroke:url(#d-milestones-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#d-milestones :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}#d-milestones .mvp&gt;*{stroke:rgb(34, 211, 238)!important;stroke-width:2px!important;}#d-milestones .mvp span{stroke:rgb(34, 211, 238)!important;stroke-width:2px!important;}#d-milestones .later&gt;*{stroke:rgb(168, 85, 247)!important;stroke-dasharray:6,4!important;}#d-milestones .later span{stroke:rgb(168, 85, 247)!important;stroke-dasharray:6,4!important;}</style><g><marker id="d-milestones_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="d-milestones_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="d-milestones_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="d-milestones_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="d-milestones_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="d-milestones_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="d-milestones_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="d-milestones_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="d-milestones_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><marker id="d-milestones_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><marker id="d-milestones_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"/></marker><marker id="d-milestones_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"/></marker><g class="root"><g class="clusters"/><g class="edgePaths"><path d="M130.094,113.625L134.26,113.625C138.427,113.625,146.76,113.625,154.427,113.625C162.094,113.625,169.094,113.625,172.594,113.625L176.094,113.625" id="d-milestones-L_M0_M1_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_M0_M1_0" data-points="W3sieCI6MTMwLjA5Mzc1LCJ5IjoxMTMuNjI1fSx7IngiOjE1NS4wOTM3NSwieSI6MTEzLjYyNX0seyJ4IjoxODAuMDkzNzUsInkiOjExMy42MjV9XQ==" data-look="classic" marker-end="url(#d-milestones_flowchart-v2-pointEnd)"/><path d="M323.469,113.625L327.635,113.625C331.802,113.625,340.135,113.625,347.802,113.625C355.469,113.625,362.469,113.625,365.969,113.625L369.469,113.625" id="d-milestones-L_M1_M2_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_M1_M2_0" data-points="W3sieCI6MzIzLjQ2ODc1LCJ5IjoxMTMuNjI1fSx7IngiOjM0OC40Njg3NSwieSI6MTEzLjYyNX0seyJ4IjozNzMuNDY4NzUsInkiOjExMy42MjV9XQ==" data-look="classic" marker-end="url(#d-milestones_flowchart-v2-pointEnd)"/><path d="M510.563,113.625L514.729,113.625C518.896,113.625,527.229,113.625,534.896,113.625C542.563,113.625,549.563,113.625,553.063,113.625L556.563,113.625" id="d-milestones-L_M2_M3_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_M2_M3_0" data-points="W3sieCI6NTEwLjU2MjUsInkiOjExMy42MjV9LHsieCI6NTM1LjU2MjUsInkiOjExMy42MjV9LHsieCI6NTYwLjU2MjUsInkiOjExMy42MjV9XQ==" data-look="classic" marker-end="url(#d-milestones_flowchart-v2-pointEnd)"/><path d="M702.438,113.625L706.604,113.625C710.771,113.625,719.104,113.625,726.771,113.625C734.438,113.625,741.438,113.625,744.938,113.625L748.438,113.625" id="d-milestones-L_M3_M4_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_M3_M4_0" data-points="W3sieCI6NzAyLjQzNzUsInkiOjExMy42MjV9LHsieCI6NzI3LjQzNzUsInkiOjExMy42MjV9LHsieCI6NzUyLjQzNzUsInkiOjExMy42MjV9XQ==" data-look="classic" marker-end="url(#d-milestones_flowchart-v2-pointEnd)"/><path d="M836.551,76.125L841.824,71.021C847.097,65.917,857.642,55.708,873.373,50.604C889.104,45.5,910.021,45.5,920.479,45.5L930.938,45.5" id="d-milestones-L_M4_M5_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_M4_M5_0" data-points="W3sieCI6ODM2LjU1MTAzMjExMDA5MTgsInkiOjc2LjEyNX0seyJ4Ijo4NjguMTg3NSwieSI6NDUuNX0seyJ4Ijo5MzQuOTM3NSwieSI6NDUuNX1d" data-look="classic" marker-end="url(#d-milestones_flowchart-v2-pointEnd)"/><path d="M836.551,151.125L841.824,156.229C847.097,161.333,857.642,171.542,866.415,176.646C875.188,181.75,882.188,181.75,885.688,181.75L889.188,181.75" id="d-milestones-L_M4_M6_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_M4_M6_0" data-points="W3sieCI6ODM2LjU1MTAzMjExMDA5MTgsInkiOjE1MS4xMjV9LHsieCI6ODY4LjE4NzUsInkiOjE4MS43NX0seyJ4Ijo4OTMuMTg3NSwieSI6MTgxLjc1fV0=" data-look="classic" marker-end="url(#d-milestones_flowchart-v2-pointEnd)"/></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_M0_M1_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_M1_M2_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_M2_M3_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_M3_M4_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_M4_M5_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_M4_M6_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default mvp" id="d-milestones-flowchart-M0-0" data-look="classic" transform="translate(69.046875, 113.625)"><rect class="basic label-container" style="stroke:#22D3EE !important;stroke-width:2px !important" x="-61.046875" y="-37.5" width="122.09375" height="75"/><g class="label" style="" transform="translate(-31.046875, -22.5)"><rect/><foreignObject width="62.09375" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>M0<br />Truth-up</p></span></div></foreignObject></g></g><g class="node default mvp" id="d-milestones-flowchart-M1-1" data-look="classic" transform="translate(251.78125, 113.625)"><rect class="basic label-container" style="stroke:#22D3EE !important;stroke-width:2px !important" x="-71.6875" y="-37.5" width="143.375" height="75"/><g class="label" style="" transform="translate(-41.6875, -22.5)"><rect/><foreignObject width="83.375" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>M1<br />Events core</p></span></div></foreignObject></g></g><g class="node default mvp" id="d-milestones-flowchart-M2-3" data-look="classic" transform="translate(442.015625, 113.625)"><rect class="basic label-container" style="stroke:#22D3EE !important;stroke-width:2px !important" x="-68.546875" y="-48.75" width="137.09375" height="97.5"/><g class="label" style="" transform="translate(-38.546875, -33.75)"><rect/><foreignObject width="77.09375" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>M2<br />Offline you<br />can trust</p></span></div></foreignObject></g></g><g class="node default mvp" id="d-milestones-flowchart-M3-5" data-look="classic" transform="translate(631.5, 113.625)"><rect class="basic label-container" style="stroke:#22D3EE !important;stroke-width:2px !important" x="-70.9375" y="-48.75" width="141.875" height="97.5"/><g class="label" style="" transform="translate(-40.9375, -33.75)"><rect/><foreignObject width="81.875" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>M3<br />Certificates<br />+ e-sign UI</p></span></div></foreignObject></g></g><g class="node default mvp" id="d-milestones-flowchart-M4-7" data-look="classic" transform="translate(797.8125, 113.625)"><rect class="basic label-container" style="stroke:#22D3EE !important;stroke-width:2px !important" x="-45.375" y="-37.5" width="90.75" height="75"/><g class="label" style="" transform="translate(-15.375, -22.5)"><rect/><foreignObject width="30.75" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>M4<br />Pilot</p></span></div></foreignObject></g></g><g class="node default later" id="d-milestones-flowchart-M5-9" data-look="classic" transform="translate(1007.6796875, 45.5)"><rect class="basic label-container" style="stroke:#A855F7 !important;stroke-dasharray:6 4 !important" x="-72.7421875" y="-37.5" width="145.484375" height="75"/><g class="label" style="" transform="translate(-42.7421875, -22.5)"><rect/><foreignObject width="85.484375" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>M5<br />DTR add-on</p></span></div></foreignObject></g></g><g class="node default later" id="d-milestones-flowchart-M6-11" data-look="classic" transform="translate(1007.6796875, 181.75)"><rect class="basic label-container" style="stroke:#A855F7 !important;stroke-dasharray:6 4 !important" x="-114.4921875" y="-48.75" width="228.984375" height="97.5"/><g class="label" style="" transform="translate(-84.4921875, -33.75)"><rect/><foreignObject width="168.984375" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="nodeLabel"><p>M6<br />Network:<br />global QR · open signup</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="d-milestones-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"/></filter></defs><defs><filter id="d-milestones-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"/></filter></defs><linearGradient id="d-milestones-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#22D3EE" stop-opacity="1"/><stop offset="100%" stop-color="hsl(220, 0%, 0%)" stop-opacity="1"/></linearGradient></svg><figcaption>Fig. 4 — Milestone order. Solid: MVP. Dashed: after the pilot</figcaption></figure>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Milestone</th><th>Exit test</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">M0 Truth-up</td><td>Production runs the tagged latest release; no public default passwords; README, PLAN and known-limitations agree.</td></tr>
+          <tr><td class="mono">M1 Events core</td><td>A person not on the roster is refused; a closed event refuses scans; staff see the attendee's name on every accepted scan.</td></tr>
+          <tr><td class="mono">M2 Offline</td><td>With the network cut, a revoked pass and an unlisted pass are both refused on the device, and two devices scanning the same person produce one record after sync.</td></tr>
+          <tr><td class="mono">M3 Certificates</td><td>Every attendee with a complete record gets a signed PDF certificate whose QR verifies publicly.</td></tr>
+          <tr><td class="mono">M4 Pilot</td><td>Pilot exit criteria on the MVP tab are met.</td></tr>
+        </tbody>
+      </table></div>
+    </article>
+
+    <article class="section" id="s-decisions" data-title="Decisions log">
+      <h2>Decisions log</h2>
+      <p>These are settled unless someone reopens them on purpose. Recording them stops the same debate restarting every sprint.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>ID</th><th>Decision</th><th>Date</th><th>State</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">D-01</td><td>Events-first; DTR kept as an add-on for small companies without biometrics.</td><td class="mono">9 Nov 2026</td><td><span class="chip ok">Decided</span></td></tr>
+          <tr><td class="mono">D-02</td><td>Selfie and geofence apply only to DTR. Events use the QR plus a staff check.</td><td class="mono">9 Nov 2026</td><td><span class="chip ok">Decided</span></td></tr>
+          <tr><td class="mono">D-03</td><td>A refused scan reveals nothing about the person.</td><td class="mono">9 Nov 2026</td><td><span class="chip ok">Decided</span></td></tr>
+          <tr><td class="mono">D-04</td><td>Roles stay simple: presets with toggles, no support ticket needed to set up a role.</td><td class="mono">9 Nov 2026</td><td><span class="chip ok">Decided</span></td></tr>
+          <tr><td class="mono">D-05</td><td>Sell to organizations first; open public organizer signup later.</td><td class="mono">9 Nov 2026</td><td><span class="chip ok">Decided</span></td></tr>
+          <tr><td class="mono">D-06</td><td><code>staging</code> retired; only <code>main</code> and <code>develop</code> deploy.</td><td class="mono">9 Nov 2026</td><td><span class="chip ok">In repo</span></td></tr>
+          <tr><td class="mono">D-07</td><td>Attendee QR free forever; offline scanning in the free tier; charge for certificates, e-sign, official exports, multi-device and the DTR add-on.</td><td class="mono">9 Nov 2026</td><td><span class="chip warn">Proposed</span></td></tr>
+        </tbody>
+      </table></div>
+    </article>
+
+    <article class="section" id="s-open" data-title="Open decisions">
+      <h2>Open decisions</h2>
+      <p>These need the product owner's call. Each has a recommendation, but the trade-off is a business one.</p>
+      <div class="callout warn">
+        <span class="tag chip warn">Decide before printing IDs</span>
+        <h3>O-1 · Per-organization QR or one global QR for the pilot?</h3>
+        <p>Today each organization issues its own pass. The proposed SSOT moves to one identity QR per person, and plans to stop accepting old passes after a migration window. If the pilot prints hundreds of ID cards with organization passes, moving to global identity later means reprinting them, or keeping the old format alive indefinitely. <b>Recommendation:</b> run the pilot on per-organization passes shown on phones or printed on paper, and do not print durable PVC IDs until O-1 is decided.</p>
+      </div>
+      <div class="callout">
+        <span class="tag chip">Recommendation ready</span>
+        <h3>O-2 · Adopt the RBAC SSOT before or after the pilot?</h3>
+        <p>It is a large migration (new tables, backfill, dual-read, a feature flag) that changes no pilot outcome. <b>Recommendation:</b> after. Ship four role presets on top of the existing seven roles.</p>
+      </div>
+      <div class="callout">
+        <span class="tag chip">Needs input</span>
+        <h3>O-3 · Pilot organization, event and date</h3>
+        <p>The pilot needs a named organization, a real event and a target size. The summit contact is the natural first ask.</p>
+      </div>
+      <div class="callout">
+        <span class="tag chip">Needs input</span>
+        <h3>O-4 · Pricing</h3>
+        <p>D-07 sets the shape. Prices should come from what the pilot organization spends today on sign-in sheets, encoding and certificate printing.</p>
+      </div>
+      <div class="callout">
+        <span class="tag chip">Needs input</span>
+        <h3>O-5 · Is an in-app e-signature enough on certificates?</h3>
+        <p>For certificates of attendance it is likely acceptable. Ask the pilot organization whether their records or audit office needs anything stronger, such as PNPKI.</p>
+      </div>
+    </article>
+
+    <article class="section" id="s-assumptions" data-title="Assumptions and constraints">
+      <h2>Assumptions and constraints</h2>
+      <ul>
+        <li><b>Stack stays.</b> Next.js 15, Supabase Auth and Postgres with RLS, Prisma, Vercel in <code>syd1</code>. No rewrite.</li>
+        <li><b>Migrations stay additive</b> and are applied as reviewed SQL files, because <code>prisma migrate</code> hangs on the Supabase pooler.</li>
+        <li><b>The scanner is a PWA</b> on ordinary Android phones. Anything that needs native capabilities, such as detecting faked GPS, is out of scope.</li>
+        <li><b>Personal data:</b> attendee names and attendance are personal information under the Data Privacy Act (RA 10173). The pilot needs a privacy notice at registration and a data-sharing understanding with the pilot organization.</li>
+        <li><b>Offline is bounded.</b> A device can only verify against the data it downloaded. A pass revoked after the download is accepted at the door and caught on sync. This is stated to organizers, not hidden.</li>
+      </ul>
+    </article>
+
+    <article class="section" id="s-roles" data-title="Roles and responsibilities">
+      <h2>Roles and responsibilities</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Role</th><th>Owns</th></tr></thead>
+        <tbody>
+          <tr><td>Product owner</td><td>Scope, decisions log, open decisions, pilot relationship, accepting milestones.</td></tr>
+          <tr><td>Engineering lead</td><td>Architecture, migrations, CI, releases, code review against the Definition of Done.</td></tr>
+          <tr><td>UI/UX</td><td>Scanner and organizer screens, certificate template, the 375px phone experience.</td></tr>
+          <tr><td>Pilot organization</td><td>Attendee list, event, signatory, feedback.</td></tr>
+        </tbody>
+      </table></div>
+      <p class="muted">Names are left for the team to fill in.</p>
+    </article>
+
+    <article class="section" id="a-glossary" data-title="Appendix · Glossary">
+      <h2>Appendix: glossary</h2>
+      <div class="table-wrap"><table>
+        <tbody>
+          <tr><td><b>Organization</b> (tenant)</td><td>A customer using Prism Pass: an agency, school, office or association.</td></tr>
+          <tr><td><b>Session</b></td><td>The code's word for an event, class, shift or training: one block of time attendance is recorded against.</td></tr>
+          <tr><td><b>Pass</b></td><td>A person's QR credential. Today, one per person per organization.</td></tr>
+          <tr><td><b>Roster</b></td><td>The list of people allowed to check into a specific event (to be built).</td></tr>
+          <tr><td><b>Sync bundle</b></td><td>The data a scanner downloads so it can verify passes while offline.</td></tr>
+          <tr><td><b>DTR</b></td><td>Daily time record: work time-in and time-out.</td></tr>
+          <tr><td><b>DoD</b></td><td>Definition of Done: the checklist a piece of work must pass to count as finished.</td></tr>
+        </tbody>
+      </table></div>
+    </article>
+  </section>
+
+  <!-- ================= MVP & DOD ================= -->
+  <section role="tabpanel" id="panel-mvp" aria-labelledby="tab-mvp" data-panel="mvp" hidden>
+    <article class="section" id="m-definition" data-title="MVP definition">
+      <div class="panel-head">
+        <div class="eyebrow">MVP &amp; Definition of Done</div>
+        <h1>The smallest product a real organization can run an event on</h1>
+        <p class="abstract">The MVP is done when an organizer with no help from us can set up an event, scan attendees at a venue with no signal, and issue signed certificates afterwards. Anything that does not serve that sentence waits.</p>
+      </div>
+      <p>The MVP is defined by an outcome, not a feature count, because a feature list invites "just one more". The table below is the feature list that outcome requires, with the honest status of each item today.</p>
+    </article>
+
+    <article class="section" id="m-features" data-title="MVP feature set">
+      <h2>MVP feature set</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Feature</th><th>Priority</th><th>Today</th></tr></thead>
+        <tbody>
+          <tr><td>Organization, staff accounts, four role presets</td><td><span class="chip">Must</span></td><td><span class="chip warn">Partial</span> roles exist; presets in UI to build</td></tr>
+          <tr><td>People directory with CSV import</td><td><span class="chip">Must</span></td><td><span class="chip warn">Partial</span> import to build</td></tr>
+          <tr><td>Attendee QR on phone and printable</td><td><span class="chip">Must</span></td><td><span class="chip ok">Built</span></td></tr>
+          <tr><td>Create event, add roster, walk-in toggle</td><td><span class="chip">Must</span></td><td><span class="chip warn">Partial</span> event yes, roster no</td></tr>
+          <tr><td>Open and close an event</td><td><span class="chip">Must</span></td><td><span class="chip dim">To build</span></td></tr>
+          <tr><td>Scan with name shown on success, nothing on refusal</td><td><span class="chip">Must</span></td><td><span class="chip warn">Partial</span> name to add</td></tr>
+          <tr><td>Offline scan with on-device verification</td><td><span class="chip">Must</span></td><td><span class="chip warn">Partial</span> queue yes, verify no</td></tr>
+          <tr><td>Per-event attendance report and CSV</td><td><span class="chip">Must</span></td><td><span class="chip dim">To build</span></td></tr>
+          <tr><td>Certificate generation, signing, PDF, verify QR</td><td><span class="chip">Must</span></td><td><span class="chip warn">Partial</span> e-sign API only</td></tr>
+          <tr><td>Audit log of every action</td><td><span class="chip">Must</span></td><td><span class="chip ok">Built</span></td></tr>
+          <tr><td>Privacy notice at registration</td><td><span class="chip">Must</span></td><td><span class="chip dim">To build</span></td></tr>
+          <tr><td>Self check-in by attendee</td><td><span class="chip dim">Could</span></td><td><span class="chip dim">Later</span></td></tr>
+          <tr><td>Geofence on events</td><td><span class="chip dim">Won't (MVP)</span></td><td>Server logic exists; DTR add-on only</td></tr>
+        </tbody>
+      </table></div>
+    </article>
+
+    <article class="section" id="m-scenarios" data-title="Acceptance scenarios">
+      <h2>Acceptance scenarios</h2>
+      <p>The MVP is accepted when each scenario below passes in a signed-in browser on a phone at 375px, against the deployed <code>develop</code> build, with real data rather than the demo seed. Each is written so a non-developer can run it.</p>
+      <ol>
+        <li><b>Set up.</b> An organizer creates an event, imports 30 people from a CSV, and adds 25 of them to the roster. Nobody from Syntaxure helps.</li>
+        <li><b>Attendee QR.</b> A rostered attendee opens their QR on a phone; another prints theirs on paper. Both scan.</li>
+        <li><b>Online door.</b> Staff scan 10 attendees. Each accepted scan shows the attendee's name. A second scan of the same person within the duplicate window is flagged, not double-counted.</li>
+        <li><b>Refusals.</b> A person not on the roster, a revoked pass and a pass from another organization are each refused, and the refusal screen shows no name.</li>
+        <li><b>No signal.</b> With airplane mode on, staff scan 10 attendees on two phones, including one person on both phones and one revoked pass. The revoked pass is refused on the device. After reconnecting, all valid scans sync and the duplicate person has one record.</li>
+        <li><b>Close.</b> The organizer closes the event. The next scan, online or from a device that synced after the close, is refused.</li>
+        <li><b>Certificates.</b> Every attendee with a complete record gets a certificate, the signatory signs once for the batch or each certificate per the signing order, and the PDF's QR opens a public verify page that shows the certificate is genuine without exposing other people's data.</li>
+        <li><b>Report.</b> The organizer exports the event's attendance as CSV; the numbers match what was scanned.</li>
+        <li><b>Isolation.</b> A staff account from another organization cannot see this event, its people or its certificates, by UI or by calling the API directly.</li>
+      </ol>
+    </article>
+
+    <article class="section" id="m-dod" data-title="Definition of Done: work item">
+      <h2>Definition of Done for a work item</h2>
+      <p>A story, fix or task is done only when every line below is true. "Works on my machine" and "the API returns 200" are not on the list. The repo's history shows the gap this closes: features shipped as tested APIs that nobody could use in the app, and screens verified without ever signing in.</p>
+      <ul class="dod">
+        <li><b>Acceptance criteria met</b> exactly as written in the item, and shown in a signed-in browser, not only via API.</li>
+        <li><b>Server-side authorization</b> on every new route through <code>requireOrganizationPermission</code> (or <code>requirePlatformAdmin</code>), RLS still deny-by-default, and denials write an audit row.</li>
+        <li><b>Tenant isolation</b> covered: a test proves another organization gets 403 or 404.</li>
+        <li><b>Tests</b> for the domain logic and for allow and deny on each route, added to the suite and passing.</li>
+        <li><b>CI green</b> on <code>develop</code>: secret scan, typecheck, tests, build.</li>
+        <li><b>Offline behaviour stated</b> for anything the scanner touches: works offline, or is clearly labelled online-only in the UI.</li>
+        <li><b>Phone first:</b> checked at 375px and on desktop; keyboard reachable; focus visible; contrast per <code>docs/design/a11y-audit.md</code>.</li>
+        <li><b>Migrations</b> are additive SQL files, reviewed, applied with the documented method, with a one-line rollback note.</li>
+        <li><b>Docs updated in the same change:</b> CHANGELOG <i>Unreleased</i>, PLAN.md progress, README status table if a phase changed, known-limitations if a limit was added or removed.</li>
+        <li><b>No demo shortcuts</b> in production paths: no hard-coded IDs, no seed-only credentials, no secrets in the client bundle.</li>
+        <li><b>Deployed to the develop environment</b> and smoke-tested there by someone other than the author.</li>
+      </ul>
+    </article>
+
+    <article class="section" id="m-dod-release" data-title="Definition of Done: release">
+      <h2>Definition of Done for a release</h2>
+      <ul class="dod">
+        <li>Every item in the release meets the work-item DoD.</li>
+        <li>Version bumped in <code>package.json</code>, CHANGELOG section dated, git tag created on <code>main</code>.</li>
+        <li><code>develop</code> promoted to <code>main</code>; production <code>GET /api/v1/health</code> reports the new version.</li>
+        <li>Smoke test on production: sign in, open a console, scan one pass online and one offline then sync.</li>
+        <li>Rollback path known: previous Vercel deployment can be promoted, and any migration in the release is additive.</li>
+      </ul>
+    </article>
+
+    <article class="section" id="m-ready" data-title="Definition of Ready">
+      <h2>Definition of Ready</h2>
+      <p>Work only starts when it is ready, so that "done" can be checked against something. An item is ready when it has a one-line user story, written acceptance criteria, the permission it needs named, any data-model change identified, and, if it has a screen, a sketch or a reference to an existing screen to copy.</p>
+    </article>
+
+    <article class="section" id="m-pilot" data-title="Pilot exit criteria">
+      <h2>Pilot exit criteria</h2>
+      <p>The pilot ends the MVP phase. These targets are proposals for the team to adjust once the pilot event is known.</p>
+      <div class="stat-row">
+        <span class="chip"><b>1</b> real organization</span>
+        <span class="chip"><b>≥ 50</b> attendees</span>
+        <span class="chip"><b>0</b> lost scans</span>
+        <span class="chip"><b>100%</b> certificates issued</span>
+        <span class="chip"><b>0</b> dev interventions</span>
+      </div>
+      <ul>
+        <li>At least part of the event is run with the scanners offline on purpose.</li>
+        <li>No scan is lost or duplicated after sync, verified by comparing scanner counts with the report.</li>
+        <li>Every attendee with a complete record receives a signed certificate within a day.</li>
+        <li>The organizer completes setup and close-out without a developer.</li>
+        <li>The organizer tells us what they would pay, and what they spend today.</li>
+      </ul>
+    </article>
+  </section>
+
+  <!-- ================= TRACKER ================= -->
+  <section role="tabpanel" id="panel-tracker" aria-labelledby="tab-tracker" data-panel="tracker" hidden>
+    <article class="section" id="t-overall" data-title="Overall progress">
+      <div class="panel-head">
+        <div class="eyebrow">Tracker</div>
+        <h1>Project tracker</h1>
+        <p class="abstract">Items start ticked only where the code already does the job, as verified on 9 November 2026. Ticks you change are saved in this browser, so the file works as a personal tracker; the progress bar counts every item across all milestones.</p>
+      </div>
+      <div class="tracker-top">
+        <div class="tracker-meta">
+          <div><div class="tracker-pct" id="trackerPct">0% complete</div><div class="tracker-sub" id="trackerSub"></div></div>
+          <div class="tracker-sub" id="mvpSub"></div>
+        </div>
+        <div class="tracker-bar"><div class="tracker-fill" id="trackerFill"></div></div>
+        <div class="tracker-actions">
+          <button class="btn" id="resetTracker">Reset to repo state</button>
+        </div>
+      </div>
+    </article>
+    <div id="trackerGroups"></div>
+  </section>
+
+  <footer class="doc-foot">Prism Pass project portal · repo J-Akiru5/prism-pass · develop @ b902aed · main @ 0f172b4 · prepared 9 Nov 2026</footer>
+  </main>
+
+  <aside class="rail" aria-label="Key facts">
+    <div class="panel progress">
+      <svg viewBox="0 0 72 72" width="64" height="64" aria-hidden="true">
+        <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,.10)" stroke-width="7"/>
+        <circle id="ringFill" cx="36" cy="36" r="30" fill="none" stroke="url(#ringGrad)" stroke-width="7" stroke-linecap="round" transform="rotate(-90 36 36)" stroke-dasharray="0 188.5"/>
+        <defs><linearGradient id="ringGrad" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#22D3EE"/><stop offset="1" stop-color="#A855F7"/></linearGradient></defs>
+      </svg>
+      <div class="ring-label"><b id="ringPct">0%</b><span id="ringCount"></span></div>
+    </div>
+    <div class="panel facts">
+      <dl>
+        <div><dt>Repository</dt><dd>J-Akiru5/prism-pass</dd></div>
+        <div><dt>Production</dt><dd><code>main</code> · v0.3.1<br>pass.syntaxure.dev</dd></div>
+        <div><dt>Integration</dt><dd><code>develop</code> · 9 unreleased commits</dd></div>
+        <div><dt>Retired</dt><dd><code>staging</code> · v0.3.0, no deploys</dd></div>
+        <div><dt>Stack</dt><dd>Next.js 15 · Supabase · Prisma · Vercel syd1</dd></div>
+        <div><dt>Direction</dt><dd>Events-first · DTR add-on</dd></div>
+        <div><dt>Inspected</dt><dd>9 Nov 2026, full clone</dd></div>
+      </dl>
+    </div>
+    <blockquote class="panel quote">"A QR scan is evidence, not approval."<cite>— Prism Pass README</cite></blockquote>
+  </aside>
+</div>
+
+<script>
+(function(){
+  /* ---------------- tracker data ---------------- */
+  const TRACK = [
+    {ms:'M0', name:'Truth-up', items:[
+      ['m0-1', true,  'Branch model reconciled: main and develop deploy, staging retired', 'In vercel.json and CI since 9 Nov.'],
+      ['m0-2', false, 'Tag v0.3.1 on main', 'CHANGELOG says v0.3.1 is live; no tag exists.'],
+      ['m0-3', false, 'Promote develop to main (signup, password recovery, terms, login redirect fix)', '9 commits waiting.'],
+      ['m0-4', false, 'Rotate or gate the password123 demo accounts on production', 'Owner + platform admin with a public password.'],
+      ['m0-5', false, 'Signed-in walkthrough of every console at 375px and desktop', 'Never done, per known-limitations.'],
+      ['m0-6', false, 'Make README status table and known-limitations match PLAN.md', ''],
+      ['m0-7', false, 'Mark the RBAC/Access SSOT as "Proposed, after pilot" in docs/decisions', '']
+    ]},
+    {ms:'M1', name:'Events core', items:[
+      ['m1-1', true,  'Sessions of type EVENT with policies, scan in/out, duplicate window', ''],
+      ['m1-2', true,  'People directory, per-org QR pass, printable ID card', ''],
+      ['m1-3', true,  'Member portal with own QR and history', ''],
+      ['m1-4', true,  'Audit log of every action', ''],
+      ['m1-5', false, 'Event roster: only listed people accepted, with a walk-in toggle', ''],
+      ['m1-6', false, 'Open and close an event; a closed event refuses scans', ''],
+      ['m1-7', false, 'Show the attendee name on every accepted scan', 'Scan response has no name today.'],
+      ['m1-8', false, 'Refused scans show no name or photo', ''],
+      ['m1-9', false, 'CSV import of people', ''],
+      ['m1-10',false, 'Per-event attendance report with CSV export', 'Separate from the DTR report.'],
+      ['m1-11',false, 'Four role presets in the UI: Owner, Admin, Staff, Attendee', 'Keep the seven roles underneath.']
+    ]},
+    {ms:'M2', name:'Offline you can trust', items:[
+      ['m2-1', true,  'Encrypted offline queue with signed, idempotent batch sync', ''],
+      ['m2-2', true,  'Server sync bundle with pass hashes', 'Exists; nothing uses it yet.'],
+      ['m2-3', false, 'Scanner downloads the bundle before the event and verifies passes on the device', ''],
+      ['m2-4', false, 'Show bundle age on the scanner so staff know how fresh revocations are', ''],
+      ['m2-5', false, 'Record device time and sync time; flag clock drift', ''],
+      ['m2-6', false, 'Two-phone offline test: same person on both, one record after sync', '']
+    ]},
+    {ms:'M3', name:'Certificates and e-sign', items:[
+      ['m3-1', true,  'Document and signature API: hash chain, signing order, seal, public verify', ''],
+      ['m3-2', false, 'Certificate template (organization, event, name, date, signatory)', ''],
+      ['m3-3', false, 'Generate certificates for attendees with a complete record', ''],
+      ['m3-4', false, 'Signing screen for the signatory', ''],
+      ['m3-5', false, 'PDF output with a verify QR', '']
+    ]},
+    {ms:'M4', name:'Pilot', items:[
+      ['m4-1', false, 'Pilot organization, event and date confirmed', 'Open decision O-3.'],
+      ['m4-2', false, 'Privacy notice and consent at attendee registration', 'RA 10173.'],
+      ['m4-3', false, 'All nine acceptance scenarios pass on develop', ''],
+      ['m4-4', false, 'Run the event with a planned offline segment; zero lost scans', ''],
+      ['m4-5', false, 'Organizer completes setup and close-out without a developer', ''],
+      ['m4-6', false, 'Collect feedback and pricing answers', 'Open decision O-4.']
+    ]},
+    {ms:'M5', name:'DTR add-on', later:true, items:[
+      ['m5-1', true,  'DTR aggregation and CSV export with scoping and masking', ''],
+      ['m5-2', true,  'Server-side geofence evaluation and geofence API', ''],
+      ['m5-3', false, 'Scanner captures GPS on DTR punches', ''],
+      ['m5-4', false, 'Selfie on each DTR punch, reviewable later', ''],
+      ['m5-5', false, 'Geofence admin screen', ''],
+      ['m5-6', false, 'DTR PDF export', '']
+    ]},
+    {ms:'M6', name:'Network', later:true, items:[
+      ['m6-1', false, 'One identity QR per person across organizations', 'Decide O-1 first.'],
+      ['m6-2', false, 'Google sign-in and invite claim', ''],
+      ['m6-3', false, 'Public organizer signup with verification and abuse controls', ''],
+      ['m6-4', false, 'RBAC SSOT, trimmed and with an offline section', ''],
+      ['m6-5', false, 'Billing and entitlement enforcement', '']
+    ]}
+  ];
+  const TKEY = 'prism-pass-tracker-v1';
+  function loadState(){ try{ return JSON.parse(localStorage.getItem(TKEY)||'{}'); }catch(e){ return {}; } }
+  function saveState(s){ try{ localStorage.setItem(TKEY, JSON.stringify(s)); }catch(e){} }
+  const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  function renderTracker(){
+    const state = loadState();
+    const host = document.getElementById('trackerGroups');
+    host.innerHTML = TRACK.map(g => {
+      const rows = g.items.map(([id, def, text, note]) => {
+        const on = id in state ? state[id] : def;
+        const chip = def ? '<span class="chip ok">in repo</span>' : '<span class="chip dim">to do</span>';
+        return `<li data-id="${id}" class="${on?'done':''}"><label><input type="checkbox" ${on?'checked':''}><span class="t"><span>${esc(text)}</span>${note?`<small>${esc(note)}</small>`:''}</span>${chip}</label></li>`;
+      }).join('');
+      return `<article class="section ms" id="t-${g.ms.toLowerCase()}" data-title="${g.ms} · ${esc(g.name)}">
+        <div class="ms-head"><h3>${g.ms} · ${esc(g.name)} ${g.later?'<span class="chip violet">after pilot</span>':'<span class="chip">MVP</span>'}</h3><span class="ms-count" data-count="${g.ms}"></span></div>
+        <ul class="tracker-list">${rows}</ul></article>`;
+    }).join('');
+    host.querySelectorAll('input[type=checkbox]').forEach(b => b.addEventListener('change', () => {
+      const li = b.closest('li'); const s = loadState(); s[li.dataset.id] = b.checked; saveState(s);
+      li.classList.toggle('done', b.checked); updateTracker();
+    }));
+    updateTracker();
+  }
+  function updateTracker(){
+    const all = [...document.querySelectorAll('#trackerGroups li')];
+    const done = all.filter(li => li.querySelector('input').checked).length;
+    const pct = Math.round(100*done/all.length);
+    document.getElementById('trackerFill').style.width = pct+'%';
+    document.getElementById('trackerPct').textContent = pct+'% complete';
+    document.getElementById('trackerSub').textContent = `${done} of ${all.length} items across M0–M6`;
+    let mvpAll=0, mvpDone=0;
+    TRACK.forEach(g => {
+      const lis = [...document.querySelectorAll(`#t-${g.ms.toLowerCase()} li`)];
+      const d = lis.filter(li => li.querySelector('input').checked).length;
+      if(!g.later){ mvpAll += lis.length; mvpDone += d; }
+      const el = document.querySelector(`[data-count="${g.ms}"]`); if(el) el.textContent = `${d} / ${lis.length}`;
+    });
+    document.getElementById('mvpSub').textContent = `MVP (M0–M4): ${mvpDone} of ${mvpAll} · ${Math.round(100*mvpDone/mvpAll)}%`;
+  }
+  document.getElementById('resetTracker').addEventListener('click', () => {
+    if(!confirm('Reset every tick to the verified repo state?')) return;
+    try{ localStorage.removeItem(TKEY); }catch(e){}
+    renderTracker(); buildNav(currentTab);
+  });
+  renderTracker();
+
+  /* ---------------- read progress ---------------- */
+  const RKEY = 'prism-pass-portal-read-v1';
+  let read; try{ read = new Set(JSON.parse(localStorage.getItem(RKEY)||'[]')); }catch(e){ read = new Set(); }
+  function markRead(id){ if(read.has(id)) return; read.add(id); try{ localStorage.setItem(RKEY, JSON.stringify([...read])); }catch(e){} renderProgress(); }
+  function renderProgress(){
+    const all = [...document.querySelectorAll('.section[data-title]')].map(s => s.id);
+    const done = all.filter(id => read.has(id)).length;
+    const pct = all.length ? Math.round(100*done/all.length) : 0;
+    const C = 2*Math.PI*30;
+    document.getElementById('ringFill').setAttribute('stroke-dasharray', `${C*pct/100} ${C}`);
+    document.getElementById('ringPct').textContent = pct+'% read';
+    document.getElementById('ringCount').textContent = `${done} of ${all.length} sections`;
+  }
+
+  /* ---------------- tabs + scroll spy ---------------- */
+  const panels = [...document.querySelectorAll('[data-panel]')];
+  const tabs = [...document.querySelectorAll('[role=tab]')];
+  let currentTab = panels[0].dataset.panel, spy;
+  function buildNav(tab){
+    const panel = document.querySelector(`[data-panel="${tab}"]`);
+    const secs = [...panel.querySelectorAll('.section[data-title]')].filter(s => !s.id.startsWith('a-'));
+    document.getElementById('sideLabel').textContent = tabs.find(t => t.dataset.tab===tab).textContent;
+    document.getElementById('sectionNav').innerHTML = secs.map(s => `<a href="#${s.id}" data-for="${s.id}">${s.dataset.title}</a>`).join('');
+    spy && spy.disconnect();
+    spy = new IntersectionObserver(entries => {
+      entries.forEach(en => {
+        if(!en.isIntersecting) return;
+        document.querySelectorAll('#sectionNav a').forEach(a => a.classList.toggle('active', a.dataset.for === en.target.id));
+        markRead(en.target.id);
+      });
+    }, {rootMargin:'-40% 0px -55% 0px'});
+    panel.querySelectorAll('.section[data-title]').forEach(s => spy.observe(s));
+  }
+  function activate(name, opts={}){
+    const target = panels.some(p => p.dataset.panel===name) ? name : panels[0].dataset.panel;
+    currentTab = target;
+    panels.forEach(p => p.hidden = p.dataset.panel !== target);
+    tabs.forEach(t => { const on = t.dataset.tab===target; t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1; if(on) t.scrollIntoView({block:'nearest',inline:'center'}); });
+    buildNav(target);
+    if(opts.section){ const el = document.getElementById(opts.section); if(el){ requestAnimationFrame(() => el.scrollIntoView()); } }
+    else window.scrollTo({top:0, behavior:'auto'});
+    history.replaceState(null, '', '#'+target + (opts.section ? '/'+opts.section : ''));
+  }
+  tabs.forEach(t => t.addEventListener('click', () => activate(t.dataset.tab)));
+  tabs.forEach((t,i) => t.addEventListener('keydown', e => {
+    if(e.key!=='ArrowRight' && e.key!=='ArrowLeft') return;
+    e.preventDefault();
+    const next = tabs[(i + (e.key==='ArrowRight'?1:-1) + tabs.length) % tabs.length];
+    next.focus(); next.click();
+  }));
+  document.getElementById('sectionNav').addEventListener('click', e => {
+    const a = e.target.closest('a'); if(!a) return;
+    e.preventDefault(); document.getElementById(a.dataset.for).scrollIntoView();
+    history.replaceState(null, '', '#'+currentTab+'/'+a.dataset.for); closeDrawer();
+  });
+  document.getElementById('appendixNav').addEventListener('click', e => {
+    const a = e.target.closest('a'); if(!a) return;
+    e.preventDefault(); activate(a.dataset.tabjump, {section: a.getAttribute('href').slice(1)}); closeDrawer();
+  });
+  const [h0, h1] = (location.hash||'').slice(1).split('/');
+  activate(h0 || panels[0].dataset.panel, {section: h1});
+  renderProgress();
+
+  /* ---------------- drawer ---------------- */
+  const side = document.getElementById('sidebar'), burger = document.querySelector('.hamburger'), backdrop = document.getElementById('backdrop');
+  function closeDrawer(){ side.classList.remove('open'); backdrop.classList.remove('open'); burger.setAttribute('aria-expanded','false'); }
+  burger.addEventListener('click', () => { const open = side.classList.toggle('open'); backdrop.classList.toggle('open', open); burger.setAttribute('aria-expanded', String(open)); });
+  backdrop.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', e => { if(e.key==='Escape'){ closeDrawer(); closeSearch(); } });
+
+  /* ---------------- search (filters sections across all tabs) ---------------- */
+  const input = document.getElementById('search'), results = document.getElementById('searchResults'), util = document.querySelector('.utility');
+  const index = [...document.querySelectorAll('.section[data-title]')].map(s => ({
+    id:s.id, title:s.dataset.title, tab:s.closest('[data-panel]').dataset.panel,
+    tabName: document.getElementById('tab-'+s.closest('[data-panel]').dataset.panel).textContent,
+    text:(s.dataset.title+' '+s.textContent).toLowerCase()
+  }));
+  function closeSearch(){ results.classList.remove('open'); util.classList.remove('searching'); }
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    if(q.length < 2){ results.classList.remove('open'); return; }
+    const hits = index.filter(r => q.split(/\s+/).every(w => r.text.includes(w))).slice(0, 10);
+    results.innerHTML = hits.length ? hits.map(h => `<button data-tab="${h.tab}" data-id="${h.id}"><span>${esc(h.tabName)}</span>${esc(h.title)}</button>`).join('')
+                                    : '<div class="none">No section matches.</div>';
+    results.classList.add('open');
+  });
+  results.addEventListener('click', e => {
+    const b = e.target.closest('button'); if(!b) return;
+    activate(b.dataset.tab, {section:b.dataset.id}); input.value=''; closeSearch();
+  });
+  document.querySelector('.search-toggle').addEventListener('click', () => { util.classList.toggle('searching'); if(util.classList.contains('searching')) input.focus(); });
+  document.addEventListener('click', e => { if(!util.contains(e.target)) closeSearch(); });
+})();
+</script>
+</body>
+</html>

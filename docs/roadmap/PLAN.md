@@ -2,6 +2,11 @@
 
 > Global rule: this file is the single source of truth. `phases-gates.md`, ADRs, ERD, contracts are normative inputs; this plan tracks **what is done, what is next, and what is blocked**. Update it every phase. No parallel plans.
 
+> **Current plan (2026-11-09):** events-first MVP M0–M4, captured in
+> [prism-pass-portal.html](prism-pass-portal.html). Section 14 summarizes it and
+> records the decisions and open items. Where the current plan conflicts with the
+> phase history below, the current plan wins.
+
 ## 0. Where we are (2026-11-04)
 - **P0 Spec: DONE** — overview, ERD, permission-matrix, state machines, geo, offline protocol, contracts-v1, ADR-01..12, phases-gates.
 - **P1 Foundation: BUILT + TESTED (local)** — Next 15 App Router, Auth (browser/server/middleware), fail-closed `requireOrganizationPermission`, Prisma 21 models, RLS `0001_foundation.sql` (artifact only), attendance/pass helpers, QR + scanner viewport.
@@ -122,3 +127,104 @@ Out of scope: P3 attendance writes, P4 geo PostGIS, P5 e-sign, P6 offline sync, 
 - **CI/deployment:** `vercel.json` allowlist is `main` + `develop`; `staging` retired; Node 22 CI with Corepack, pnpm cache, secret scan, typecheck, tests and build; branch/release docs reconciled.
 - **Gate:** 272 tests / 20 files, typecheck clean, CI green on `develop`; production promotion of the hardening release.
 - **Open:** CSP enforcement (browser pass), shared rate-limit store, demo credential rotation, Vercel cleanup of the stuck deployment.
+
+## 14. Current plan — events-first MVP (2026-11-09)
+
+Full interactive plan: [prism-pass-portal.html](prism-pass-portal.html). This
+section is the normative summary; the portal is the long-form source for the
+inventory and tracker.
+
+### 14.1 Product decision
+
+Prism Pass is an **event attendance and certificates platform** sold to
+organizations first. The winning use case is scanning that keeps working with no
+signal at a venue. DTR remains a paid add-on for small companies without
+biometric terminals; selfie and geofence apply only to DTR. Events use the QR
+plus a staff member looking at the person.
+
+The MVP is done when an organizer with no help from us can set up an event,
+scan attendees at a venue with no signal, and issue signed certificates
+afterwards.
+
+### 14.2 Baseline
+
+- Production: `main`, v0.3.1, `pass.syntaxure.dev`.
+- Integration: `develop` at `b8a0b39` (4 commits after the portal's `b902aed`).
+- Stack: Next.js 15, Supabase Auth/Postgres, Prisma, Vercel `syd1`.
+- Migrations stay additive SQL files applied with the documented method.
+- `staging` was retired on 2026-11-09 (D-06). The owner's 2026-11-09 instruction
+  below reopens it as a promotion branch; see D-08 and the deployment conflict.
+
+### 14.3 Milestones
+
+| Milestone | Scope | Exit test |
+|---|---|---|
+| **M0 Truth-up** | Release what is finished, tag it, rotate demo access, walk every console signed in, make docs match code. | Production runs the tagged latest release; no public default passwords; README, PLAN and known-limitations agree. |
+| **M1 Events core** | Roster per event with walk-in toggle, open/close, CSV import, attendee name on scan, per-event report, four role presets in the UI. | A person not on the roster is refused; a closed event refuses scans; staff see the attendee's name on every accepted scan. |
+| **M2 Offline you can trust** | Scanner downloads the event bundle, verifies passes on device, shows data age, flags clock drift. | With the network cut, a revoked pass and an unlisted pass are both refused on the device; two devices scanning the same person produce one record after sync. |
+| **M3 Certificates** | Certificate template, generation for complete records, signing screen, PDF with verify QR. | Every attendee with a complete record gets a signed PDF whose QR verifies publicly. |
+| **M4 Pilot** | One real organization, privacy notice, planned offline segment, feedback, pricing answers. | Pilot exit criteria: 1 org, ≥50 attendees, 0 lost scans, 100% certificates, 0 dev interventions. |
+| **M5 DTR add-on** | GPS capture, selfie, geofence admin, DTR PDF. | After pilot, driven by pilot demand. |
+| **M6 Network** | One identity QR, Google sign-in + invite claim, public organizer signup, trimmed RBAC SSOT, billing/entitlement enforcement. | After pilot. Google provider setup is owner-owned. |
+
+### 14.4 Tracker summary (MVP only)
+
+M0: branch model recorded; **tag v0.3.1 missing**, **develop→main promotion
+pending**, **password123 demo accounts still public**, signed-in walkthrough
+pending, README/known-limitations drift, RBAC SSOT status to mark
+“Proposed, after pilot.”
+
+M1 done: EVENT sessions + policies, scan in/out, duplicate window, people
+directory, per-org QR pass, printable ID, member portal, audit log.
+M1 to build: event roster + walk-in toggle, open/close, attendee name on
+accepted scan, no name/photo on refusal, CSV import, per-event report + CSV,
+four role presets in the UI (keep the seven roles underneath).
+
+M2 done: encrypted offline queue, signed/idempotent batch sync, server sync
+bundle with pass hashes. To build: scanner downloads and verifies the bundle
+offline, bundle-age display, device/sync clock drift, two-phone offline test.
+
+M3 done: document/signature API with hash chain, signing order, seal, public
+verify. To build: certificate template, generation for complete records,
+signing screen, PDF with verify QR.
+
+M4 and M5/M6 are not code-only. M4 needs the pilot organization, event and date;
+M6 Google provider setup is owner-owned.
+
+### 14.5 Decisions log
+
+| ID | Decision | State |
+|---|---|---|
+| D-01 | Events-first; DTR kept as an add-on. | Decided |
+| D-02 | Selfie and geofence apply only to DTR. | Decided |
+| D-03 | A refused scan reveals nothing about the person. | Decided |
+| D-04 | Roles stay simple: four presets with toggles; no support ticket to set up a role. | Decided |
+| D-05 | Sell to organizations first; public organizer signup later. | Decided |
+| D-06 | `staging` retired; only `main` and `develop` deploy. | In repo |
+| D-07 | Attendee QR free forever; charge for certificates, e-sign, official exports, multi-device and DTR. | Proposed |
+| D-08 | Owner instruction 2026-11-09: `staging` is the promotion branch, `develop` is the reconciliation branch, and deployments run only from `staging` and `main`. Supersedes D-06; requires `vercel.json`, CI and deployment-doc changes before use. | Pending implementation |
+
+### 14.6 Open decisions
+
+- **O-1:** Per-organization QR for the pilot or one global identity QR? Recommendation: per-org for the pilot; do not print durable PVC IDs until decided.
+- **O-2:** Adopt the full RBAC SSOT before or after the pilot? Recommendation: after (M6); keep seven roles in data, show four presets in the UI.
+- **O-3:** Pilot organization, event and date. Needs owner input.
+- **O-4:** Pricing. Needs pilot data.
+- **O-5:** Is in-app e-signature enough for certificates, or is PNPKI required? Ask the pilot organization.
+
+### 14.7 Definition of Done (work item)
+
+Acceptance criteria shown in a signed-in browser; server-side authorization on
+every new route; tenant-isolation test; domain and allow/deny route tests; CI
+green on the integration branch; offline behavior stated; 375px and desktop
+checked; additive migration with rollback note; CHANGELOG/PLAN/README/known
+limitations updated; no demo shortcuts; smoke-tested on the deployed integration
+environment.
+
+### 14.8 Orchestration
+
+This plan is executed by the main agent orchestrator with phase subagents. Each
+phase owns a worktree and branch, reports exact files/commits, and never pushes
+or deploys. The main agent assembles, runs the full gate, and reconciles into
+`develop`; promotion to `staging` and `main` follows D-08 once the deployment
+configuration is reconciled.
