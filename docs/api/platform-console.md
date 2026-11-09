@@ -10,7 +10,8 @@ gate server-side, and the API routes are the authority.
 > **Planned change:** the platform gate becomes a single `SUPERADMIN` role, and
 > tenant permissions move to the role/capability model in
 > [rbac-ssot.md](../security/rbac-ssot.md). This file documents the current
-> implementation until Phase 1 of [rbac-plan.md](../security/rbac-plan.md).
+> implementation until Phase 1 of the adoption plan in
+> [rbac-ssot.md](../security/rbac-ssot.md).
 
 Every response uses the v1 envelope: `{ data, meta? }` on success and
 `{ error: { code, message, details? } }` on failure. Mutations validate with

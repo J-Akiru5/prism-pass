@@ -5,5 +5,5 @@ Status: **Superseded.** The normative role and capability model now lives in
 event-access rules.
 
 This file is kept for link compatibility. Code continues to implement the legacy
-seven-role matrix until Phase 1 of [rbac-plan.md](rbac-plan.md); do not add new
-rules here.
+seven-role matrix until Phase 1 of the adoption plan in
+[rbac-ssot.md](rbac-ssot.md); do not add new rules here.

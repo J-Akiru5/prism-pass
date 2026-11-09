@@ -24,5 +24,4 @@ Reversibility: the new tables are additive. `memberships.role` and
 `permission-matrix.md` remain for one release while the new resolver is
 dual-read; rollback is a feature flag, not a data restore.
 
-Refs: [rbac-ssot.md](../security/rbac-ssot.md),
-[rbac-plan.md](../security/rbac-plan.md), ADR-11.
+Refs: [rbac-ssot.md](../security/rbac-ssot.md), ADR-11.
