@@ -1,11 +1,12 @@
 "use client";
 
 import { use, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { AlertTriangle, Award, CheckCircle2, Loader2, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { FormField } from "@/components/ui/form-field";
 import { Input, Select, Textarea } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { roleGrants, type Role } from "@/packages/authorization/permissions";
@@ -569,10 +570,20 @@ export default function CertificatesPage({ params }: { params: Promise<{ orgId: 
                   <section key={batchId} aria-label={generatedBatchLabel(batchId)}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-[14px] font-semibold text-slate-900">{generatedBatchLabel(batchId)}</p>
-                      <p className="text-[13px] text-slate-500">
-                        {rows.length} {rows.length === 1 ? "certificate" : "certificates"}
-                        {rows[0]?.createdAt ? ` · ${dateLabel(rows[0].createdAt)}` : ""}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-[13px] text-slate-500">
+                          {rows.length} {rows.length === 1 ? "certificate" : "certificates"}
+                          {rows[0]?.createdAt ? ` · ${dateLabel(rows[0].createdAt)}` : ""}
+                        </p>
+                        {batchId !== "ungrouped" && rows.some((row) => row.status === "DRAFT") ? (
+                          <Link
+                            href={`/org/${orgId}/certificates/${batchId}/sign`}
+                            className={buttonVariants({ variant: "outline", size: "sm" })}
+                          >
+                            Sign batch
+                          </Link>
+                        ) : null}
+                      </div>
                     </div>
                     <ul className="mt-1 divide-y divide-slate-100">
                       {rows.slice(0, 10).map((row) => (
