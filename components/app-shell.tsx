@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, IdCard, CalendarCheck, BarChart3, Settings, ScanLine, UserRound, ArrowLeft, X } from "lucide-react";
+import { LayoutDashboard, Users, IdCard, CalendarCheck, BarChart3, Award, Settings, ScanLine, UserRound, ArrowLeft, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { BrandLogo } from "@/components/brand/logo";
@@ -16,6 +16,7 @@ const NAV = [
   { href: "/passes", label: "Passes", icon: IdCard, color: "text-amber-600", tint: "bg-amber-50 ring-amber-100" },
   { href: "/attendance", label: "Attendance", icon: CalendarCheck, color: "text-teal-600", tint: "bg-teal-50 ring-teal-100" },
   { href: "/reports", label: "Reports", icon: BarChart3, color: "text-rose-600", tint: "bg-rose-50 ring-rose-100" },
+  { href: "/certificates", label: "Certificates", icon: Award, color: "text-emerald-600", tint: "bg-emerald-50 ring-emerald-100" },
   { href: "/settings", label: "Settings", icon: Settings, color: "text-slate-600", tint: "bg-slate-100 ring-slate-200" },
 ];
 
@@ -154,6 +155,7 @@ export function AppShell({ orgId, orgName, children }: { orgId: string; orgName?
               <ul className="divide-y divide-slate-100 dark:divide-white/10">
                 {[
                   { href: `${base}/reports`, label: "Reports", hint: "Download attendance as a spreadsheet" },
+                  { href: `${base}/certificates`, label: "Certificates", hint: "Issue and track attendance certificates" },
                   { href: `${base}/settings`, label: "Settings & audit log", hint: "Organization details and recent actions" },
                   { href: "/scan", label: "Scanner", hint: "Check someone in with the camera" },
                   { href: "/member", label: "My pass", hint: "Your own pass and history" },
