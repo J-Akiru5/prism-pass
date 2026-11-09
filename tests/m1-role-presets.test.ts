@@ -225,6 +225,39 @@ describe("membership role-change guard decisions", () => {
     ).toEqual({ allowed: true, changed: true });
   });
 
+  it("does not let a MANAGER promote a MEMBER into MANAGER", () => {
+    const decision = denied({
+      ...base,
+      actorRole: "MANAGER",
+      target: { ...base.target, role: "MEMBER" },
+      nextRole: "MANAGER",
+    });
+    expect(decision.reason).toBe("rank_protected");
+    expect(decision.status).toBe(403);
+  });
+
+  it("does not let a MANAGER modify another MANAGER", () => {
+    const decision = denied({
+      ...base,
+      actorRole: "MANAGER",
+      target: { ...base.target, role: "MANAGER" },
+      nextRole: "SCANNER",
+    });
+    expect(decision.reason).toBe("rank_protected");
+    expect(decision.status).toBe(403);
+  });
+
+  it("lets a MANAGER manage roles below their rank", () => {
+    expect(
+      decideMembershipRoleChange({
+        ...base,
+        actorRole: "MANAGER",
+        target: { ...base.target, role: "SUPERVISOR" },
+        nextRole: "SCANNER",
+      }),
+    ).toEqual({ allowed: true, changed: true });
+  });
+
   it("blocks a non-owner scoped manager from granting OWNER", () => {
     const decision = denied({ ...base, actorRole: "MANAGER", nextRole: "OWNER" });
     expect(decision.reason).toBe("owner_or_admin_protected");
