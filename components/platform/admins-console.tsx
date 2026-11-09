@@ -92,7 +92,7 @@ export function AdminsConsole() {
         <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-2">
           <h2 className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Current grants</h2>
           <span aria-live="polite" className="font-mono text-[11px] tabular-nums text-muted-foreground">
-            {rows.length} {rows.length === 1 ? "admin" : "admins"}
+            {loading ? "—" : `${rows.length} ${rows.length === 1 ? "admin" : "admins"}`}
           </span>
         </div>
 

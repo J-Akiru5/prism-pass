@@ -298,3 +298,28 @@ configuration is reconciled.
 - **Dependency reconciliation:** `next@15.5.29`, `pdf-lib@1.17.1` and
   `qrcode@1.5.4` are installed and committed in the lockfile. Google Fonts are
   vendored under `app/fonts` so CI no longer fetches them at build time.
+
+### 14.11 Release v0.4.0 — UI verification and production gate
+
+- **Playwright:** `@playwright/test` with `playwright.config.ts`; projects for
+  desktop (1440×900), mobile (390×844), public/auth, and an authenticated setup
+  project. `e2e/app.spec.ts` covers the org dashboard, attendance, people,
+  passes, reports, settings, certificates, member, scanner, and all platform
+  console pages; `e2e/public.spec.ts` covers home, login, demo, privacy, terms and
+  the unknown-certificate state.
+- **Final local result:** 9/9 Playwright tests pass. Each surface asserts a
+  visible frame, no horizontal overflow, and no unexpected console/page errors;
+  loaded states are awaited before screenshots.
+- **Screenshots:** full desktop and mobile evidence in
+  `screenshots/e2e/`; curated release evidence in
+  `screenshots/ui-verification-2026-11-09/`.
+- **Distributed review:** three read-only review agents covered desktop org
+  views, mobile views, and public/platform views. Fixed before release: the
+  certificate-specific not-found state, the clipped platform-admin badge,
+  loading-state counts (`—` instead of `0`), the blank overview activity panel,
+  and destructive-action contrast. Known residual polish: shell org-name timing,
+  the scanner's deliberate check-only default, mobile audit filter density, and
+  placeholder contrast.
+- **Release:** version `0.4.0`; changelog finalized. Production promotion and the
+  `v0.4.0` tag are recorded in the release commit/run below once the deployment
+  completes.

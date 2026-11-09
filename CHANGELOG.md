@@ -6,6 +6,11 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-09
+
+Events-first MVP: event rosters and close-out, trustworthy offline scanning, and signed attendance
+certificates with public verification.
+
 ### Added
 - Self-serve account creation at `/signup`: Supabase sign-up with email confirmation, an idempotent
   `POST /api/v1/auth/provision` endpoint that links the auth identity to an internal user, and a
@@ -36,6 +41,11 @@ All notable changes to this project are documented here. Format follows
 - PDF/QR: added `pdf-lib` and `qrcode` for server-rendered certificate PDFs; the sealed
   certificate download route renders an A4-landscape PDF with a verify QR, and the public
   `/verify/:token` page shows an allowlisted integrity result without recipient PII.
+- UI verification: added Playwright with desktop (1440×900) and mobile (390×844) projects covering
+  public/auth, organization admin, member/scanner, certificate and platform console surfaces; the
+  suite checks headings, overflow, console errors and captures screenshots.
+- Dependencies: reconciled Next to `15.5.29`, added `pdf-lib`/`qrcode`, and vendored the Public Sans,
+  Fraunces and IBM Plex Mono WOFF2 files so builds do not fetch Google Fonts.
 - Demo seed: `DEMO_SEED_PASSWORD` is now required (12+ characters, no committed default) and the
   seed no longer prints a password.
 
@@ -55,6 +65,12 @@ All notable changes to this project are documented here. Format follows
   backoff.
 - A hung sync request can no longer leave rows `inflight` until the lease expires; it fails into the
   normal backoff path.
+- Public certificate verification now renders a dedicated "we couldn't verify this certificate"
+  state instead of the generic application 404.
+- Platform console counts show an em dash while loading instead of a misleading zero, the
+  organizations header no longer clips its admin badge, and the suspend action uses an
+  AA-contrast red.
+- The platform overview activity panel shows a loading state instead of a blank section.
 
 ### Security
 - Login now validates the `next` parameter with the shared same-origin guard, closing an open-redirect

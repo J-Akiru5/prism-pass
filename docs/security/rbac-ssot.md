@@ -57,6 +57,14 @@ The rest of this document describes the **target** model. Do not implement the
 target tables, global QR or Google sign-in during the pilot unless the owner
 reopens O-2.
 
+**Implementation status (v0.4.0, 2026-11-09):** the pilot column above is
+implemented. The seven backend roles remain; the UI exposes the four presets;
+event sessions have open/close and roster enforcement; the signed v2 offline
+bundle and on-device verifier ship; certificates support idempotent generation,
+batch signing, member access, PDF/QR and public verification. The M6 target —
+global identity QR, Google sign-in, custom roles and billing entitlement
+enforcement — remains deferred.
+
 ## 2. Scope and non-goals
 
 **In scope:** platform administration, tenant administration, role
