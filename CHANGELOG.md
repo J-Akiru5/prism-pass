@@ -20,6 +20,16 @@ All notable changes to this project are documented here. Format follows
 - Member landing: MEMBER accounts skip the console chooser and open their pass; the pass card now
   displays a stable QR derived from `PASS_QR_SECRET`. Legacy random-secret passes can be re-issued
   from the member page. No database migration.
+- Planning: adopted the events-first MVP plan (`docs/roadmap/prism-pass-portal.html`,
+  `docs/roadmap/PLAN.md` §14) and the RBAC/Access SSOT (`docs/security/rbac-ssot.md`). The SSOT is
+  the M6 target; the pilot uses four UI presets on the existing seven roles.
+- Demo seed: `DEMO_SEED_PASSWORD` is now required (12+ characters, no committed default) and the
+  seed no longer prints a password.
+
+### Changed
+- README status table and known limitations reconciled with the built state: geo, e-sign, offline
+  sync, reports/scoping, platform console and hardening are built; certificate UI, on-device offline
+  verification and billing enforcement remain.
 
 ### Fixed
 - Login now distinguishes an unconfirmed email from a wrong password, so the user is told to check
@@ -38,6 +48,8 @@ All notable changes to this project are documented here. Format follows
   path.
 - Auth callbacks are limited to supported OTP types and safe internal destinations; provisioning is
   session-gated and requires a confirmed email.
+- The demo seed refuses a missing or known-weak `DEMO_SEED_PASSWORD`; the shared `password123`
+  default is removed from the seed, README and `.env.example`.
 
 ## [0.3.1] - 2026-11-09
 
