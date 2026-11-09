@@ -289,7 +289,8 @@ configuration is reconciled.
   `screenshots/m1-attendance-qa-2026-11-09.jpeg`.
 - **End-to-end M1/M2 code complete:** M1 A–E, M2 bundle/verifier/clock/policy/
   scanner UX, M3 domain/generation/signing/public verify are integrated.
-  `pnpm test` 607 passing, `pnpm typecheck` clean, and `next build` succeeds with
-  Next 15.5.29. Certificate PDF/QR is the remaining M3 slice.
+  `pnpm test` 607 passing, `pnpm typecheck` clean, `pnpm build` (Prisma generate +
+  Next build) succeeds with Next 15.5.29, and the secret scan passes. Certificate
+  PDF/QR is the remaining M3 slice.
 - **Dependency reconciliation:** `next@15.5.29`, `pdf-lib@1.17.1` and
   `qrcode@1.5.4` are installed and committed in the lockfile.
