@@ -2,10 +2,10 @@
 
 import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, CalendarCheck, Download, FileSpreadsheet, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, CalendarCheck, Download, FileSpreadsheet, ShieldCheck, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { FormField } from "@/components/ui/form-field";
-import { Input } from "@/components/ui/input";
+import { Input, Select } from "@/components/ui/input";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MAX_DTR_RANGE_DAYS, parseDtrRange } from "@/modules/reports/range";
@@ -17,13 +17,34 @@ function toDateInput(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-// Reports hub: one clear job — export the daily time record for a date range.
+type SessionOption = {
+  id: string;
+  title: string;
+  startsAt: string;
+};
+
+type SessionListPayload = {
+  data?: SessionOption[];
+  error?: { message?: string };
+};
+
+function sessionDateLabel(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+// Reports hub: the daily time record for a date range, and one file per event.
 export default function ReportsPage({ params }: { params: Promise<{ orgId: string }> }) {
   const { orgId } = use(params);
   // Defaults are resolved after mount so server and client markup never disagree
   // about "today" across timezones (a hydration mismatch).
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [sessions, setSessions] = useState<SessionOption[]>([]);
+  const [sessionId, setSessionId] = useState("");
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
 
   useEffect(() => {
     const now = new Date();
@@ -31,9 +52,41 @@ export default function ReportsPage({ params }: { params: Promise<{ orgId: strin
     setTo(toDateInput(now));
   }, []);
 
+  // Event choices for the per-event report. Reports permission does not imply
+  // `attendance.scan`, so a role that cannot read the schedule simply sees the
+  // server's message instead of a broken selector.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSessions() {
+      try {
+        const response = await fetch(`/api/v1/orgs/${orgId}/sessions?page=1&pageSize=100`);
+        const payload = (await response.json().catch(() => null)) as SessionListPayload | null;
+        if (!response.ok) {
+          throw new Error(payload?.error?.message ?? `Could not load events (${response.status})`);
+        }
+        if (cancelled) return;
+        const rows = Array.isArray(payload?.data) ? payload.data : [];
+        setSessions(rows);
+        setSessionId((current) => current || rows[0]?.id || "");
+        setSessionsError(null);
+      } catch (error) {
+        if (!cancelled) setSessionsError((error as Error).message);
+      } finally {
+        if (!cancelled) setSessionsLoading(false);
+      }
+    }
+    void loadSessions();
+    return () => {
+      cancelled = true;
+    };
+  }, [orgId]);
+
   const parsed = useMemo(() => (from && to ? parseDtrRange(from, to) : null), [from, to]);
   const href = parsed?.ok
     ? `/api/v1/orgs/${orgId}/reports/dtr?from=${encodeURIComponent(parsed.range.from)}&to=${encodeURIComponent(parsed.range.to)}&format=csv`
+    : null;
+  const sessionHref = sessionId
+    ? `/api/v1/orgs/${orgId}/reports/sessions/${encodeURIComponent(sessionId)}?format=csv`
     : null;
 
   return (
@@ -104,6 +157,76 @@ export default function ReportsPage({ params }: { params: Promise<{ orgId: strin
             </p>
           ) : (
             <p className="mt-3 text-[15px] text-slate-600">Pick a start and end date to enable the download.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="mt-5 max-w-2xl">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
+              <Users className="size-5" aria-hidden="true" />
+            </span>
+            <CardTitle>Event attendance</CardTitle>
+          </div>
+          <CardDescription>
+            One file per event: everyone on the roster, who checked in and out, absences and walk-ins.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FormField label="Event" htmlFor="session-report-event">
+            <Select
+              id="session-report-event"
+              name="sessionId"
+              value={sessionId}
+              onChange={(event) => setSessionId(event.target.value)}
+              disabled={sessionsLoading || sessions.length === 0}
+            >
+              {sessions.length === 0 ? (
+                <option value="">{sessionsLoading ? "Loading events…" : "No events available"}</option>
+              ) : (
+                sessions.map((session) => (
+                  <option key={session.id} value={session.id}>
+                    {session.title} · {sessionDateLabel(session.startsAt)}
+                  </option>
+                ))
+              )}
+            </Select>
+          </FormField>
+
+          <div className="mt-4">
+            {sessionHref ? (
+              <a
+                href={sessionHref}
+                download
+                className={buttonVariants({ variant: "default", size: "lg" }) + " h-12 w-full"}
+              >
+                <Download aria-hidden="true" /> Download event CSV
+              </a>
+            ) : (
+              <span
+                aria-disabled="true"
+                className={`${buttonVariants({ variant: "outline", size: "lg" })} pointer-events-none h-12 w-full opacity-50`}
+              >
+                <Download aria-hidden="true" /> Download event CSV
+              </span>
+            )}
+          </div>
+
+          {sessionsLoading ? (
+            <p role="status" className="mt-3 text-[15px] text-slate-600">
+              Loading events…
+            </p>
+          ) : sessionsError ? (
+            <p role="alert" className="mt-3 text-[15px] font-medium text-red-600">
+              {sessionsError}
+            </p>
+          ) : sessions.length === 0 ? (
+            <p className="mt-3 text-[15px] text-slate-600">No events yet. Create one on the Attendance page.</p>
+          ) : (
+            <p className="mt-3 text-[15px] text-slate-600">
+              {sessions.length} {sessions.length === 1 ? "event" : "events"} · newest first
+            </p>
           )}
         </CardContent>
       </Card>
