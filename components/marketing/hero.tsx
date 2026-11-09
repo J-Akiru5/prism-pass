@@ -30,7 +30,7 @@ export function Hero() {
               </span>
               <div className="min-w-0">
                 <p className="truncate text-[10.5px] font-semibold leading-tight text-slate-900">Check-in saved</p>
-                <p className="truncate text-[9.5px] text-slate-500">Maria Santos · 8:02 AM</p>
+                <p className="truncate text-[9.5px] text-slate-500">Member pass · 8:02 AM</p>
               </div>
             </div>
           </div>

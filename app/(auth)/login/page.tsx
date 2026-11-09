@@ -129,7 +129,7 @@ export default function LoginPage() {
             <div className="mt-8 flex items-center gap-2.5 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur">
               <BadgeCheck className="size-5 shrink-0 text-emerald-300" aria-hidden="true" />
               <p className="text-[13px] text-white/85">
-                Verified check-in · Maria Santos · 8:02 AM
+                Verified check-in · Member pass · 8:02 AM
               </p>
             </div>
           </div>

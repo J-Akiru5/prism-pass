@@ -250,7 +250,7 @@ export default function SignupPage() {
                       <FormField label="Full name" htmlFor="signup-name" hint="Optional. Administrators use this to match you to your organization.">
                         <Input
                           id="signup-name"
-                          placeholder="Maria Santos"
+                          placeholder="e.g. Alex Cruz"
                           value={fullName}
                           onChange={(e) => setFullName(e.target.value)}
                           type="text"

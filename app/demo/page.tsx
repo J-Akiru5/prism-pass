@@ -159,7 +159,7 @@ export default function DemoPage() {
               <form onSubmit={submit} className="mt-6 flex flex-col gap-4" noValidate>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField label="Full name" htmlFor="demo-name" required error={errors.name ?? null}>
-                    <Input id="demo-name" placeholder="Maria Santos" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
+                    <Input id="demo-name" placeholder="e.g. Alex Cruz" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
                   </FormField>
                   <FormField label="Work email" htmlFor="demo-email" required error={errors.email ?? null}>
                     <Input id="demo-email" placeholder="you@agency.gov.ph" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
