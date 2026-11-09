@@ -3,24 +3,44 @@
 Base: `/api/v1`. Auth: Supabase session cookie (server verified). Org context from **verified membership**, not client-supplied authority. `X-Org-Id` is a selector hint only.
 
 ## Envelopes
-Success: `{ data, meta? {page, pageSize, total, scope?} }`. Error: `{ error: { code, message, details? } }` with `INVALID_INPUT(400) | UNAUTHENTICATED(401) | FORBIDDEN(403) | DEVICE_REVOKED(403) | DEVICE_UNREGISTERED(403) | NOT_FOUND(404) | CONFLICT(409) | RATE_LIMITED(429)`.
+Success: `{ data, meta? {page, pageSize, total, scope?} }`. Error: `{ error: { code, message, details? } }` with `INVALID_INPUT(400) | UNAUTHENTICATED(401) | FORBIDDEN(403) | NOT_ON_ROSTER(403) | DEVICE_REVOKED(403) | DEVICE_UNREGISTERED(403) | NOT_FOUND(404) | EVENT_CLOSED(409) | CONFLICT(409) | RATE_LIMITED(429)`.
 Validation: Zod on server. Pagination: `?page&pageSize (max 100)`. Rate-limit scanners/sync strictly.
 
 ## Endpoints (all org-scoped unless noted)
 - `POST /orgs` (platform or bootstrap) / `GET /orgs/:orgId` / `PATCH /orgs/:orgId` (`organization.manage`)
-- `GET/POST /orgs/:orgId/memberships`, `PATCH /orgs/:orgId/memberships/:id`, `POST .../revoke` (`members.manage`)
+- `GET/POST /orgs/:orgId/memberships`, `PATCH /orgs/:orgId/memberships/:id` (role change; last-OWNER, self-change and rank guards), `POST .../revoke` (`members.manage`)
 - `GET/POST /orgs/:orgId/people`, `GET/PATCH /orgs/:orgId/people/:id`, `POST .../assignments`
+- `POST /orgs/:orgId/people/import {csv}` (`members.manage`) → `{created, skipped, invalid, errors:[{row,message}]}`; RFC 4180, max 500 rows, counts-only audit
 - `POST /orgs/:orgId/passes` (issue), `POST /orgs/:orgId/passes/:id/revoke`, `POST /orgs/:orgId/passes/:id/rotate`, `GET /orgs/:orgId/passes/verify?credential=...` (scanner)
-- `GET/POST /orgs/:orgId/policies`, `GET/POST /orgs/:orgId/sessions`, `GET /orgs/:orgId/sessions/:id`
-- `POST /orgs/:orgId/sessions/:id/scans {credentialId, clientTs, geo?, idempotencyKey}` → `{event, record, geoResult}` (`attendance.scan`)
+- `GET/POST /orgs/:orgId/policies`, `GET/POST /orgs/:orgId/sessions`, `GET/PATCH /orgs/:orgId/sessions/:id` (GET `attendance.scan`; PATCH `{status:"OPEN"|"CLOSED"}` with `organization.manage`, idempotent, audited)
+- `GET/POST /orgs/:orgId/sessions/:id/roster`, `DELETE .../roster/:personId` (GET `attendance.scan`; writes `organization.manage`; same-org people only; max 500 per add)
+- `POST /orgs/:orgId/sessions/:id/scans {credential, clientTs, geo?, idempotencyKey}` → `{event, record, geoResult, personName}` (`attendance.scan`). Closed event → `409 EVENT_CLOSED`; roster-enforced + unlisted + no walk-ins → `403 NOT_ON_ROSTER`. Refusals never include a name or photo. Idempotent replay of a pre-close accepted scan still returns the accepted event.
 - `POST /orgs/:orgId/events/:id/adjust {reason,...}` (`attendance.override`), `POST .../approve|reject` (`attendance.approve`)
 - `GET /orgs/:orgId/records?sessionId&personId&status` (same person scope as reports)
 - `GET/POST /orgs/:orgId/geofences`
 - `POST /orgs/:orgId/documents (template+payload)` → `POST .../signature-requests`, `POST .../sign {consentVersion, method, artifact}`, `GET /verify/:token` (public minimal)
-- `POST /orgs/:orgId/devices/register`, `GET /orgs/:orgId/devices` (list; never includes `secretHash`), `POST /orgs/:orgId/devices/:deviceId/revoke` (idempotent, audited), `GET .../sync-bundle`, `POST /api/v1/sync/batches`
-- `GET /orgs/:orgId/reports/dtr?from&to` (CSV/PDF snapshot), `GET /orgs/:orgId/audit`
+- `POST /orgs/:orgId/devices/register`, `GET /orgs/:orgId/devices` (list; never includes `secretHash`), `POST /orgs/:orgId/devices/:deviceId/revoke` (idempotent, audited), `GET .../sync-bundle?sessionId&deviceId` (v2 event bundle with roster, revocations, serverTime and HMAC signature), `POST /api/v1/sync/batches`
+- `GET /orgs/:orgId/reports/dtr?from&to` (CSV/PDF snapshot), `GET /orgs/:orgId/reports/sessions/:sessionId?format=csv|json` (per-event roster/attendance report, `reports.export`, scoped + masked), `GET /orgs/:orgId/audit`
 
 All mutations require permission per matrix + write `audit_logs`. Cross-org IDs → 403.
+
+## Session lifecycle and roster (M1)
+
+- `attendance_sessions.status` is `OPEN` or `CLOSED`; `closed_at` records the close time.
+- `PATCH /sessions/:id` is idempotent. Closing refuses new scans with `409 EVENT_CLOSED`; reopening accepts scans again. A retry of a scan accepted before the close still resolves through idempotency.
+- `roster_enforced` defaults to false at the database level for backward compatibility. New `EVENT` sessions created through the API/UI default it to true.
+- `walk_in_allowed` defaults to false. When roster enforcement is on and walk-ins are off, an unlisted person is refused with `403 NOT_ON_ROSTER`.
+- Roster writes validate the person belongs to the verified organization and cap each add at 500.
+- The offline path applies the same closed/roster gates at sync. A scan accepted on a device after the event closed is rejected at sync; the client shows the rejection reason.
+
+## Per-event report
+
+`GET /reports/sessions/:sessionId` returns the union of rostered people and recorded people:
+- rostered with no record → `ABSENT`
+- recorded but not rostered → walk-in, `onRoster: false`
+- one row per person; duplicate scans collapse through the existing record unique key
+- summary counts and rows both pass through the shared report scope; a scoped caller never sees out-of-scope names or counts
+- CSV uses the shared RFC 4180 writer and formula-injection guard; the audit row stores counts, not names
 
 ## Report scope (`scope`)
 
