@@ -146,6 +146,23 @@ export function evaluateCertificatePdfGate(input: CertificatePdfGateInput): Cert
 }
 
 /**
+ * True when the document has at least one signature event and every event
+ * commits to the current document hash. A chain that verifies internally is
+ * not proof it belongs to this artifact: without this binding, swapping the
+ * payload and sha256 while leaving the old events in place would still pass.
+ * The route combines this with signatureRequestsChainValid().
+ */
+export function certificateEventsBindDocument(input: {
+  sha256: string;
+  docHashes: readonly string[];
+}): boolean {
+  const expected = input.sha256.trim().toLowerCase();
+  if (expected.length === 0) return false;
+  if (input.docHashes.length === 0) return false;
+  return input.docHashes.every((hash) => hash.trim().toLowerCase() === expected);
+}
+
+/**
  * Resolves the public verification target encoded in the QR code. An explicit
  * URL wins; otherwise the unguessable verify token is appended to APP_URL.
  */
