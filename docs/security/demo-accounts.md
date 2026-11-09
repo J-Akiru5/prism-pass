@@ -2,16 +2,21 @@
 
 ## Current decision
 
-The owner has explicitly kept the seeded demo credentials usable in this phase. This document does
-**not** change, disable or rotate them. It records the risk and the guard that exists today.
+The demo seed no longer ships a default password. `prisma/seed/demo.ts` requires
+`DEMO_SEED_PASSWORD` (12+ characters, not a known-weak value) and prints no password. The local
+seed is therefore safe to run without publishing a credential.
+
+Production demo accounts created before this change still need rotation, disabling or removal
+before a real pilot. That is an owner action because it changes live Supabase Auth credentials.
 
 Seeded demo identities:
 
 - `admin@syntaxure.dev` — OWNER of the demo organization
 - `user@syntaxure.dev` — seeded member
 
-Both currently use the same weak demo password. Because the production URL is public, anyone who
-knows or guesses it can sign in. Treat the demo tenant as public and disposable.
+Both accounts use the same value supplied through `DEMO_SEED_PASSWORD` for a local demo seed.
+Because the production URL is public, a leaked or weak production credential still lets anyone
+sign in. Treat the demo tenant as public and disposable until it is rotated.
 
 **Rotation is required before any real pilot, paid customer, or real personal data.** See the
 checklist below.
@@ -45,8 +50,8 @@ warning disappear.
 
 1. Set `DEMO_MODE=false` (or remove it) in the deployment environment.
 2. In Supabase Auth, set strong unique passwords for both demo identities, or delete/disable them.
-3. Update any local seed script or handoff note that mentions the shared password. Do not commit a
-   new password; distribute it out of band.
+3. Set `DEMO_SEED_PASSWORD` in `.env.local` for local seeds only. Never commit it; distribute it out
+   of band. The seed refuses a missing or known-weak value.
 4. Re-run the demo flow with the new credentials.
 5. Confirm the banner is gone (`/` contains no "Demo mode" text) and the startup log has no
    `[prism-pass][security]` warning.
@@ -54,7 +59,8 @@ warning disappear.
 
 ## What this guard does not do
 
-- It does not stop a known demo password from working.
+- It does not stop a known production password from working until that account is rotated in
+  Supabase Auth.
 - It does not detect a rotated password that is still weak.
 - It does not hide the accounts from Supabase Auth or the public login page.
 

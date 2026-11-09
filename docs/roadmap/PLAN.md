@@ -2,6 +2,11 @@
 
 > Global rule: this file is the single source of truth. `phases-gates.md`, ADRs, ERD, contracts are normative inputs; this plan tracks **what is done, what is next, and what is blocked**. Update it every phase. No parallel plans.
 
+> **Current plan (2026-11-09):** events-first MVP M0–M4, captured in
+> [prism-pass-portal.html](prism-pass-portal.html). Section 14 summarizes it and
+> records the decisions and open items. Where the current plan conflicts with the
+> phase history below, the current plan wins.
+
 ## 0. Where we are (2026-11-04)
 - **P0 Spec: DONE** — overview, ERD, permission-matrix, state machines, geo, offline protocol, contracts-v1, ADR-01..12, phases-gates.
 - **P1 Foundation: BUILT + TESTED (local)** — Next 15 App Router, Auth (browser/server/middleware), fail-closed `requireOrganizationPermission`, Prisma 21 models, RLS `0001_foundation.sql` (artifact only), attendance/pass helpers, QR + scanner viewport.
@@ -122,3 +127,199 @@ Out of scope: P3 attendance writes, P4 geo PostGIS, P5 e-sign, P6 offline sync, 
 - **CI/deployment:** `vercel.json` allowlist is `main` + `develop`; `staging` retired; Node 22 CI with Corepack, pnpm cache, secret scan, typecheck, tests and build; branch/release docs reconciled.
 - **Gate:** 272 tests / 20 files, typecheck clean, CI green on `develop`; production promotion of the hardening release.
 - **Open:** CSP enforcement (browser pass), shared rate-limit store, demo credential rotation, Vercel cleanup of the stuck deployment.
+
+## 14. Current plan — events-first MVP (2026-11-09)
+
+Full interactive plan: [prism-pass-portal.html](prism-pass-portal.html). This
+section is the normative summary; the portal is the long-form source for the
+inventory and tracker.
+
+### 14.1 Product decision
+
+Prism Pass is an **event attendance and certificates platform** sold to
+organizations first. The winning use case is scanning that keeps working with no
+signal at a venue. DTR remains a paid add-on for small companies without
+biometric terminals; selfie and geofence apply only to DTR. Events use the QR
+plus a staff member looking at the person.
+
+The MVP is done when an organizer with no help from us can set up an event,
+scan attendees at a venue with no signal, and issue signed certificates
+afterwards.
+
+### 14.2 Baseline
+
+- Production: `main`, v0.3.1, `pass.syntaxure.dev`.
+- Integration: `develop` at `b8a0b39` (4 commits after the portal's `b902aed`).
+- Stack: Next.js 15, Supabase Auth/Postgres, Prisma, Vercel `syd1`.
+- Migrations stay additive SQL files applied with the documented method.
+- `staging` was retired on 2026-11-09 (D-06). The owner's 2026-11-09 instruction
+  below reopens it as a promotion branch; see D-08 and the deployment conflict.
+
+### 14.3 Milestones
+
+| Milestone | Scope | Exit test |
+|---|---|---|
+| **M0 Truth-up** | Release what is finished, tag it, rotate demo access, walk every console signed in, make docs match code. | Production runs the tagged latest release; no public default passwords; README, PLAN and known-limitations agree. |
+| **M1 Events core** | Roster per event with walk-in toggle, open/close, CSV import, attendee name on scan, per-event report, four role presets in the UI. | A person not on the roster is refused; a closed event refuses scans; staff see the attendee's name on every accepted scan. |
+| **M2 Offline you can trust** | Scanner downloads the event bundle, verifies passes on device, shows data age, flags clock drift. | With the network cut, a revoked pass and an unlisted pass are both refused on the device; two devices scanning the same person produce one record after sync. |
+| **M3 Certificates** | Certificate template, generation for complete records, signing screen, PDF with verify QR. | Every attendee with a complete record gets a signed PDF whose QR verifies publicly. |
+| **M4 Pilot** | One real organization, privacy notice, planned offline segment, feedback, pricing answers. | Pilot exit criteria: 1 org, ≥50 attendees, 0 lost scans, 100% certificates, 0 dev interventions. |
+| **M5 DTR add-on** | GPS capture, selfie, geofence admin, DTR PDF. | After pilot, driven by pilot demand. |
+| **M6 Network** | One identity QR, Google sign-in + invite claim, public organizer signup, trimmed RBAC SSOT, billing/entitlement enforcement. | After pilot. Google provider setup is owner-owned. |
+
+### 14.4 Tracker summary (MVP only)
+
+M0: branch model recorded; **tag v0.3.1 missing**, **develop→main promotion
+pending**, **password123 demo accounts still public**, signed-in walkthrough
+pending, README/known-limitations drift, RBAC SSOT status to mark
+“Proposed, after pilot.”
+
+M1 done: EVENT sessions + policies, scan in/out, duplicate window, people
+directory, per-org QR pass, printable ID, member portal, audit log.
+M1 to build: event roster + walk-in toggle, open/close, attendee name on
+accepted scan, no name/photo on refusal, CSV import, per-event report + CSV,
+four role presets in the UI (keep the seven roles underneath).
+
+M2 done: encrypted offline queue, signed/idempotent batch sync, server sync
+bundle with pass hashes. To build: scanner downloads and verifies the bundle
+offline, bundle-age display, device/sync clock drift, two-phone offline test.
+
+M3 done: document/signature API with hash chain, signing order, seal, public
+verify. To build: certificate template, generation for complete records,
+signing screen, PDF with verify QR.
+
+M4 and M5/M6 are not code-only. M4 needs the pilot organization, event and date;
+M6 Google provider setup is owner-owned.
+
+### 14.5 Decisions log
+
+| ID | Decision | State |
+|---|---|---|
+| D-01 | Events-first; DTR kept as an add-on. | Decided |
+| D-02 | Selfie and geofence apply only to DTR. | Decided |
+| D-03 | A refused scan reveals nothing about the person. | Decided |
+| D-04 | Roles stay simple: four presets with toggles; no support ticket to set up a role. | Decided |
+| D-05 | Sell to organizations first; public organizer signup later. | Decided |
+| D-06 | `staging` retired; only `main` and `develop` deploy. | In repo |
+| D-07 | Attendee QR free forever; charge for certificates, e-sign, official exports, multi-device and DTR. | Proposed |
+| D-08 | Owner instruction 2026-11-09: `staging` is the promotion branch, `develop` is the reconciliation branch, and deployments run only from `staging` and `main`. Supersedes D-06; requires `vercel.json`, CI and deployment-doc changes before use. | Pending implementation |
+
+### 14.6 Open decisions
+
+- **O-1:** Per-organization QR for the pilot or one global identity QR? Recommendation: per-org for the pilot; do not print durable PVC IDs until decided.
+- **O-2:** Adopt the full RBAC SSOT before or after the pilot? Recommendation: after (M6); keep seven roles in data, show four presets in the UI.
+- **O-3:** Pilot organization, event and date. Needs owner input.
+- **O-4:** Pricing. Needs pilot data.
+- **O-5:** Is in-app e-signature enough for certificates, or is PNPKI required? Ask the pilot organization.
+
+### 14.7 Definition of Done (work item)
+
+Acceptance criteria shown in a signed-in browser; server-side authorization on
+every new route; tenant-isolation test; domain and allow/deny route tests; CI
+green on the integration branch; offline behavior stated; 375px and desktop
+checked; additive migration with rollback note; CHANGELOG/PLAN/README/known
+limitations updated; no demo shortcuts; smoke-tested on the deployed integration
+environment.
+
+### 14.8 Orchestration
+
+This plan is executed by the main agent orchestrator with phase subagents. Each
+phase owns a worktree and branch, reports exact files/commits, and never pushes
+or deploys. The main agent assembles, runs the full gate, and reconciles into
+`develop`; promotion to `staging` and `main` follows D-08 once the deployment
+configuration is reconciled.
+
+### 14.9 Migration evidence
+
+- **2026-11-09 — `0009_m1_events.sql` applied** to the shared Supabase project
+  `cgtcpwqfaqxcnpavkxas` after explicit owner authorization. Strictly additive:
+  `AttendanceSessionStatus` (`OPEN`, `CLOSED`), `attendance_sessions.status`,
+  `closed_at`, `roster_enforced` (default false), `walk_in_allowed` (default
+  false), and `session_roster` with unique `(organization_id, session_id,
+  person_id)`. Verified after apply: enum labels `{OPEN,CLOSED}`, all four
+  columns present with the expected defaults, `session_roster` exists, RLS
+  enabled. No destructive changes.
+- **Prisma generate caveat:** `prisma generate` hit `EPERM` renaming
+  `query_engine-windows.dll.node` because another process holds the DLL. The
+  generated client types already expose `prisma.sessionRoster` and
+  `AttendanceSessionStatus`; `pnpm typecheck` passes. Re-run generate once the
+  lock clears.
+- The shared project is also production. This migration was a one-off owner
+  authorization, not a standing permission for future production migrations.
+- **2026-11-09 — `0010_m1_certificates.sql` applied** to the same shared project
+  after a second explicit owner authorization. Strictly additive: nullable
+  `documents.source_session_id`, `source_person_id`, `batch_id`; unique
+  `(organization_id, source_session_id, source_person_id)`; and
+  `(organization_id, batch_id)` index. Verified after apply. No data rewrite, no
+  RLS change. Generic null-source documents remain unaffected.
+- **Prisma generate lock:** still held by local dev servers; the certificate
+  generation route uses two narrowly typed casts until `pnpm prisma:generate`
+  runs in CI or after the dev servers exit. Remove the casts once the generated
+  client includes the 0010 fields.
+
+### 14.10 Build log — 2026-11-09
+
+- **M0 truth-up:** docs/status reconciled, demo seed now requires
+  `DEMO_SEED_PASSWORD`; production credential rotation, the `v0.3.1` tag and the
+  `develop`→`main` promotion remain owner actions.
+- **M1 events core:** A (session lifecycle/roster/scan gates), B (scanner name
+  and refusal copy), C (CSV import), D (per-event report/CSV) and E (role
+  presets/membership role change) are merged. Full suite passed after each
+  integration; `next build` completed with the new routes.
+- **M2:** clock/drift model and the pure two-device scan transition are merged;
+  the v2 event bundle and on-device verifier are in flight.
+- **M3:** pure certificate domain (schema, eligibility, payload/hash, public
+  verify projection) is merged; generation/signing/PDF are next.
+- **Migration:** `0009_m1_events.sql` applied to the shared project with owner
+  authorization; evidence in 14.9.
+- **Local dependency caveat (resolved):** the local install was initially
+  `next@15.3.4` while `package.json`/`pnpm-lock.yaml` specified `15.5.29`. The
+  dependency install was reconciled on 2026-11-09; `next@15.5.29`, `pdf-lib` and
+  `qrcode` are now installed, typecheck/tests pass, and `next build` succeeds.
+- **Prisma generate caveat:** the Windows DLL rename lock persists while local
+  dev servers hold the engine. Generated types already include the M1 models and
+  typecheck passes; rerun generate after the dev servers exit.
+- **Signed-in QA (2026-11-09):** signed in as `admin@syntaxure.dev` against a
+  local build. Verified `/consoles` (Owner preset + raw role), `/org/:id/attendance`
+  (3 sessions, Open/past-schedule labels, event roster panel, Close event,
+  policy), `/org/:id/settings` (People & access: Owner/Attendee presets and raw
+  roles) and `/org/:id/reports` (Event attendance card). No console errors. One
+  first-load `P1001` pooler timeout on `/policies`; reload succeeded, confirming
+  a transient network issue rather than a code defect. Screenshot:
+  `screenshots/m1-attendance-qa-2026-11-09.jpeg`.
+- **End-to-end M1/M2/M3 code complete:** M1 A–E, M2 bundle/verifier/clock/policy/
+  scanner UX, and M3 domain/generation/signing/public verify/PDF+QR are integrated.
+  `pnpm test` 616 passing, `pnpm typecheck` clean, `pnpm build` (Prisma generate +
+  Next build) succeeds with Next 15.5.29, and the secret scan passes.
+- **CI gate (2026-11-09):** PR #2 (`ci/m1-m2-m3-gate` → `develop`) is green on
+  GitHub Actions run `42617284734`: install from the frozen lockfile, secret
+  scan, Prisma generate, typecheck, 616 tests and production build all pass on
+  Next 15.5.29. No deployment was triggered by the PR.
+- **Dependency reconciliation:** `next@15.5.29`, `pdf-lib@1.17.1` and
+  `qrcode@1.5.4` are installed and committed in the lockfile. Google Fonts are
+  vendored under `app/fonts` so CI no longer fetches them at build time.
+
+### 14.11 Release v0.4.0 — UI verification and production gate
+
+- **Playwright:** `@playwright/test` with `playwright.config.ts`; projects for
+  desktop (1440×900), mobile (390×844), public/auth, and an authenticated setup
+  project. `e2e/app.spec.ts` covers the org dashboard, attendance, people,
+  passes, reports, settings, certificates, member, scanner, and all platform
+  console pages; `e2e/public.spec.ts` covers home, login, demo, privacy, terms and
+  the unknown-certificate state.
+- **Final local result:** 9/9 Playwright tests pass. Each surface asserts a
+  visible frame, no horizontal overflow, and no unexpected console/page errors;
+  loaded states are awaited before screenshots.
+- **Screenshots:** full desktop and mobile evidence in
+  `screenshots/e2e/`; curated release evidence in
+  `screenshots/ui-verification-2026-11-09/`.
+- **Distributed review:** three read-only review agents covered desktop org
+  views, mobile views, and public/platform views. Fixed before release: the
+  certificate-specific not-found state, the clipped platform-admin badge,
+  loading-state counts (`—` instead of `0`), the blank overview activity panel,
+  and destructive-action contrast. Known residual polish: shell org-name timing,
+  the scanner's deliberate check-only default, mobile audit filter density, and
+  placeholder contrast.
+- **Release:** version `0.4.0`; changelog finalized. Production promotion and the
+  `v0.4.0` tag are recorded in the release commit/run below once the deployment
+  completes.

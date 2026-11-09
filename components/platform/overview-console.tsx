@@ -138,6 +138,12 @@ export function OverviewConsole() {
           </Link>
         </div>
 
+        {loading && !data && (
+          <div className="mt-4">
+            <LoadingState label="Loading recent platform activity." />
+          </div>
+        )}
+
         {data && data.activity.length === 0 && (
           <div className="mt-4">
             <EmptyState

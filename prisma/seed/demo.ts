@@ -5,7 +5,8 @@
 // Idempotent: safe to run repeatedly. Uses fixed ids for org-scoped demo rows and
 // an idempotency key per event, so re-runs update instead of duplicating.
 //
-// Demo accounts (password for both): password123
+// Demo accounts: both use the password in DEMO_SEED_PASSWORD. There is no
+// committed default; set a unique value in .env.local before seeding.
 //   admin@syntaxure.dev  OWNER + PlatformAdmin
 //   user@syntaxure.dev   MEMBER (own pass, own attendance)
 import fs from "node:fs";
@@ -23,7 +24,13 @@ for (const file of [".env.local", ".env"]) {
 
 const prisma = new PrismaClient({ datasources: { db: { url: sessionUrl() } } });
 const ORG_SLUG = "syntaxure-labs";
-const DEMO_PASSWORD = "password123";
+const DEMO_PASSWORD = (process.env.DEMO_SEED_PASSWORD ?? "").trim();
+const WEAK_PASSWORDS = new Set(["password", "password123", "changeme", "admin", "letmein", "prismpass"]);
+if (DEMO_PASSWORD.length < 12 || WEAK_PASSWORDS.has(DEMO_PASSWORD.toLowerCase())) {
+  throw new Error(
+    "Set DEMO_SEED_PASSWORD in .env.local to a unique value of at least 12 characters before running the demo seed. Never commit the password.",
+  );
+}
 const TZ = "Asia/Manila";
 
 // ---------- helpers ----------
@@ -518,7 +525,7 @@ async function main() {
   console.log("  org        ", org.name, orgId);
   console.log("  department ", department.name);
   console.log("  sessions   ", "yesterday (SHIFT), today (OJT), +7d (EVENT)");
-  console.log("\n  accounts (password: " + DEMO_PASSWORD + ")");
+  console.log("\n  accounts (password from DEMO_SEED_PASSWORD)");
   console.log("    admin@syntaxure.dev  OWNER + platform admin");
   console.log("    user@syntaxure.dev   MEMBER");
   console.log("\n  demo QR payloads");

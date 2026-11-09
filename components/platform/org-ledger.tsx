@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Plus, RefreshCw, Search, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, Plus, RefreshCw, Search } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -142,10 +142,6 @@ export function OrgLedger() {
         description="Every organization on this installation. Suspending one is a platform admin action and is always recorded."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500">
-              <ShieldCheck className="size-3.5" aria-hidden="true" />
-              Platform admin
-            </span>
             <Button className="h-11" onClick={() => setCreateOpen(true)}>
               <Plus aria-hidden="true" /> New organization
             </Button>
@@ -319,7 +315,7 @@ export function OrgLedger() {
                             variant={nextStatus === "SUSPENDED" ? "outline" : "default"}
                             className={
                               nextStatus === "SUSPENDED"
-                                ? "h-11 border-destructive/40 text-destructive hover:bg-destructive/10"
+                                ? "h-11 border-red-300 text-red-700 hover:bg-red-50"
                                 : "h-11"
                             }
                             aria-label={`${actionLabel} ${row.name}`}

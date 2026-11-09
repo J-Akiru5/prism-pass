@@ -6,6 +6,11 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-09
+
+Events-first MVP: event rosters and close-out, trustworthy offline scanning, and signed attendance
+certificates with public verification.
+
 ### Added
 - Self-serve account creation at `/signup`: Supabase sign-up with email confirmation, an idempotent
   `POST /api/v1/auth/provision` endpoint that links the auth identity to an internal user, and a
@@ -20,6 +25,34 @@ All notable changes to this project are documented here. Format follows
 - Member landing: MEMBER accounts skip the console chooser and open their pass; the pass card now
   displays a stable QR derived from `PASS_QR_SECRET`. Legacy random-secret passes can be re-issued
   from the member page. No database migration.
+- Planning: adopted the events-first MVP plan (`docs/roadmap/prism-pass-portal.html`,
+  `docs/roadmap/PLAN.md` §14) and the RBAC/Access SSOT (`docs/security/rbac-ssot.md`). The SSOT is
+  the M6 target; the pilot uses four UI presets on the existing seven roles.
+- Events core: session open/close, per-event roster with walk-in policy, roster-aware scan refusal,
+  attendee name on accepted scans, CSV people import, per-event attendance report with CSV, and four
+  UI role presets (Owner, Admin, Staff, Attendee) over the existing seven roles. Additive migrations
+  `0009_m1_events.sql` and `0010_m1_certificates.sql` applied.
+- Offline verification: signed v2 event bundle with roster/revocations, sealed bundle cache, a
+  browser-safe on-device verifier, bundle-age bands, clock-drift warnings, and a pure two-device /
+  one-record proof. Offline refusals show no attendee name.
+- Certificates: pure certificate domain (eligibility, payload, payload hash, public projection),
+  idempotent batch generation, organizer certificates page, all-or-nothing batch signing, signing
+  screen, and own-certificate member list.
+- PDF/QR: added `pdf-lib` and `qrcode` for server-rendered certificate PDFs; the sealed
+  certificate download route renders an A4-landscape PDF with a verify QR, and the public
+  `/verify/:token` page shows an allowlisted integrity result without recipient PII.
+- UI verification: added Playwright with desktop (1440×900) and mobile (390×844) projects covering
+  public/auth, organization admin, member/scanner, certificate and platform console surfaces; the
+  suite checks headings, overflow, console errors and captures screenshots.
+- Dependencies: reconciled Next to `15.5.29`, added `pdf-lib`/`qrcode`, and vendored the Public Sans,
+  Fraunces and IBM Plex Mono WOFF2 files so builds do not fetch Google Fonts.
+- Demo seed: `DEMO_SEED_PASSWORD` is now required (12+ characters, no committed default) and the
+  seed no longer prints a password.
+
+### Changed
+- README status table and known limitations reconciled with the built state: geo, e-sign, offline
+  sync, reports/scoping, platform console and hardening are built; certificate UI, on-device offline
+  verification and billing enforcement remain.
 
 ### Fixed
 - Login now distinguishes an unconfirmed email from a wrong password, so the user is told to check
@@ -32,12 +65,20 @@ All notable changes to this project are documented here. Format follows
   backoff.
 - A hung sync request can no longer leave rows `inflight` until the lease expires; it fails into the
   normal backoff path.
+- Public certificate verification now renders a dedicated "we couldn't verify this certificate"
+  state instead of the generic application 404.
+- Platform console counts show an em dash while loading instead of a misleading zero, the
+  organizations header no longer clips its admin badge, and the suspend action uses an
+  AA-contrast red.
+- The platform overview activity panel shows a loading state instead of a blank section.
 
 ### Security
 - Login now validates the `next` parameter with the shared same-origin guard, closing an open-redirect
   path.
 - Auth callbacks are limited to supported OTP types and safe internal destinations; provisioning is
   session-gated and requires a confirmed email.
+- The demo seed refuses a missing or known-weak `DEMO_SEED_PASSWORD`; the shared `password123`
+  default is removed from the seed, README and `.env.example`.
 
 ## [0.3.1] - 2026-11-09
 

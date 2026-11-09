@@ -1,10 +1,12 @@
 import { AlertTriangle, CheckCircle2, CloudOff, Copy, Info, XCircle } from "lucide-react";
 import { clsx } from "clsx";
+import type { ScanTone } from "@/modules/scanner/presentation";
 
-export type ScanTone = "success" | "warning" | "info" | "danger" | "muted" | "queued";
+export type { ScanTone } from "@/modules/scanner/presentation";
 
 // Outcome banner modeled on the reference scanner: left accent border,
-// glyph + bold label + message, arm's-length readable.
+// glyph + bold label + message, arm's-length readable. The attendee name is the
+// largest line on every accepted scan (M1); refusal tones never receive one.
 const TONES: Record<ScanTone, { box: string; Icon: typeof CheckCircle2; label: string }> = {
   success: { box: "border-success bg-success/10 text-success", Icon: CheckCircle2, label: "Accepted" },
   warning: { box: "border-accent bg-accent/10 text-primary", Icon: Copy, label: "Duplicate" },
@@ -16,7 +18,19 @@ const TONES: Record<ScanTone, { box: string; Icon: typeof CheckCircle2; label: s
   queued: { box: "border-info bg-info/10 text-info", Icon: CloudOff, label: "Queued offline" },
 };
 
-export function ScanResult({ tone, title, message, assertive }: { tone: ScanTone; title?: string; message: string; assertive?: boolean }) {
+export function ScanResult({
+  tone,
+  title,
+  message,
+  personName,
+  assertive,
+}: {
+  tone: ScanTone;
+  title?: string;
+  message: string;
+  personName?: string;
+  assertive?: boolean;
+}) {
   const { box, Icon, label } = TONES[tone];
   return (
     <div role={assertive ? "alert" : "status"} aria-live={assertive ? "assertive" : "polite"} aria-atomic="true"
@@ -24,7 +38,12 @@ export function ScanResult({ tone, title, message, assertive }: { tone: ScanTone
       <div className="flex items-start gap-3">
         <Icon className="mt-0.5 size-6 shrink-0" aria-hidden="true" />
         <div className="min-w-0">
-          <p className="text-lg font-bold leading-tight">{title ?? label}</p>
+          {personName && (
+            <p className="break-words text-[22px] font-extrabold leading-tight tracking-tight">{personName}</p>
+          )}
+          <p className={clsx("font-bold leading-tight", personName ? "mt-0.5 text-base" : "text-lg")}>
+            {title ?? label}
+          </p>
           <p className="mt-1 break-words text-base font-medium leading-snug">{message}</p>
         </div>
       </div>

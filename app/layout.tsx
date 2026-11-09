@@ -1,27 +1,33 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
-import { Fraunces, IBM_Plex_Mono, Public_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import { DemoModeBanner } from "@/components/demo-mode-banner";
 
 // Government-grade type system: Public Sans (USWDS-derived civic grotesque)
 // for UI, Fraunces for archival display authority, IBM Plex Mono for
-// credential / tabular data. No Inter, no system fallback stack as voice.
-const sans = Public_Sans({
-  subsets: ["latin"],
+// credential / tabular data. The WOFF2 files are vendored under app/fonts so
+// the production build never depends on fetching Google Fonts from CI or the
+// deployment network.
+const sans = localFont({
+  src: "./fonts/public-sans-latin.woff2",
   variable: "--font-sans",
   display: "swap",
+  weight: "100 900",
 });
-const display = Fraunces({
-  subsets: ["latin"],
+const display = localFont({
+  src: "./fonts/fraunces-latin.woff2",
   variable: "--font-display",
   display: "swap",
-  weight: ["400", "500", "600", "700"],
+  weight: "100 900",
 });
-const mono = IBM_Plex_Mono({
-  subsets: ["latin"],
+const mono = localFont({
+  src: [
+    { path: "./fonts/ibm-plex-mono-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/ibm-plex-mono-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/ibm-plex-mono-600.woff2", weight: "600", style: "normal" },
+  ],
   variable: "--font-mono",
   display: "swap",
-  weight: ["400", "500", "600"],
 });
 
 // Absolute URLs are required for social cards. APP_URL is the deployment-wide
