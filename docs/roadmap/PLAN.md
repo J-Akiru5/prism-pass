@@ -228,3 +228,21 @@ phase owns a worktree and branch, reports exact files/commits, and never pushes
 or deploys. The main agent assembles, runs the full gate, and reconciles into
 `develop`; promotion to `staging` and `main` follows D-08 once the deployment
 configuration is reconciled.
+
+### 14.9 Migration evidence
+
+- **2026-11-09 — `0009_m1_events.sql` applied** to the shared Supabase project
+  `cgtcpwqfaqxcnpavkxas` after explicit owner authorization. Strictly additive:
+  `AttendanceSessionStatus` (`OPEN`, `CLOSED`), `attendance_sessions.status`,
+  `closed_at`, `roster_enforced` (default false), `walk_in_allowed` (default
+  false), and `session_roster` with unique `(organization_id, session_id,
+  person_id)`. Verified after apply: enum labels `{OPEN,CLOSED}`, all four
+  columns present with the expected defaults, `session_roster` exists, RLS
+  enabled. No destructive changes.
+- **Prisma generate caveat:** `prisma generate` hit `EPERM` renaming
+  `query_engine-windows.dll.node` because another process holds the DLL. The
+  generated client types already expose `prisma.sessionRoster` and
+  `AttendanceSessionStatus`; `pnpm typecheck` passes. Re-run generate once the
+  lock clears.
+- The shared project is also production. This migration was a one-off owner
+  authorization, not a standing permission for future production migrations.
