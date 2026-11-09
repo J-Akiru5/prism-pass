@@ -291,5 +291,10 @@ configuration is reconciled.
   scanner UX, and M3 domain/generation/signing/public verify/PDF+QR are integrated.
   `pnpm test` 616 passing, `pnpm typecheck` clean, `pnpm build` (Prisma generate +
   Next build) succeeds with Next 15.5.29, and the secret scan passes.
+- **CI gate (2026-11-09):** PR #2 (`ci/m1-m2-m3-gate` → `develop`) is green on
+  GitHub Actions run `42617284734`: install from the frozen lockfile, secret
+  scan, Prisma generate, typecheck, 616 tests and production build all pass on
+  Next 15.5.29. No deployment was triggered by the PR.
 - **Dependency reconciliation:** `next@15.5.29`, `pdf-lib@1.17.1` and
-  `qrcode@1.5.4` are installed and committed in the lockfile.
+  `qrcode@1.5.4` are installed and committed in the lockfile. Google Fonts are
+  vendored under `app/fonts` so CI no longer fetches them at build time.
