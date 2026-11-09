@@ -115,3 +115,10 @@ Out of scope: P3 attendance writes, P4 geo PostGIS, P5 e-sign, P6 offline sync, 
 - **A11y:** focus restored (14.6:1), dialog trap/restore, headings, error association, table semantics, success contrast.
 - **Gate:** 225 tests / 18 files, typecheck clean, CI green. Deployed and tagged v0.3.0.
 - **Open:** CSP enforcement (needs browser pass on every route), shared rate-limit store (per-instance today), impersonation, entitlement enforcement in tenant routes, MANAGER per-mentee scope (needs `supervisor_person_id`), offline queue encryption at rest, demo credential rotation.
+
+## 13. v0.3.1 hardening - QR, offline queue, CI/deploy - 2026-11-09
+- **QR verification:** shared constant-time credential comparison (verify + scan paths), strict bounded payload parsing, fail-closed invalid expiry, malformed-scan audit without credential echo; 31 focused tests.
+- **Offline queue:** terminal `rejected` state with explicit retry, idempotent enqueue, 2-minute inflight leases, 2,000-row cap, deterministic jitter, AES-GCM at-rest encryption for queued credentials; 57 focused tests.
+- **CI/deployment:** `vercel.json` allowlist is `main` + `develop`; `staging` retired; Node 22 CI with Corepack, pnpm cache, secret scan, typecheck, tests and build; branch/release docs reconciled.
+- **Gate:** 272 tests / 20 files, typecheck clean, CI green on `develop`; production promotion of the hardening release.
+- **Open:** CSP enforcement (browser pass), shared rate-limit store, demo credential rotation, Vercel cleanup of the stuck deployment.
