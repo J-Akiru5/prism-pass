@@ -1,10 +1,10 @@
 # ADR-14 — One stable identity QR, event-scoped access grants
 
-Status: Proposed. Every account has exactly one identity credential
-(`PRISMID1:<publicId>:<secret>`), stable across tenants and events. The QR is an
-identifier, not an authorization: a scan resolves the person, then the server
-checks an event access grant or DTR eligibility. Event access is granted
-separately and expires:
+Status: Proposed — target M6 (after the pilot). Every account has exactly one
+identity credential (`PRISMID1:<publicId>:<secret>`), stable across tenants and
+events. The QR is an identifier, not an authorization: a scan resolves the
+person, then the server checks an event access grant or DTR eligibility. Event
+access is granted separately and expires:
 
 - immediately when the event is closed or cancelled;
 - 24 hours after `ends_at` when the event ended but was never closed;

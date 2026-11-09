@@ -1,7 +1,9 @@
 # ADR-13 — RBAC: one Superadmin, four tenant base roles, tenant custom roles
 
-Status: Proposed. Replaces the binary `platform_admins` grant and the seven-role
-tenant enum with:
+Status: Proposed — target M6 (after the pilot). The pilot keeps the seven
+existing backend roles and shows four presets in the UI; the full migration is
+deferred. Replaces the binary `platform_admins` grant and the seven-role tenant
+enum with:
 
 - one platform role, `SUPERADMIN` (multiple holders, god mode, audited, MFA);
 - four tenant base roles: `OWNER`, `TENANT_ADMIN`, `STAFF`, `ATTENDEE`;

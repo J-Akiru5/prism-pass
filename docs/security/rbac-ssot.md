@@ -1,8 +1,12 @@
 # Prism Pass — RBAC and Access SSOT
 
-Status: **Proposed — normative once accepted.** This is the single source of
-truth for platform access, tenant roles, per-user access, identity credentials
-and attendance access.
+Status: **Proposed — target architecture for M6 (after the pilot).** The pilot
+(M0–M4) keeps the seven existing backend roles and shows four presets in the UI;
+the full role/capability migration is deferred until M6. See
+[Pilot vs target](#pilot-vs-target) below.
+
+This is the single source of truth for platform access, tenant roles, per-user
+access, identity credentials and attendance access.
 
 When this document and the code disagree, the code is wrong until it is changed
 or this document is amended through an ADR.
@@ -33,6 +37,25 @@ proposal.
 - **Multiple roles per membership** are allowed. Deny wins. No self-escalation.
 - **Every mutation and every denial is audited.** Superadmin actions are visible
   in the affected tenant's audit log.
+
+### Pilot vs target
+
+The events-first MVP (M0–M4) must not wait for this migration. The pilot uses the
+existing model with a simpler face:
+
+| Area | Pilot (M0–M4) | Target (M6) |
+|---|---|---|
+| Backend roles | Keep the seven existing roles (`OWNER`, `ADMIN`, `MANAGER`, `SUPERVISOR`, `SCANNER`, `MEMBER`, `VIEWER`) | Four base roles + custom roles |
+| UI | Four presets: Owner → `OWNER`, Admin → `ADMIN`, Staff → `SUPERVISOR`, Attendee → `MEMBER`; advanced roles remain available | Full role builder |
+| Event access | `event_roster` + `walk_in_allowed`; any active member otherwise | `event_access_grants` with expiry |
+| QR | Per-organization `PRISM1` passes | One global `PRISMID1` identity QR |
+| Sign-in | Email/password | Google + invite claim |
+| Event lifecycle | Open/close + closed-event refusal | Full lifecycle + 24h grace |
+| RBAC migration | None | Phases in section 17 |
+
+The rest of this document describes the **target** model. Do not implement the
+target tables, global QR or Google sign-in during the pilot unless the owner
+reopens O-2.
 
 ## 2. Scope and non-goals
 
@@ -379,14 +402,22 @@ Rank order: `SUPERADMIN > OWNER > TENANT_ADMIN > STAFF > ATTENDEE`.
 | Actor | May assign | May modify |
 |---|---|---|
 | Superadmin | Any role, any override | Anything |
-| Owner | `TENANT_ADMIN`, `STAFF`, `ATTENDEE`, and custom roles at or below that rank | Staff/Attendee roles and overrides; own optional functional capabilities; Tenant Admin appointment/removal |
-| Tenant Admin | `STAFF`, `ATTENDEE`, and custom roles at those ranks | Staff/Attendee roles and overrides |
+| Owner | `TENANT_ADMIN`, `STAFF`, `ATTENDEE`, and custom roles at or below that rank (Staff/Attendee require `users.manage`; Tenant Admin requires `tenant.admin.appoint`) | Staff/Attendee roles and overrides; own optional functional capabilities; Tenant Admin appointment/removal |
+| Tenant Admin | `STAFF`, `ATTENDEE`, and custom roles at those ranks (requires `users.manage`) | Staff/Attendee roles and overrides |
 | Staff | None | Own profile only |
 | Attendee | None | Own profile only |
 
-Assignment of Staff/Attendee roles and overrides requires `users.manage`.
-Assigning or removing any role based on `TENANT_ADMIN` requires the protected
-`tenant.admin.appoint` capability. The Superadmin bypasses both.
+Assignment of Staff/Attendee roles and overrides requires `users.manage`. The
+Owner does not hold it by default but may enable it as an optional functional
+capability. Assigning or removing any role based on `TENANT_ADMIN` requires the
+protected `tenant.admin.appoint` capability. The Superadmin bypasses both.
+
+`tenant.admin.appoint` is the **explicit delegation authority** for Tenant Admin
+roles. It is a deliberate exception to the “cannot grant what you do not hold”
+rule: the Owner may appoint a Tenant Admin whose operational capabilities exceed
+the Owner's current set, because the protected capability is the authority to
+delegate that role. `ownership.transfer` is the equivalent authority for
+transferring ownership. No other capability has this exception.
 
 Guards:
 
@@ -507,6 +538,11 @@ Rules:
   creates an `ACTIVE` grant from the `ROSTER`/`SELF` source and audits it.
 - Issuing or revoking a grant requires `passes.manage`.
 
+**Pilot implementation (M1):** `event_access_grants` is M6. Until then, use
+`event_roster` with the same uniqueness key and a `walk_in_allowed` flag on the
+session. The scan checks roster membership unless walk-in is allowed. The expiry
+rules in section 12.2 apply to the session status, not to a per-person grant.
+
 ### 12.4 Invites and event-only attendees
 
 - `event_invites` holds `(organization, session, email, token_hash, status,
@@ -537,6 +573,27 @@ assignment window (`starts_at`/`ends_at`) is the schedule.
 7. Apply geo/device/policy checks.
 8. Write the attendance event and record.
 9. Write audit with identity id, person id, session id, grant id and result.
+
+### 12.7 Offline behavior
+
+The online guarantees in this document do not all hold on a disconnected device.
+State them honestly:
+
+- The scanner verifies against the **downloaded bundle snapshot**: credential
+  hash, person status, roster/grant and event status as of the bundle time.
+- A credential revoked, a roster removed or an event closed **after** the bundle
+  download is accepted at the door if it was valid in the snapshot, then
+  rejected or flagged on sync. The record is provisional until sync.
+- A closed event refuses new online scans immediately. An offline scan is
+  accepted locally, then rejected on sync if `closed_at` is earlier than the
+  scan timestamp; scans taken before the close remain accepted.
+- The scanner shows the bundle age and flags device/sync clock drift. Staff can
+  decide whether the snapshot is fresh enough for the event.
+- Sync is idempotent and reconciles duplicates: two devices scanning the same
+  person produce one record, with the duplicate marked.
+- No scan is silently lost. Rejected offline items remain visible with a reason.
+- The invariant “a revoked QR fails immediately” is an **online** guarantee.
+  Offline, it fails at sync, and the UI must say so.
 
 ## 13. Authentication and account lifecycle
 
@@ -651,9 +708,20 @@ event_invites
   accepted_by_user_id text null references users(id)
   created_at
 
+event_roster (pilot M1)
+  id                 text pk
+  organization_id    text references organizations(id)
+  session_id         text references attendance_sessions(id)
+  person_id          text references people(id)
+  status             enum(INVITED, ACTIVE, REMOVED)
+  added_by_user_id   text null references users(id)
+  added_at           timestamptz
+  unique (organization_id, session_id, person_id)
+
 attendance_sessions additions
   status             enum(SCHEDULED, ACTIVE, ENDED, CLOSED, CANCELLED)
   context            enum(EVENT, DTR)
+  walk_in_allowed    boolean default false
   started_at, ended_at, closed_at, access_expires_at
   created_by_user_id text null references users(id)
 ```
@@ -732,7 +800,11 @@ Steps:
 9. Rollback: the new tables are additive. Do not drop old columns until one clean
    release has passed. A feature flag switches the gate back to the old resolver.
 
-## 17. Adoption plan
+## 17. Adoption plan (target M6, after the pilot)
+
+Do not implement this migration during M0–M4. The pilot uses the seven backend
+roles, four UI presets, per-org passes and the event roster. This plan starts
+only when O-2 is reopened and M6 begins.
 
 ### Phase 1 — Access model and Superadmin foundation
 
@@ -877,9 +949,10 @@ These are settings, not capabilities:
 6. No actor can escalate their own access or approve their own elevation.
 7. At least one Owner per tenant; at least one Superadmin globally.
 8. An identity QR is not an access grant. A valid QR with no active grant is
-   denied.
+   denied online; offline, the snapshot rules in section 12.7 apply.
 9. Event access expires immediately on close/cancel and 24 hours after an
-   unclosed end.
+   unclosed end, online. Offline devices enforce the downloaded snapshot and
+   reconcile at sync (section 12.7).
 10. Every role, override, scope, access-grant and Superadmin action is audited
     with the actor, reason and before/after state.
 11. Role and grant rows are archived/expired, never hard-deleted while audit
