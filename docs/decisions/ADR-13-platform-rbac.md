@@ -1,21 +1,28 @@
-# ADR-13 — Platform RBAC: fixed roles, tenant scopes, sensitive-action controls
+# ADR-13 — RBAC: one Superadmin, four tenant base roles, tenant custom roles
 
-Status: Proposed. Replaces the binary `platform_admins` grant with
-`platform_role_assignments` (five fixed roles + explicit tenant scope),
-permission-namespaced gates (`platform.*`), and step-up/dual control for
-sensitive actions. Platform authority remains separate from organization
-membership (ADR-11); a tenant OWNER never gains platform rights, and a platform
-role never implies tenant membership. Cross-plane access is only an audited,
-time-boxed support session attributed to the platform actor.
+Status: Proposed. Replaces the binary `platform_admins` grant and the seven-role
+tenant enum with:
 
-Rejected alternatives: keeping the binary grant (no least privilege, no
-separation of duties); per-customer custom roles now (role explosion, no stable
-catalog yet); an external policy engine (Cedar/OPA/SpiceDB) before the policy
-module exists (operational cost without a complexity problem).
+- one platform role, `SUPERADMIN` (multiple holders, god mode, audited, MFA);
+- four tenant base roles: `OWNER`, `TENANT_ADMIN`, `STAFF`, `ATTENDEE`;
+- a global capability catalogue and immutable global defaults;
+- tenant-specific custom roles created by a Superadmin from a base role;
+- multiple roles per membership, plus per-user allow/deny overrides within the
+  base-role ceiling.
 
-Reversibility: the new tables are additive; `platform_admins` is backfilled and
-dual-written before removal. The permission catalog and pure policy module are
-the seam if custom roles or an external engine are needed later.
+A Tenant Admin assigns roles and tunes per-user overrides but cannot create or
+rename roles, modify the Owner, or grant a capability outside the base ceiling.
+The Owner is view-only by default and keeps protected ownership powers (billing,
+Tenant Admin appointment, ownership transfer, tenant retirement).
 
-Refs: [platform-rbac.md](../security/platform-rbac.md), ADR-11,
-permission-matrix.md.
+Rejected alternatives: five platform personas (over-modelled for the current
+team); per-user permissions as the primary model (unreviewable); tenant-invented
+capabilities (no stable security contract); custom roles based on Owner
+(ownership is a singleton protection, not a template).
+
+Reversibility: the new tables are additive. `memberships.role` and
+`permission-matrix.md` remain for one release while the new resolver is
+dual-read; rollback is a feature flag, not a data restore.
+
+Refs: [rbac-ssot.md](../security/rbac-ssot.md),
+[rbac-plan.md](../security/rbac-plan.md), ADR-11.

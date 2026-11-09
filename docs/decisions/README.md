@@ -12,4 +12,5 @@
 - [ADR-10](ADR-10-explicit-esign.md) Explicit e-signatures with integrity chain
 - [ADR-11](ADR-11-separate-platform-admin.md) Separate platform administration
 - [ADR-12](ADR-12-modular-monolith-first.md) Modular monolith first
-- [ADR-13](ADR-13-platform-rbac.md) Platform RBAC: fixed roles, tenant scopes, sensitive-action controls
+- [ADR-13](ADR-13-platform-rbac.md) RBAC: one Superadmin, four tenant base roles, tenant custom roles
+- [ADR-14](ADR-14-identity-qr-event-access.md) One stable identity QR, event-scoped access grants
