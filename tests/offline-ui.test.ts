@@ -5,6 +5,7 @@ import {
   decideBatchResponse,
   parseRetryAfter,
   retryDelayMs,
+  routeReceipts,
   signBatchPayload,
   type BatchReceipt,
 } from "../lib/sync-client";
@@ -43,6 +44,7 @@ function queueItem(overrides: Partial<OfflineQueueItem> = {}): OfflineQueueItem 
     nextAttemptAt: NOW_MS,
     lastError: null,
     createdAt: NOW_MS,
+    inflightAt: null,
     organizationId: ORG,
     deviceId: DEVICE,
     ...overrides,
@@ -303,6 +305,43 @@ describe("offline UI response decision table", () => {
   });
 });
 
+describe("offline UI receipt routing", () => {
+  it("routes reject receipts to terminal rows and keeps unmentioned rows retryable", () => {
+    const accepted = queueItem({
+      event: { idempotencyKey: randomUUID(), sessionId: SESSION, credential, clientTs: NOW.toISOString(), direction: "auto" },
+    });
+    const duplicate = queueItem({
+      event: { idempotencyKey: randomUUID(), sessionId: SESSION, credential, clientTs: NOW.toISOString(), direction: "auto" },
+    });
+    const rejectedItem = queueItem({
+      event: { idempotencyKey: randomUUID(), sessionId: SESSION, credential, clientTs: NOW.toISOString(), direction: "auto" },
+    });
+    const missing = queueItem({
+      event: { idempotencyKey: randomUUID(), sessionId: SESSION, credential, clientTs: NOW.toISOString(), direction: "auto" },
+    });
+
+    const routing = routeReceipts(
+      [
+        receipt({ idempotencyKey: accepted.event.idempotencyKey, status: "accept" }),
+        receipt({ idempotencyKey: duplicate.event.idempotencyKey, status: "duplicate" }),
+        receipt({
+          idempotencyKey: rejectedItem.event.idempotencyKey,
+          status: "reject",
+          reason: "unknown_session",
+          message: "Session does not belong to this organization",
+        }),
+      ],
+      [accepted, duplicate, rejectedItem, missing],
+    );
+
+    expect(routing.acknowledgedIds.sort()).toEqual([accepted.id, duplicate.id].sort());
+    expect(routing.rejected).toEqual([
+      { id: rejectedItem.id, reason: "unknown_session: Session does not belong to this organization" },
+    ]);
+    expect(routing.missingIds).toEqual([missing.id]);
+  });
+});
+
 describe("offline UI backoff schedule", () => {
   it("matches the queue adapter's exponential schedule", () => {
     expect(retryDelayMs(0)).toBe(1_000);
@@ -313,6 +352,21 @@ describe("offline UI backoff schedule", () => {
     expect(retryDelayMs(100)).toBe(MAX_BACKOFF_MS);
     expect(retryDelayMs(0.9)).toBe(1_000);
     expect(retryDelayMs(Number.NaN)).toBe(1_000);
+  });
+
+  it("adds bounded deterministic jitter from a stable per-item seed", () => {
+    const first = retryDelayMs(0, undefined, "item-key-a");
+    expect(first).toBe(retryDelayMs(0, undefined, "item-key-a"));
+    expect(first).toBeGreaterThanOrEqual(1_000);
+    expect(first).toBeLessThan(1_250);
+    expect(retryDelayMs(100, undefined, "item-key-a")).toBe(MAX_BACKOFF_MS);
+
+    const offsets = new Set(
+      ["item-key-a", "item-key-b", "item-key-c", "item-key-d"].map((seed) =>
+        retryDelayMs(0, undefined, seed),
+      ),
+    );
+    expect(offsets.size).toBeGreaterThan(1);
   });
 
   it("honours Retry-After without exceeding the five-minute cap", () => {
