@@ -2,6 +2,10 @@
 
 Role defaults. Overrides in `membership_permissions` apply **only inside that membership**.
 
+> This file covers the **tenant plane**. The platform control plane has its own
+> role model and permission namespace; see
+> [platform-rbac.md](platform-rbac.md) and [ADR-13](../decisions/ADR-13-platform-rbac.md).
+
 | Capability | OWNER | ADMIN | MANAGER | SUPERVISOR | SCANNER | MEMBER | VIEWER |
 |---|---|---|---|---|---|---|---|
 | organization.manage | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
