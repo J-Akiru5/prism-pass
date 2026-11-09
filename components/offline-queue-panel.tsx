@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { CloudOff, KeyRound, Trash2 } from "lucide-react";
+import { CloudOff, KeyRound, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { DeviceContext } from "@/lib/device-context";
 import type { OfflineQueueItem } from "@/lib/offline-queue";
+import { queueCounts } from "@/modules/offline/queue-state";
 
 // Editorial queue panel: hairline rules, mono labels, no KPI cards. Counts and
 // failure reasons are text, never colour alone, and the summary is a polite
@@ -20,12 +21,14 @@ export type OfflineQueuePanelProps = {
   sessionLabel: (sessionId: string) => string;
   onSync: () => void;
   onClear: (ids: number[]) => void;
+  onRetry: (ids: number[]) => void;
   onSaveKey: (deviceId: string, secret: string) => string | null;
   onForgetKey: () => void;
 };
 
 function stateLabel(item: OfflineQueueItem): string {
   if (item.state === "inflight") return "Sending";
+  if (item.state === "rejected") return item.credentialUnreadable ? "Rejected · unreadable" : "Rejected — not recorded";
   if (item.state === "failed") return item.attempts > 0 ? `Failed · attempt ${item.attempts}` : "Failed";
   return "Waiting";
 }
@@ -46,6 +49,7 @@ export function OfflineQueuePanel({
   sessionLabel,
   onSync,
   onClear,
+  onRetry,
   onSaveKey,
   onForgetKey,
 }: OfflineQueuePanelProps) {
@@ -56,8 +60,9 @@ export function OfflineQueuePanel({
   const confirmRef = useRef<HTMLButtonElement>(null);
   const clearRef = useRef<HTMLButtonElement>(null);
 
-  const failed = items.filter((item) => item.state === "failed").length;
-  const waiting = items.length - failed;
+  const counts = queueCounts(items);
+  const waiting = counts.pending;
+  const syncable = counts.pending + counts.inflight + counts.failed;
   const hasItems = items.length > 0;
   const removable = items.map((item) => item.id).filter((id): id is number => id !== undefined);
 
@@ -72,8 +77,8 @@ export function OfflineQueuePanel({
   }, [hasItems]);
 
   const summary = !hasItems
-    ? "No scans queued. Online scans are recorded immediately."
-    : `${waiting} waiting · ${failed} failed · ${items.length} total on this device.`;
+    ? "No scans queued for this organization. Online scans are recorded immediately."
+    : `${waiting} waiting · ${counts.inflight} sending · ${counts.failed} failed · ${counts.rejected} rejected · ${counts.total} total for this organization.`;
 
   const submitKey = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -105,7 +110,7 @@ export function OfflineQueuePanel({
             size="sm"
             variant="outline"
             onClick={onSync}
-            disabled={!online || syncing || !device || !hasItems}
+            disabled={!online || syncing || !device || syncable === 0}
           >
             {syncing ? "Syncing…" : "Sync now"}
           </Button>
@@ -128,6 +133,11 @@ export function OfflineQueuePanel({
           {!online && " Offline — syncing resumes when the connection returns."}
         </p>
         {notice && <p className="mt-1 break-words text-xs text-muted-foreground">{notice}</p>}
+        {counts.rejected > 0 && (
+          <p className="mt-1 text-xs text-destructive">
+            Rejected scans are not recorded. Retry after fixing the cause, or remove them from this device.
+          </p>
+        )}
       </div>
 
       {confirming && (
@@ -161,25 +171,57 @@ export function OfflineQueuePanel({
           {items
             .slice()
             .sort((a, b) => b.createdAt - a.createdAt)
-            .map((item) => (
-              <li
-                key={item.id ?? item.idempotencyKey}
-                className="flex items-start justify-between gap-4 border-b py-2 text-sm last:border-b-0"
-              >
-                <div className="min-w-0">
-                  <p className="truncate">{sessionLabel(item.event.sessionId)}</p>
-                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                    {stateLabel(item)} · captured {timeLabel(item.event.clientTs)}
-                  </p>
-                  {item.lastError && (
-                    <p className="mt-1 break-words text-xs text-destructive">Last failure: {item.lastError}</p>
+            .map((item) => {
+              const short = item.event.idempotencyKey.slice(0, 8);
+              return (
+                <li key={item.id ?? item.idempotencyKey} className="border-b py-2 text-sm last:border-b-0">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="truncate">{sessionLabel(item.event.sessionId)}</p>
+                      <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                        {stateLabel(item)} · captured {timeLabel(item.event.clientTs)}
+                      </p>
+                      {item.lastError && (
+                        <p className="mt-1 break-words text-xs text-destructive">
+                          {item.state === "rejected" ? "Server reason" : "Last failure"}: {item.lastError}
+                        </p>
+                      )}
+                      {item.credentialUnreadable && item.state !== "rejected" && (
+                        <p className="mt-1 break-words text-xs text-destructive">
+                          The encrypted copy cannot be opened because its local key is missing. Remove it to clear the
+                          unreadable scan.
+                        </p>
+                      )}
+                    </div>
+                    <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{short}</span>
+                  </div>
+                  {item.state === "rejected" && item.id !== undefined && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onRetry([item.id as number])}
+                        disabled={syncing}
+                        aria-label={`Retry rejected scan ${short}`}
+                      >
+                        <RotateCcw aria-hidden="true" /> Retry
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => onClear([item.id as number])}
+                        disabled={syncing}
+                        aria-label={`Remove rejected scan ${short}`}
+                      >
+                        Remove
+                      </Button>
+                    </div>
                   )}
-                </div>
-                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
-                  {item.event.idempotencyKey.slice(0, 8)}
-                </span>
-              </li>
-            ))}
+                </li>
+              );
+            })}
         </ul>
       )}
 

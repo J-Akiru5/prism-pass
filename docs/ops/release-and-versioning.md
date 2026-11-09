@@ -17,7 +17,7 @@ The version is surfaced at runtime by `GET /api/v1/health` (`version` field, inj
 - Tag format `vX.Y.Z` (annotated), created **on `main` only**, on the commit that is promoted to
   production.
 - The tag is the release record: it must point at a commit that passed the phase gate.
-- `staging` and `develop` are never tagged.
+- `develop` is never tagged; `staging` is retired and is not part of the release flow.
 
 ## Per-phase release procedure
 
@@ -25,8 +25,8 @@ The version is surfaced at runtime by `GET /api/v1/health` (`version` field, inj
 2. Run the phase gate (`docs/roadmap/phases-gates.md`) and record evidence in `docs/roadmap/PLAN.md`.
 3. Bump `version` in `package.json`, move `CHANGELOG.md` "Unreleased" entries under the new version,
    commit as `chore(release): vX.Y.Z` on `develop`.
-4. Merge `develop` → `staging`, push, let the preview deployment build, verify the deployed commit.
-5. Merge `staging` → `main`, push (production deployment), then
+4. Push `develop` and verify the development deployment plus the phase gate.
+5. With explicit owner authorization, merge `develop` → `main`, push (production deployment), then
    `git tag -a vX.Y.Z -m "P<N> <name>"` and push the tag.
 6. Record the release in `docs/roadmap/PLAN.md` (phase, version, tag, deployed commit, gate results).
 

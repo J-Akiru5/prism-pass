@@ -87,10 +87,10 @@ Out of scope: P3 attendance writes, P4 geo PostGIS, P5 e-sign, P6 offline sync, 
 - Open: demo requests send via the visitor's email client (no server endpoint/ticketing yet); full-desktop screenshots limited by the capture viewport (desktop layout verified via DOM metrics: 1440px, no overflow, desktop nav); signed-in walkthrough still needs a session.
 
 ## 10. Environments, deployment and live state - 2026-11-08
-- **Branch model live:** `main` (production), `staging` (preview), `develop` (integration). Direct merges, no PRs. Rules: `docs/ops/branching-and-deployment.md`.
+- **Branch model live:** `main` (production), `staging` (preview), `develop` (integration). Direct merges, no PRs. Rules: `docs/ops/branching-and-deployment.md`. **Superseded 2026-11-09:** `staging` retired; only `main` and `develop` deploy. See `docs/security/deployment-governance.md`.
 - **Release process:** `docs/ops/release-and-versioning.md`; `CHANGELOG.md`; version surfaced by `GET /api/v1/health`.
 - **Vercel:** project `prism-pass` in team `j-akiru5s-projects`, production branch `main`, Node 22, env vars set for production + preview, domain `pass.syntaxure.dev` verified. Production serves v0.1.0 (health returns `version`).
-- **Allowlist verified by probe:** an empty commit pushed to `chore/allowlist-probe` produced no deployment; only `main` (production) and `staging` (preview) have deployments. Probe branch deleted.
+- **Allowlist verified by probe:** an empty commit pushed to `chore/allowlist-probe` produced no deployment; only `main` (production) and `staging` (preview) have deployments. Probe branch deleted. **Superseded 2026-11-09:** allowlist is now `main` + `develop`; `staging` is ineligible.
 - **First deploy blocked:** `VULNERABLE_NEXTJS_VERSION` on Next 15.3.4 - Vercel refuses to build flagged versions. Upgraded to 15.5.29 (15.x security backport line). CI green on all three branches after the upgrade.
 - **Live database audit** (Supabase `cgtcpwqfaqxcnpavkxas`, PostgreSQL 17.6): the live tables are snake_case and RLS-enabled (deny-by-default); the 24 PascalCase tables present are **empty strays** from an early unmapped push and hold no data. Migration `0005_remaining_models.sql` created the eight models that had no live table (geofences, organization_settings, organization_subscriptions, devices, documents, signature_requests, signature_events, offline_sync_batches). `postgis` is not installed, so P4 evaluates circles with haversine in the application rather than `ST_DWithin`.
 - **Pooler caveat:** `DATABASE_URL` points at the transaction pooler (`:6543`). Prisma now appends `pgbouncer=true&connection_limit=1` automatically for that host/port (`lib/db.ts`); DDL and seeding use the session pooler (`:5432`).
@@ -115,3 +115,10 @@ Out of scope: P3 attendance writes, P4 geo PostGIS, P5 e-sign, P6 offline sync, 
 - **A11y:** focus restored (14.6:1), dialog trap/restore, headings, error association, table semantics, success contrast.
 - **Gate:** 225 tests / 18 files, typecheck clean, CI green. Deployed and tagged v0.3.0.
 - **Open:** CSP enforcement (needs browser pass on every route), shared rate-limit store (per-instance today), impersonation, entitlement enforcement in tenant routes, MANAGER per-mentee scope (needs `supervisor_person_id`), offline queue encryption at rest, demo credential rotation.
+
+## 13. v0.3.1 hardening - QR, offline queue, CI/deploy - 2026-11-09
+- **QR verification:** shared constant-time credential comparison (verify + scan paths), strict bounded payload parsing, fail-closed invalid expiry, malformed-scan audit without credential echo; 31 focused tests.
+- **Offline queue:** terminal `rejected` state with explicit retry, idempotent enqueue, 2-minute inflight leases, 2,000-row cap, deterministic jitter, AES-GCM at-rest encryption for queued credentials; 57 focused tests.
+- **CI/deployment:** `vercel.json` allowlist is `main` + `develop`; `staging` retired; Node 22 CI with Corepack, pnpm cache, secret scan, typecheck, tests and build; branch/release docs reconciled.
+- **Gate:** 272 tests / 20 files, typecheck clean, CI green on `develop`; production promotion of the hardening release.
+- **Open:** CSP enforcement (browser pass), shared rate-limit store, demo credential rotation, Vercel cleanup of the stuck deployment.

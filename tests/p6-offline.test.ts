@@ -18,7 +18,23 @@ import {
   type OfflineEventInput,
 } from "../modules/offline/schema";
 import { classifyBatchItems, summarizeDecisions } from "../modules/offline/classify";
-import { backoffDelayMs, isDue, markAcked, markFailed, markInflight, newQueueRecord } from "../modules/offline/queue-state";
+import {
+  BASE_BACKOFF_MS,
+  INFLIGHT_LEASE_MS,
+  MAX_BACKOFF_MS,
+  backoffDelayMs,
+  backoffJitterMs,
+  isDue,
+  markAcked,
+  markFailed,
+  markInflight,
+  markRejected,
+  markRetry,
+  migrateLegacyQueueRecord,
+  newQueueRecord,
+  queueCounts,
+  shouldReleaseInflight,
+} from "../modules/offline/queue-state";
 import { deviceSyncRejection, evaluateDeviceRevocation } from "../modules/devices/revocation";
 
 const NOW = new Date("2026-11-08T08:00:00.000Z");
@@ -238,32 +254,129 @@ describe("P6 replay and idempotency", () => {
 describe("P6 client queue state", () => {
   it("moves a new record through pending → inflight → failed → backoff", () => {
     const record = newQueueRecord("key-1", NOW_MS);
-    expect(record).toMatchObject({ state: "pending", attempts: 0, lastError: null });
+    expect(record).toMatchObject({ state: "pending", attempts: 0, lastError: null, inflightAt: null });
     expect(isDue(record, NOW_MS)).toBe(true);
 
-    const inflight = markInflight(record);
+    const inflight = markInflight(record, NOW_MS);
     expect(inflight.state).toBe("inflight");
+    expect(inflight.inflightAt).toBe(NOW_MS);
     expect(isDue(inflight, NOW_MS)).toBe(false);
 
     const failed = markFailed(record, "network", NOW_MS);
-    expect(failed).toMatchObject({ state: "failed", attempts: 1, lastError: "network" });
-    expect(failed.nextAttemptAt).toBe(NOW_MS + 1_000);
-    expect(isDue(failed, NOW_MS + 999)).toBe(false);
-    expect(isDue(failed, NOW_MS + 1_000)).toBe(true);
+    expect(failed).toMatchObject({ state: "failed", attempts: 1, lastError: "network", inflightAt: null });
+    // First retry is 1s plus bounded deterministic jitter (< 25% of the base).
+    expect(failed.nextAttemptAt).toBeGreaterThanOrEqual(NOW_MS + 1_000);
+    expect(failed.nextAttemptAt).toBeLessThan(NOW_MS + 1_250);
+    expect(isDue(failed, failed.nextAttemptAt - 1)).toBe(false);
+    expect(isDue(failed, failed.nextAttemptAt)).toBe(true);
 
     const retried = markFailed(failed, "timeout", NOW_MS + 1_000);
     expect(retried.attempts).toBe(2);
-    expect(retried.nextAttemptAt).toBe(NOW_MS + 1_000 + 2_000);
+    expect(retried.nextAttemptAt).toBeGreaterThanOrEqual(NOW_MS + 1_000 + 2_000);
+    expect(retried.nextAttemptAt).toBeLessThan(NOW_MS + 1_000 + 2_500);
     expect(retried.lastError).toBe("timeout");
   });
 
-  it("caps exponential backoff and resets on acknowledgement", () => {
+  it("caps exponential backoff, adds deterministic per-key jitter and resets on ack", () => {
     expect(backoffDelayMs(0)).toBe(1_000);
     expect(backoffDelayMs(1)).toBe(2_000);
     expect(backoffDelayMs(3)).toBe(8_000);
     expect(backoffDelayMs(100)).toBe(300_000);
+
+    for (const key of ["key-a", "key-b", "key-c", "key-d"]) {
+      const jitter = backoffJitterMs(0, key);
+      expect(jitter).toBeGreaterThanOrEqual(0);
+      expect(jitter).toBeLessThan(MAX_BACKOFF_MS);
+      expect(backoffJitterMs(0, key)).toBe(jitter);
+      expect(backoffDelayMs(0, key)).toBe(BASE_BACKOFF_MS + jitter);
+      expect(backoffDelayMs(100, key)).toBe(MAX_BACKOFF_MS);
+    }
+    // Different stable keys should not all collapse to the same offset.
+    const offsets = new Set(["key-a", "key-b", "key-c", "key-d"].map((key) => backoffJitterMs(0, key)));
+    expect(offsets.size).toBeGreaterThan(1);
+
+    // Same row + same attempt is stable; the next attempt gets its own offset.
+    const first = markFailed(newQueueRecord("key-stable", NOW_MS), "network", NOW_MS);
+    const same = markFailed(newQueueRecord("key-stable", NOW_MS), "network", NOW_MS);
+    expect(same.nextAttemptAt).toBe(first.nextAttemptAt);
+    expect(markFailed(first, "network", NOW_MS).nextAttemptAt).not.toBe(first.nextAttemptAt);
+
     const failed = markFailed(newQueueRecord("key-2", NOW_MS), "network", NOW_MS);
-    expect(markAcked(failed)).toMatchObject({ state: "pending", attempts: 0, lastError: null });
+    expect(markAcked(failed)).toMatchObject({
+      state: "pending",
+      attempts: 0,
+      lastError: null,
+      inflightAt: null,
+    });
+  });
+
+  it("makes a server rejection terminal until the user explicitly retries", () => {
+    const failed = markFailed(newQueueRecord("key-reject", NOW_MS), "network", NOW_MS);
+    const rejected = markRejected(failed, "unknown_session");
+    expect(rejected).toMatchObject({
+      state: "rejected",
+      attempts: 2,
+      nextAttemptAt: 0,
+      lastError: "unknown_session",
+      inflightAt: null,
+    });
+    expect(isDue(rejected, NOW_MS + 10 * MAX_BACKOFF_MS)).toBe(false);
+
+    const retried = markRetry(rejected, NOW_MS + 10);
+    expect(retried).toMatchObject({
+      state: "pending",
+      attempts: 0,
+      nextAttemptAt: NOW_MS + 10,
+      lastError: null,
+      inflightAt: null,
+    });
+    expect(isDue(retried, NOW_MS + 10)).toBe(true);
+  });
+});
+
+describe("P6 inflight lease", () => {
+  it("keeps a fresh inflight row and releases one older than the lease", () => {
+    const inflight = markInflight(newQueueRecord("key-lease", NOW_MS), NOW_MS);
+    expect(shouldReleaseInflight(inflight, NOW_MS + INFLIGHT_LEASE_MS - 1)).toBe(false);
+    expect(shouldReleaseInflight(inflight, NOW_MS + INFLIGHT_LEASE_MS)).toBe(true);
+    expect(shouldReleaseInflight({ ...inflight, inflightAt: null }, NOW_MS)).toBe(true);
+    expect(shouldReleaseInflight(newQueueRecord("key-pending", NOW_MS), NOW_MS)).toBe(false);
+  });
+
+  it("counts every state accurately, including terminal rejections", () => {
+    const records = [
+      newQueueRecord("a", NOW_MS),
+      markInflight(newQueueRecord("b", NOW_MS), NOW_MS),
+      markFailed(newQueueRecord("c", NOW_MS), "network", NOW_MS),
+      markRejected(newQueueRecord("d", NOW_MS), "unknown_session"),
+    ];
+    expect(queueCounts(records)).toEqual({
+      pending: 1,
+      inflight: 1,
+      failed: 1,
+      rejected: 1,
+      total: 4,
+    });
+  });
+
+  it("migrates v1 rows without losing identity, attempts or the error", () => {
+    const legacy = {
+      ...markFailed(newQueueRecord("legacy-key", NOW_MS), "network", NOW_MS),
+      state: "inflight" as const,
+    };
+    delete (legacy as { inflightAt?: number | null }).inflightAt;
+
+    const migrated = migrateLegacyQueueRecord(legacy);
+    expect(migrated).toMatchObject({
+      idempotencyKey: "legacy-key",
+      state: "inflight",
+      attempts: 1,
+      lastError: "network",
+      nextAttemptAt: legacy.nextAttemptAt,
+      createdAt: NOW_MS,
+      inflightAt: 0,
+    });
+    expect(shouldReleaseInflight(migrated, NOW_MS)).toBe(true);
   });
 });
 

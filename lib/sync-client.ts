@@ -10,6 +10,7 @@ import {
   ack,
   fail,
   peek,
+  reject,
   release,
   size,
   type OfflineQueueItem,
@@ -303,12 +304,13 @@ export function decideBatchResponse(input: {
 
 /**
  * Retry delay: exponential backoff, raised by `Retry-After`, capped at 5 min.
- * The Dexie adapter applies the same `backoffDelayMs` schedule through `fail()`;
- * this helper is the response-policy version for callers that schedule their
- * own retry (and for the documented decision table).
+ * Passing a stable `seed` (the idempotency key) adds bounded deterministic
+ * jitter. The Dexie adapter applies the same schedule through `fail()`; this
+ * helper is the response-policy version for callers that schedule their own
+ * retry (and for the documented decision table).
  */
-export function retryDelayMs(attempt: number, retryAfterMs?: number): number {
-  const base = backoffDelayMs(attempt);
+export function retryDelayMs(attempt: number, retryAfterMs?: number, seed?: string): number {
+  const base = backoffDelayMs(attempt, seed);
   const hinted = Number.isFinite(retryAfterMs) ? Math.max(0, retryAfterMs as number) : 0;
   return Math.min(MAX_BACKOFF_MS, Math.max(base, hinted));
 }
@@ -363,9 +365,57 @@ function failureText(code: string, message?: string): string {
   return message ? `${code}: ${message}` : code;
 }
 
+export type ReceiptRouting = {
+  /** Server accepted or already had these rows; delete them. */
+  acknowledgedIds: number[];
+  /** Permanent per-item rejection; move to terminal `rejected`. */
+  rejected: Array<{ id: number; reason: string }>;
+  /** Rows the server did not mention; keep retrying rather than deleting. */
+  missingIds: number[];
+};
+
+/**
+ * Route per-item receipts without touching storage. A `reject` is permanent
+ * (unknown session, stale/future clock, invalid credential), while a missing
+ * receipt is not authoritative evidence and must stay retryable.
+ */
+export function routeReceipts(
+  receipts: readonly BatchReceipt[],
+  items: readonly OfflineQueueItem[],
+): ReceiptRouting {
+  const byKey = new Map(items.map((item) => [item.event.idempotencyKey, item]));
+  const acknowledgedIds: number[] = [];
+  const rejected: Array<{ id: number; reason: string }> = [];
+  const missingIds: number[] = [];
+
+  for (const receipt of receipts) {
+    const item = byKey.get(receipt.idempotencyKey);
+    if (!item) continue;
+    byKey.delete(receipt.idempotencyKey);
+    if (item.id === undefined) continue;
+    if (receipt.status === "reject") {
+      rejected.push({ id: item.id, reason: failureText(receipt.reason, receipt.message) });
+    } else {
+      acknowledgedIds.push(item.id);
+    }
+  }
+
+  for (const item of byKey.values()) {
+    if (item.id !== undefined) missingIds.push(item.id);
+  }
+
+  return { acknowledgedIds, rejected, missingIds };
+}
+
 async function failItems(items: readonly OfflineQueueItem[], reason: string): Promise<void> {
   await Promise.all(
     items.map((item) => (item.id === undefined ? Promise.resolve() : fail(item.id, reason))),
+  );
+}
+
+async function rejectItems(items: readonly OfflineQueueItem[], reason: string): Promise<void> {
+  await Promise.all(
+    items.map((item) => (item.id === undefined ? Promise.resolve() : reject(item.id, reason))),
   );
 }
 
@@ -473,23 +523,15 @@ export async function syncQueuedScans(context: SyncContext, options: SyncQueueOp
     const decision = decideBatchResponse(response);
 
     if (decision.kind === "ack") {
-      const byKey = new Map(built.items.map((item) => [item.event.idempotencyKey, item]));
-      const acknowledged: number[] = [];
-      for (const receipt of decision.receipts) {
-        const item = byKey.get(receipt.idempotencyKey);
-        if (!item) continue;
-        byKey.delete(receipt.idempotencyKey);
-        if (receipt.status === "reject") {
-          if (item.id !== undefined) await fail(item.id, failureText(receipt.reason, receipt.message));
-        } else if (item.id !== undefined) {
-          acknowledged.push(item.id);
-        }
+      const routing = routeReceipts(decision.receipts, built.items);
+      for (const item of routing.rejected) {
+        await reject(item.id, item.reason);
       }
       // A row the server did not mention must stay queued.
-      for (const item of byKey.values()) {
-        if (item.id !== undefined) await fail(item.id, "missing_receipt");
+      for (const id of routing.missingIds) {
+        await fail(id, "missing_receipt");
       }
-      await ack(acknowledged);
+      await ack(routing.acknowledgedIds);
 
       const counts = summaryOf(decision.receipts, built.items);
       return {
@@ -497,7 +539,11 @@ export async function syncQueuedScans(context: SyncContext, options: SyncQueueOp
         attempted: built.items.length,
         ...counts,
         remaining: await size(),
-        message: `${counts.accepted} recorded, ${counts.duplicates} duplicate, ${counts.rejected} rejected.`,
+        message:
+          `${counts.accepted} recorded, ${counts.duplicates} duplicate, ${counts.rejected} rejected.` +
+          (counts.rejected > 0
+            ? " Rejected scans are not recorded and stay in the queue; retry or clear them."
+            : ""),
         replayed,
         receipts: decision.receipts,
       };
@@ -514,7 +560,14 @@ export async function syncQueuedScans(context: SyncContext, options: SyncQueueOp
       decision.kind === "replay"
         ? "replay_rejected_twice"
         : failureText(decision.code, decision.message);
-    await failItems(built.items, reason);
+    // A 400/4xx batch rejection is structural: resending the same rows cannot
+    // help, so it is terminal. Fatal auth/device failures and repeated replay
+    // collisions stay retryable after the user fixes the cause.
+    if (decision.kind === "reject") {
+      await rejectItems(built.items, reason);
+    } else {
+      await failItems(built.items, reason);
+    }
     const outcome: SyncOutcome =
       decision.kind === "fatal" ? "fatal" : decision.kind === "reject" || decision.kind === "replay" ? "rejected" : "retry";
     return {
@@ -522,14 +575,18 @@ export async function syncQueuedScans(context: SyncContext, options: SyncQueueOp
       attempted: built.items.length,
       accepted: 0,
       duplicates: 0,
-      rejected: decision.kind === "retry" ? 0 : built.items.length,
+      // Only a structural `reject` is terminal; fatal auth/device failures and
+      // replay collisions stay retryable, so they are not counted as rejected.
+      rejected: decision.kind === "reject" ? built.items.length : 0,
       remaining: await size(),
       message:
         decision.kind === "retry"
           ? `${decision.message} The queue will retry automatically.`
           : decision.kind === "replay"
             ? "The server rejected the replacement batch id as a replay."
-            : decision.message,
+            : decision.kind === "reject"
+              ? `${decision.message} The scans were not recorded and stay in the queue; retry after fixing the cause or clear them.`
+              : decision.message,
       replayed,
       receipts: [],
     };
@@ -542,7 +599,8 @@ export async function syncQueuedScans(context: SyncContext, options: SyncQueueOp
     attempted: built.items.length,
     accepted: 0,
     duplicates: 0,
-    rejected: built.items.length,
+    // Rows remain retryable after a replay collision, so none are terminal.
+    rejected: 0,
     remaining: await size(),
     message: "The server rejected the replacement batch id as a replay.",
     replayed: true,

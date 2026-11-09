@@ -7,7 +7,7 @@
       "*": false,
       "**": false,
       "main": true,
-      "staging": true
+      "develop": true
     }
   }
 }

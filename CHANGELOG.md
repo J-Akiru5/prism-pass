@@ -8,6 +8,44 @@ All notable changes to this project are documented here. Format follows
 
 Nothing yet.
 
+## [0.3.1] - 2026-11-09
+
+Hardening release: QR verification, offline queue resilience and deployment governance.
+
+### Added
+- Offline queue: terminal `rejected` state with explicit retry/remove, 2-minute inflight
+  leases for multi-tab/crash recovery, a 2,000-row capacity bound with typed errors,
+  deterministic retry jitter, and AES-GCM at-rest encryption using a non-extractable
+  IndexedDB key.
+- CI: Node 22 workflow with Corepack pnpm 10.33.3, pnpm store cache, blocking secret scan,
+  typecheck, tests and build on `main`/`develop` and pull requests.
+- Security docs for QR verification, offline queue hardening and deployment governance.
+
+### Changed
+- Deployment allowlist is `main` + `develop`; `staging` is retired and ineligible.
+  Branching, release, README and roadmap docs are reconciled with that decision.
+- QR payloads are bounded and strict: pass IDs are `[A-Za-z0-9_-]{1,64}`, the payload is
+  capped at 136 characters, and whitespace/trailing data is rejected.
+- Invalid or unparseable pass expiry now fails closed as `INVALID_EXPIRY` (410).
+- Permanent offline rejections no longer auto-retry; rejected rows stay visible until the
+  user retries or clears them.
+
+### Fixed
+- Credential hashes are compared with a shared `timingSafeEqual` helper in both the
+  verify-only endpoint and the attendance scan path.
+- Duplicate offline enqueue by idempotency key returns the existing row instead of throwing.
+- Stale inflight rows from a crashed tab are reclaimed only after the lease; a live send is
+  not stolen by another tab.
+- Queue storage failures (quota, capacity, encryption unavailable) surface to the scanner
+  instead of silently dropping scans.
+
+### Security
+- Constant-time pass-credential comparison.
+- AES-GCM encryption of queued scan credentials at rest; capture is refused rather than
+  stored as plaintext when secure storage is unavailable.
+- `vercel.json` and CI restrict deployment to `main` and `develop`; staging and task
+  branches are refused before a build starts.
+
 ## [0.3.0] - 2026-11-08
 
 Platform console, security hardening, offline scanner, accessibility and scoping.

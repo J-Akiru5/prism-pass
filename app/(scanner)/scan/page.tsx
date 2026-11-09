@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { Input } from "@/components/ui/input";
 import { useOrgs } from "@/lib/use-orgs";
-import { enqueue, list, releaseInflight, clear as clearQueuedScans, type OfflineQueueItem } from "@/lib/offline-queue";
+import { enqueue, list, releaseInflight, retry as retryQueuedScans, clear as clearQueuedScans, type OfflineQueueItem } from "@/lib/offline-queue";
+import { OfflineQueueError, INFLIGHT_LEASE_MS } from "@/modules/offline/queue-state";
 import { newUuid, syncQueuedScans } from "@/lib/sync-client";
 import {
   clearDeviceContext,
@@ -64,6 +65,7 @@ export default function ScanPage() {
   const [syncing, setSyncing] = useState(false);
   const [queueNotice, setQueueNotice] = useState<string | null>(null);
   const [retryAt, setRetryAt] = useState<number | null>(null);
+  const [leaseAt, setLeaseAt] = useState<number | null>(null);
 
   // Preselect: ?org= from the URL, else the only/first organization.
   useEffect(() => {
@@ -110,9 +112,17 @@ export default function ScanPage() {
       const all = await list();
       const scoped = all.filter((item) => item.organizationId === orgId);
       setQueueItems(scoped);
+      // A row left inflight by a crash is protected for the lease window. Wake
+      // at the earliest expiry so it is recovered without waiting for a click.
+      const nextLease = scoped.reduce((earliest, item) => {
+        if (item.state !== "inflight" || typeof item.inflightAt !== "number") return earliest;
+        return Math.min(earliest, item.inflightAt + INFLIGHT_LEASE_MS);
+      }, Number.POSITIVE_INFINITY);
+      setLeaseAt(Number.isFinite(nextLease) ? nextLease : null);
       return scoped;
     } catch {
       setQueueItems([]);
+      setLeaseAt(null);
       setQueueNotice("The offline queue is unavailable in this browser (IndexedDB blocked or unsupported).");
       return [];
     }
@@ -123,6 +133,7 @@ export default function ScanPage() {
     if (!orgId) {
       setDevice(null);
       setQueueItems([]);
+      setLeaseAt(null);
       return;
     }
     setDevice(loadDeviceContext(orgId));
@@ -162,6 +173,13 @@ export default function ScanPage() {
       setRetryAt(null);
       let refreshed: OfflineQueueItem[] | null = null;
       try {
+        // Recover a crashed tab's stale lease before selecting work. Fresh rows
+        // owned by a live tab are left alone.
+        try {
+          await releaseInflight();
+        } catch {
+          // syncQueuedScans reports an unavailable IndexedDB below.
+        }
         const summary = await syncQueuedScans(
           {
             organizationId: orgId,
@@ -177,7 +195,11 @@ export default function ScanPage() {
           const outcome: Outcome = {
             tone: summary.rejected > 0 ? "warning" : "success",
             title: "Queue synced — server authoritative",
-            message: `${summary.accepted} recorded · ${summary.duplicates} duplicate · ${summary.rejected} rejected. ${summary.message}`,
+            message:
+              `${summary.accepted} recorded · ${summary.duplicates} duplicate · ${summary.rejected} rejected.` +
+              (summary.rejected > 0
+                ? " Rejected scans are not recorded; retry or clear them in the queue panel."
+                : ""),
             at: new Date().toISOString(),
           };
           setResult(outcome);
@@ -225,6 +247,45 @@ export default function ScanPage() {
     return () => window.clearTimeout(id);
   }, [online, device, retryAt]);
 
+  // Crash recovery: once another tab's inflight lease expires, reclaim the row
+  // and retry. Fresh rows are left untouched by `releaseInflight`.
+  useEffect(() => {
+    if (!online || !device || leaseAt === null) return;
+    const delay = Math.min(Math.max(0, leaseAt - Date.now()), 2_147_483_647);
+    const id = window.setTimeout(() => {
+      void (async () => {
+        try {
+          await releaseInflight();
+        } catch {
+          // refreshQueue reports an unavailable IndexedDB below.
+        }
+        void syncRef.current("online");
+      })();
+    }, delay);
+    return () => window.clearTimeout(id);
+  }, [online, device, leaseAt]);
+
+  // A tab that crashes while another tab stays open has no mount/reload event
+  // to trigger recovery. Sweep the lease once a minute so a stale row cannot
+  // stay invisible for the rest of the session.
+  useEffect(() => {
+    if (!online) return;
+    const id = window.setInterval(() => {
+      void (async () => {
+        try {
+          const released = await releaseInflight();
+          if (released > 0) {
+            await refreshQueue();
+            if (device) void syncRef.current("online");
+          }
+        } catch {
+          // A later sync or refresh will surface the storage failure.
+        }
+      })();
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, [online, device, refreshQueue]);
+
   const queueOffline = useCallback(
     async (credential: string, idempotencyKey: string, clientTs: string) => {
       if (!orgId) return;
@@ -270,10 +331,11 @@ export default function ScanPage() {
         pushHistory(outcome);
         setQueueNotice(`${waiting} ${waiting === 1 ? "scan" : "scans"} waiting on this device.`);
       } catch (e) {
+        const message = e instanceof OfflineQueueError ? e.message : (e as Error).message;
         const outcome: Outcome = {
           tone: "danger",
           title: "Could not queue offline",
-          message: `${(e as Error).message} Do not treat this scan as captured.`,
+          message: `${message} Do not treat this scan as captured.`,
           at,
         };
         setResult(outcome);
@@ -425,6 +487,24 @@ export default function ScanPage() {
     [refreshQueue]
   );
 
+  const handleRetryQueue = useCallback(
+    async (ids: number[]) => {
+      if (ids.length === 0) return;
+      try {
+        for (const id of ids) await retryQueuedScans(id);
+        const refreshed = await refreshQueue();
+        const waiting = refreshed.filter((item) => item.state !== "rejected").length;
+        setQueueNotice(
+          `Requeued ${ids.length} ${ids.length === 1 ? "scan" : "scans"} for another attempt. ` +
+            `${waiting} ${waiting === 1 ? "scan is" : "scans are"} waiting; nothing is recorded until the server accepts it.`
+        );
+      } catch (e) {
+        setQueueNotice(`Could not retry queued scans: ${(e as Error).message}`);
+      }
+    },
+    [refreshQueue]
+  );
+
   const sessionLabel = useCallback(
     (id: string) => sessions.find((s) => s.id === id)?.title ?? `Session ${id.slice(0, 8)}…`,
     [sessions]
@@ -551,6 +631,7 @@ export default function ScanPage() {
               sessionLabel={sessionLabel}
               onSync={() => void syncNow("manual")}
               onClear={(ids) => void handleClearQueue(ids)}
+              onRetry={(ids) => void handleRetryQueue(ids)}
               onSaveKey={handleSaveKey}
               onForgetKey={handleForgetKey}
             />
