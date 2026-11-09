@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db";
 import { certificateNumberFor, CERTIFICATE_HASH_PREFIX_LENGTH } from "@/modules/certificates/verify";
 import { signatureRequestsChainValid } from "@/modules/certificates/public";
 import {
+  certificateEventsBindDocument,
   evaluateCertificatePdfGate,
   isCertificateTemplate,
   renderCertificatePdf,
@@ -117,7 +118,16 @@ export async function GET(_req: Request, { params }: P) {
       }
     }
 
-    const chainValid = signatureRequestsChainValid(document.signatures);
+    // A sealed certificate must have at least one signed event, every event
+    // must commit to this exact document hash, and each request chain must
+    // verify. An internally intact chain for another document (or no chain at
+    // all) is not this artifact.
+    const signatureEvents = document.signatures.flatMap((request) => request.events);
+    const chainValid =
+      certificateEventsBindDocument({
+        sha256: document.sha256,
+        docHashes: signatureEvents.map((event) => event.docHash),
+      }) && signatureRequestsChainValid(document.signatures);
     const gate = evaluateCertificatePdfGate({
       status: document.status,
       sealedAt: document.sealedAt,

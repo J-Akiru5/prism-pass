@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { inflateSync } from "node:zlib";
 import { PDFDocument } from "pdf-lib";
@@ -11,6 +12,7 @@ import {
 import {
   CERTIFICATE_PDF_METADATA,
   CERTIFICATE_QR_OPTIONS,
+  certificateEventsBindDocument,
   createCertificateQrPng,
   evaluateCertificatePdfGate,
   renderCertificatePdf,
@@ -286,5 +288,59 @@ describe("certificate PDF integrity gate", () => {
     expect(
       evaluateCertificatePdfGate(gateInput({ sha256: "f".repeat(64), chainValid: false })),
     ).toMatchObject({ ok: false, code: "INTEGRITY_FAILED" });
+  });
+});
+
+describe("certificate signature binding", () => {
+  const hash = certificateContentHash(basePayload);
+
+  it("requires signed events that commit to the current document hash", () => {
+    expect(certificateEventsBindDocument({ sha256: hash, docHashes: [] })).toBe(false);
+    expect(
+      certificateEventsBindDocument({ sha256: hash, docHashes: [hash, hash.toUpperCase()] }),
+    ).toBe(true);
+    // An internally valid chain for a different document must not bind.
+    expect(certificateEventsBindDocument({ sha256: hash, docHashes: [hash, "f".repeat(64)] })).toBe(false);
+    expect(certificateEventsBindDocument({ sha256: "", docHashes: [hash] })).toBe(false);
+  });
+});
+
+describe("certificate PDF route contract", () => {
+  const source = readFileSync(
+    "app/api/v1/orgs/[orgId]/documents/[documentId]/pdf/route.ts",
+    "utf8",
+  );
+
+  it("runs on the node runtime and returns a private, non-cacheable attachment", () => {
+    expect(source).toContain('export const runtime = "nodejs"');
+    expect(source).toContain('"Content-Type": "application/pdf"');
+    expect(source).toContain('"Content-Disposition": `attachment; filename="${downloadFileName(');
+    expect(source).toContain('return `certificate-${safe || "document"}.pdf`;');
+    expect(source).toContain('"Cache-Control": "private, no-store"');
+    expect(source).toContain('"X-Content-Type-Options": "nosniff"');
+  });
+
+  it("scopes the document to the organization and allows manage or the recipient", () => {
+    expect(source).toContain('tryPermission("documents.manage"');
+    expect(source).toContain('tryPermission("documents.sign"');
+    expect(source).toContain("requireOrganizationPermission(permission, orgId)");
+    expect(source).toContain("document.organizationId !== ctx.organizationId");
+    expect(source).toContain("sourcePersonId");
+    expect(source).toContain('fail(404, "NOT_FOUND"');
+  });
+
+  it("gates on seal, hash and a chain bound to this document", () => {
+    expect(source).toContain("evaluateCertificatePdfGate({");
+    expect(source).toContain("signatureRequestsChainValid(document.signatures)");
+    expect(source).toContain("certificateEventsBindDocument({");
+    expect(source).toContain("docHashes: signatureEvents.map((event) => event.docHash)");
+  });
+
+  it("audits integrity failures and downloads with the document id and role only", () => {
+    expect(source).toContain('"document.integrity_failed"');
+    expect(source).toContain('"certificate.pdf_download"');
+    expect(source).toContain("documentId: document.id");
+    expect(source).toContain("role: ctx.role");
+    expect(source).not.toContain("displayName");
   });
 });
