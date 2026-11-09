@@ -19,6 +19,8 @@ All notable changes to this project are documented here. Format follows
   rows captured under another device, a 30-second sync request timeout, and a single-tab sync lock.
 
 ### Fixed
+- Login now distinguishes an unconfirmed email from a wrong password, so the user is told to check
+  their inbox instead of seeing a generic credential error.
 - Device revocation no longer causes an infinite retry loop; queued scans stay intact until the device
   is re-registered and retried explicitly.
 - Sync now honours a server `Retry-After` as a floor instead of retrying after the shorter 1-second

@@ -22,8 +22,13 @@ type FieldErrors = { email?: string; password?: string };
  * Auth errors are intentionally mapped to fixed copy: the login form must not
  * reveal whether an email address has an account.
  */
-function loginErrorMessage(error: { message?: string; status?: number }): string {
+function loginErrorMessage(error: { message?: string; status?: number; code?: string }): string {
   const message = error.message ?? "";
+  // Supabase only returns this after the password has been accepted, so it does
+  // not become an account-existence oracle for a wrong password.
+  if (error.code === "email_not_confirmed" || /email not confirmed/i.test(message)) {
+    return "Your email is not confirmed yet. Check your inbox for the confirmation link, then try again.";
+  }
   if (error.status === 429 || /rate limit|too many/i.test(message)) {
     return "Too many sign-in attempts. Wait a moment, then try again.";
   }
