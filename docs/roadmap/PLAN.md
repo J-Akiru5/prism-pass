@@ -287,10 +287,9 @@ configuration is reconciled.
   first-load `P1001` pooler timeout on `/policies`; reload succeeded, confirming
   a transient network issue rather than a code defect. Screenshot:
   `screenshots/m1-attendance-qa-2026-11-09.jpeg`.
-- **End-to-end M1/M2 code complete:** M1 A–E, M2 bundle/verifier/clock/policy/
-  scanner UX, M3 domain/generation/signing/public verify are integrated.
-  `pnpm test` 607 passing, `pnpm typecheck` clean, `pnpm build` (Prisma generate +
-  Next build) succeeds with Next 15.5.29, and the secret scan passes. Certificate
-  PDF/QR is the remaining M3 slice.
+- **End-to-end M1/M2/M3 code complete:** M1 A–E, M2 bundle/verifier/clock/policy/
+  scanner UX, and M3 domain/generation/signing/public verify/PDF+QR are integrated.
+  `pnpm test` 616 passing, `pnpm typecheck` clean, `pnpm build` (Prisma generate +
+  Next build) succeeds with Next 15.5.29, and the secret scan passes.
 - **Dependency reconciliation:** `next@15.5.29`, `pdf-lib@1.17.1` and
   `qrcode@1.5.4` are installed and committed in the lockfile.

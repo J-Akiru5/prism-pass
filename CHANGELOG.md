@@ -33,8 +33,9 @@ All notable changes to this project are documented here. Format follows
 - Certificates: pure certificate domain (eligibility, payload, payload hash, public projection),
   idempotent batch generation, organizer certificates page, all-or-nothing batch signing, signing
   screen, and own-certificate member list.
-- PDF/QR: added `pdf-lib` and `qrcode` for server-rendered certificate PDFs; certificate PDF route
-  and public verify page are in progress.
+- PDF/QR: added `pdf-lib` and `qrcode` for server-rendered certificate PDFs; the sealed
+  certificate download route renders an A4-landscape PDF with a verify QR, and the public
+  `/verify/:token` page shows an allowlisted integrity result without recipient PII.
 - Demo seed: `DEMO_SEED_PASSWORD` is now required (12+ characters, no committed default) and the
   seed no longer prints a password.
 
