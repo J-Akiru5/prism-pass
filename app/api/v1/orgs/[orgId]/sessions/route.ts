@@ -26,6 +26,9 @@ export async function POST(req: Request, { params }: P) {
     const input = createSessionInput.parse(await readJson(req, BODY_LIMITS.tiny));
     const policy = await prisma.attendancePolicy.findUnique({ where: { id: input.policyId } });
     if (!policy || policy.organizationId !== ctx.organizationId) return fail(404, "NOT_FOUND", "Policy not found in this organization");
+    // M1: a new EVENT enforces its roster by default; callers can opt out.
+    // The database default stays false so pre-M1 sessions keep accepting scans.
+    const rosterEnforced = input.rosterEnforced ?? input.type === "EVENT";
     const session = await prisma.attendanceSession.create({
       data: {
         organizationId: ctx.organizationId,
@@ -35,10 +38,12 @@ export async function POST(req: Request, { params }: P) {
         startsAt: new Date(input.startsAt),
         endsAt: new Date(input.endsAt),
         timezone: input.timezone,
+        rosterEnforced,
+        walkInAllowed: input.walkInAllowed,
       },
     });
     await prisma.auditLog.create({
-      data: { organizationId: ctx.organizationId, actorUserId: ctx.internalUserId, action: "session.create", resource: `session:${session.id}`, result: "ok", meta: { type: session.type } as never },
+      data: { organizationId: ctx.organizationId, actorUserId: ctx.internalUserId, action: "session.create", resource: `session:${session.id}`, result: "ok", meta: { type: session.type, rosterEnforced, walkInAllowed: input.walkInAllowed } as never },
     });
     return ok(session);
   } catch (e) { return handleRouteError(e); }

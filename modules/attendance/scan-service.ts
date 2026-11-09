@@ -3,7 +3,7 @@ import type { AttendanceEvent, AttendanceRecord } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { parseQrPayload, passStatusHttpStatus, verifyPassStatus } from "@/modules/passes/verify";
 import { verifyCredentialHash } from "@/modules/passes/credential";
-import { reconcileRecord, resolveDirection, type ScanInput } from "@/modules/attendance/engine";
+import { reconcileRecord, resolveDirection, evaluateSessionAdmission, type ScanInput } from "@/modules/attendance/engine";
 import { evaluateGeo } from "@/modules/geo/evaluate";
 
 // Canonical attendance write path, extracted from the scan route so offline
@@ -20,6 +20,8 @@ export type ScanSuccessData = {
   geoResult: string;
   dedupe?: true;
   key?: "idempotencyKey";
+  /** Always present on an accepted/deduped/duplicate scan (M1-7). */
+  personName: string;
 };
 
 export type ScanFailure = {
@@ -83,7 +85,43 @@ export async function performScan(actor: ScanActor, sessionId: string, input: Sc
     where: { organizationId_idempotencyKey: { organizationId, idempotencyKey } },
   });
   if (existingKey) {
-    return { ok: true, data: { event: existingKey, dedupe: true, key: "idempotencyKey", geoResult: existingKey.geoResult } };
+    return { ok: true, data: { event: existingKey, dedupe: true, key: "idempotencyKey", geoResult: existingKey.geoResult, personName: pass.person.displayName } };
+  }
+
+  // 2a. Event gates, in this order and before the duplicate window:
+  //   1. CLOSED refuses every new scan (409).
+  //   2. A roster-enforced session refuses an unlisted person unless walk-ins
+  //      are allowed (403).
+  // Idempotency ran first on purpose: a scan accepted before the event closed
+  // replays as accepted instead of turning into a refusal. The refusal carries
+  // no person name (D-03); the audit row is internal.
+  const rosterGateApplies = session.rosterEnforced && !session.walkInAllowed;
+  const onRoster = rosterGateApplies
+    ? Boolean(
+        await prisma.sessionRoster.findUnique({
+          where: { organizationId_sessionId_personId: { organizationId, sessionId: session.id, personId: pass.personId } },
+          select: { id: true },
+        }),
+      )
+    : true;
+  const admission = evaluateSessionAdmission({
+    status: session.status,
+    rosterEnforced: session.rosterEnforced,
+    walkInAllowed: session.walkInAllowed,
+    onRoster,
+  });
+  if (!admission.allowed) {
+    const closed = admission.code === "EVENT_CLOSED";
+    await prisma.auditLog.create({
+      data: {
+        organizationId, actorUserId, action: "attendance.scan", resource: `session:${session.id}`,
+        result: closed ? "event_closed" : "not_on_roster",
+        meta: { sessionId, personId: pass.personId, gate: admission.code } as never,
+      },
+    });
+    return closed
+      ? { ok: false, status: 409, code: "EVENT_CLOSED", message: "This event is closed" }
+      : { ok: false, status: 403, code: "NOT_ON_ROSTER", message: "Pass holder is not on this event's roster" };
   }
 
   const clientTs = new Date(input.clientTs);
@@ -131,7 +169,7 @@ export async function performScan(actor: ScanActor, sessionId: string, input: Sc
     });
     await prisma.auditLog.create({ data: { organizationId, actorUserId, action: "attendance.scan", resource: `event:${dup.id}`, result: "valid_duplicate", meta: { sessionId, personId: pass.personId, geoResult: geo.geoResult } as never } });
     const record = await prisma.attendanceRecord.findUnique({ where: { organizationId_sessionId_personId: { organizationId, sessionId: session.id, personId: pass.personId } } });
-    return { ok: true, data: { event: dup, record, duplicate: true, geoResult: geo.geoResult } };
+    return { ok: true, data: { event: dup, record, duplicate: true, geoResult: geo.geoResult, personName: pass.person.displayName } };
   }
 
   // 3b. Enforce mode: a reliable out-of-fence scan is rejected, audited and never
@@ -206,5 +244,5 @@ export async function performScan(actor: ScanActor, sessionId: string, input: Sc
   await prisma.auditLog.create({
     data: { organizationId, actorUserId, action: "attendance.scan", resource: `event:${event.id}`, result: "accepted", meta: { sessionId, personId: pass.personId, direction: eventType, geoResult: geo.geoResult } as never },
   });
-  return { ok: true, data: { event, record, duplicate: false, geoResult: geo.geoResult } };
+  return { ok: true, data: { event, record, duplicate: false, geoResult: geo.geoResult, personName: pass.person.displayName } };
 }
