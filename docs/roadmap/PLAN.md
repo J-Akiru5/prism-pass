@@ -269,3 +269,11 @@ configuration is reconciled.
 - **Prisma generate caveat:** the Windows DLL rename lock persists while local
   dev servers hold the engine. Generated types already include the M1 models and
   typecheck passes; rerun generate after the dev servers exit.
+- **Signed-in QA (2026-11-09):** signed in as `admin@syntaxure.dev` against a
+  local build. Verified `/consoles` (Owner preset + raw role), `/org/:id/attendance`
+  (3 sessions, Open/past-schedule labels, event roster panel, Close event,
+  policy), `/org/:id/settings` (People & access: Owner/Attendee presets and raw
+  roles) and `/org/:id/reports` (Event attendance card). No console errors. One
+  first-load `P1001` pooler timeout on `/policies`; reload succeeded, confirming
+  a transient network issue rather than a code defect. Screenshot:
+  `screenshots/m1-attendance-qa-2026-11-09.jpeg`.
