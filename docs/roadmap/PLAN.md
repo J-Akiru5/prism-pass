@@ -272,10 +272,10 @@ configuration is reconciled.
   verify projection) is merged; generation/signing/PDF are next.
 - **Migration:** `0009_m1_events.sql` applied to the shared project with owner
   authorization; evidence in 14.9.
-- **Local dependency caveat:** the installed `node_modules/next` is `15.3.4`
-  while `package.json`/`pnpm-lock.yaml` specify `15.5.29`. The local build used
-  the stale install. CI (frozen lockfile) is the authoritative gate for the
-  release version; reinstall/CI must pass before deployment.
+- **Local dependency caveat (resolved):** the local install was initially
+  `next@15.3.4` while `package.json`/`pnpm-lock.yaml` specified `15.5.29`. The
+  dependency install was reconciled on 2026-11-09; `next@15.5.29`, `pdf-lib` and
+  `qrcode` are now installed, typecheck/tests pass, and `next build` succeeds.
 - **Prisma generate caveat:** the Windows DLL rename lock persists while local
   dev servers hold the engine. Generated types already include the M1 models and
   typecheck passes; rerun generate after the dev servers exit.
