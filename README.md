@@ -24,13 +24,17 @@ truth for what is done, what is next and what is blocked. Read in this order:
 | P0 | Spec: overview, ERD, permission matrix, state machines, geo, offline protocol, API contracts, ADR-01…12 | Done |
 | P1 | SaaS foundation: auth (browser/server/middleware), Prisma schema, tenancy + RBAC, RLS, platform admin, org lifecycle | Built, live-verified |
 | P2 | Identity/passes: people directory, issue/verify/revoke/rotate, printable IDs, member portal | Built, live-verified |
-| P3 | Attendance engine: policies, sessions, scans, records, adjustments, approvals | Foundational slice built, live-verified |
-| P4 | Geo verification (PostGIS geofence validation, exceptions, map review) | Not started — capture stored, `geoResult` always `NOT_CAPTURED` |
-| P5 | Documents / e-sign | Not started |
-| P6 | Offline sync protocol | Not started — scanner queue is UI-provisional (ADR-09) |
-| P7 | Org workflows (DTR/internship review, certificates, leave, events, exports) | Not started |
-| P8 | SaaS ops (plans, entitlements, metering, billing) | Not started |
-| P9 | Hardening / launch | Not started |
+| P3 | Attendance engine: policies, sessions, scans, records, adjustments, approvals | Built, live-verified |
+| P4 | Geo verification (haversine circles; PostGIS not installed) | Built, live-verified; scanner GPS capture is DTR-only and still pending |
+| P5 | Documents / e-sign: API, hash chain, signing order, seal, public verify | Built and tested; certificate UI/PDF pending M3 |
+| P6 | Offline sync protocol: encrypted queue, signed batches, sync bundle | Built and hardened; on-device bundle verification pending M2 |
+| P7 | Org workflows: DTR reports, scoping, approvals, audit | Built; event close/roster and certificates pending M1/M3 |
+| P8 | SaaS ops: platform console, plans, entitlements | Built; billing and entitlement enforcement pending M6 |
+| P9 | Hardening / launch: headers, rate limits, secret scan, CI | Built at v0.3.1; CSP report-only, shared rate-limit store and demo rotation remain |
+
+The current delivery plan is the events-first MVP M0–M4 in
+[`docs/roadmap/PLAN.md`](docs/roadmap/PLAN.md) section 14; the long-form plan and
+tracker are in `docs/roadmap/prism-pass-portal.html`.
 
 Phase exit criteria live in `docs/roadmap/phases-gates.md`. Current gaps and environment quirks are
 tracked in `docs/implementation/known-limitations.md`; the design-system and screenshot record is in
@@ -100,7 +104,8 @@ pnpm seed:syntaxure <authUuid> admin@example.com
 ## Demo accounts and data
 
 `pnpm seed:demo` creates the Supabase Auth users, links them to people in **Syntaxure Labs**, and
-seeds a full demo dataset. Password for both accounts: `password123`.
+seeds a full demo dataset. Both accounts use the value of `DEMO_SEED_PASSWORD` from `.env.local`;
+there is no committed default and the seed refuses a missing or weak value.
 
 | Account | Access |
 | --- | --- |
@@ -113,8 +118,9 @@ in progress, one event next week), plus attendance events and records covering P
 and an out-of-geofence exception awaiting approval.
 
 The seed is idempotent and prints every demo QR payload (`PRISM1:publicId:secret`) so the scanner can
-be exercised without issuing passes by hand. Demo credentials are intentionally weak; rotate them
-before any real pilot (see `docs/implementation/known-limitations.md`).
+be exercised without issuing passes by hand. The seed password is supplied out of band through
+`DEMO_SEED_PASSWORD`; production demo accounts created before this change still need rotation or
+removal before a real pilot (see `docs/security/demo-accounts.md`).
 
 ## Scripts
 
