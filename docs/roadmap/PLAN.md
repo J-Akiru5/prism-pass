@@ -246,3 +246,26 @@ configuration is reconciled.
   lock clears.
 - The shared project is also production. This migration was a one-off owner
   authorization, not a standing permission for future production migrations.
+
+### 14.10 Build log — 2026-11-09
+
+- **M0 truth-up:** docs/status reconciled, demo seed now requires
+  `DEMO_SEED_PASSWORD`; production credential rotation, the `v0.3.1` tag and the
+  `develop`→`main` promotion remain owner actions.
+- **M1 events core:** A (session lifecycle/roster/scan gates), B (scanner name
+  and refusal copy), C (CSV import), D (per-event report/CSV) and E (role
+  presets/membership role change) are merged. Full suite passed after each
+  integration; `next build` completed with the new routes.
+- **M2:** clock/drift model and the pure two-device scan transition are merged;
+  the v2 event bundle and on-device verifier are in flight.
+- **M3:** pure certificate domain (schema, eligibility, payload/hash, public
+  verify projection) is merged; generation/signing/PDF are next.
+- **Migration:** `0009_m1_events.sql` applied to the shared project with owner
+  authorization; evidence in 14.9.
+- **Local dependency caveat:** the installed `node_modules/next` is `15.3.4`
+  while `package.json`/`pnpm-lock.yaml` specify `15.5.29`. The local build used
+  the stale install. CI (frozen lockfile) is the authoritative gate for the
+  release version; reinstall/CI must pass before deployment.
+- **Prisma generate caveat:** the Windows DLL rename lock persists while local
+  dev servers hold the engine. Generated types already include the M1 models and
+  typecheck passes; rerun generate after the dev servers exit.
