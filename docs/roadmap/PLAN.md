@@ -246,6 +246,16 @@ configuration is reconciled.
   lock clears.
 - The shared project is also production. This migration was a one-off owner
   authorization, not a standing permission for future production migrations.
+- **2026-11-09 — `0010_m1_certificates.sql` applied** to the same shared project
+  after a second explicit owner authorization. Strictly additive: nullable
+  `documents.source_session_id`, `source_person_id`, `batch_id`; unique
+  `(organization_id, source_session_id, source_person_id)`; and
+  `(organization_id, batch_id)` index. Verified after apply. No data rewrite, no
+  RLS change. Generic null-source documents remain unaffected.
+- **Prisma generate lock:** still held by local dev servers; the certificate
+  generation route uses two narrowly typed casts until `pnpm prisma:generate`
+  runs in CI or after the dev servers exit. Remove the casts once the generated
+  client includes the 0010 fields.
 
 ### 14.10 Build log — 2026-11-09
 
