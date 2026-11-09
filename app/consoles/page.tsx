@@ -7,6 +7,7 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { Badge } from "@/components/ui/badge";
 import { getSessionUser } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db";
+import { roleGrants, type Role } from "@/packages/authorization/permissions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Consoles" };
@@ -30,10 +31,12 @@ export default async function ConsolesPage() {
   if (!user) redirect("/login?next=/consoles");
 
   let memberships: Membership[] = [];
+  let internalId: string | null = null;
   try {
     const internal = await prisma.user.findUnique({
       where: { authId: user.id },
       select: {
+        id: true,
         memberships: {
           select: {
             status: true,
@@ -43,12 +46,36 @@ export default async function ConsolesPage() {
         },
       },
     });
+    internalId = internal?.id ?? null;
     memberships = ((internal?.memberships ?? []) as Membership[]).filter(
       (m) => m.status === "ACTIVE" && m.organization.status === "ACTIVE"
     );
   } catch {
     memberships = [];
   }
+
+  let isPlatformAdmin = false;
+  if (internalId) {
+    try {
+      isPlatformAdmin = Boolean(
+        await prisma.platformAdmin.findUnique({ where: { userId: internalId }, select: { userId: true } }),
+      );
+    } catch {
+      isPlatformAdmin = false;
+    }
+  }
+  const canScan = memberships.some((m) => roleGrants(m.role as Role, "attendance.scan"));
+
+  // A plain member has no console to choose: land on the pass they actually use.
+  if (memberships.length > 0 && !isPlatformAdmin && !canScan) {
+    redirect(`/member?org=${encodeURIComponent(memberships[0].organization.id)}`);
+  }
+
+  const tools = TOOLS.filter((tool) => {
+    if (tool.href === "/platform") return isPlatformAdmin;
+    if (tool.href === "/scan") return canScan;
+    return true;
+  });
 
   return (
     <div className="min-h-dvh bg-slate-50">
@@ -111,7 +138,7 @@ export default async function ConsolesPage() {
             Personal tools
           </h2>
           <ul className="mt-2 grid gap-2 sm:grid-cols-3">
-            {TOOLS.map(({ href, title, desc, Icon }) => (
+            {tools.map(({ href, title, desc, Icon }) => (
               <li key={href}>
                 <Link
                   href={href}

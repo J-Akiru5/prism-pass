@@ -1,6 +1,6 @@
 # Offline queue hardening
 
-Status: implemented on `harden/offline-queue`. Scope: the browser-side P6 queue
+Status: implemented on `develop` (2026-11-09). Scope: the browser-side P6 queue
 (`modules/offline/queue-state.ts`, `modules/offline/at-rest.ts`,
 `lib/offline-queue.ts`, `lib/sync-client.ts`, scanner queue panel). The server
 sync contract (`POST /api/v1/sync/batches`, receipt shapes and statuses) is
@@ -17,6 +17,7 @@ Each queued scan is one Dexie row keyed by its stable client-generated
 | `inflight` | Claimed by a tab and being sent under a lease. | No. | Ack (delete), transient fail, terminal reject, explicit release, or lease recovery. |
 | `failed` | Transient failure (network, 5xx, 429, malformed response, missing receipt, signing/auth problem). | Yes, after `nextAttemptAt`. | Retry, ack, terminal reject, or clear. |
 | `rejected` | Permanent server rejection, or an unreadable sealed credential. | **No, never.** | Explicit user **Retry** (back to `pending`, attempts reset) or **Remove/Clear**. |
+| `blocked` | Device key revoked/unregistered; the same key cannot succeed. | **No, never.** | Re-register the device, then explicit **Retry** (back to `pending`, attempts reset) or **Remove/Clear**. |
 
 ```text
 capture
@@ -28,6 +29,8 @@ capture
                    ├─ transient failure ──► failed ── backoff + jitter ──► peek
                    │
                    ├─ receipt reject / batch 4xx ──► rejected (terminal)
+                   │
+                   ├─ device revoked/unregistered ──► blocked (re-register + retry)
                    │
                    └─ crash / stale lease ──► pending (lease recovery)
 ```
@@ -46,9 +49,12 @@ Rejection sources:
   batch rejection; resending the same rows cannot help).
 - A sealed credential whose local key is missing (`credential_unreadable`).
 
-A `401`/`403`/`404` device/auth problem and a repeated `409` replay remain
-`failed`, because correcting the device key or retrying under a new batch id can
-succeed.
+A device-identity rejection (`DEVICE_REVOKED`, `DEVICE_UNREGISTERED`,
+`DEVICE_NOT_FOUND`) is different: retrying the same key cannot succeed, so every
+row becomes terminal `blocked` until the scanner registers a valid device and the
+user explicitly retries. Other `401`/`403`/`404` auth/organization failures and a
+repeated `409` replay remain `failed`, because signing in again or retrying under
+a new batch id can succeed.
 
 ## 2. Idempotent enqueue
 
@@ -103,8 +109,8 @@ mutex that can guarantee exactly one network request.
   was **not** saved and must not be treated as captured. No code path deletes a
   row in response to a quota failure.
 - `size()` counts rows awaiting a server decision (`pending`, `inflight`,
-  `failed`) and excludes terminal `rejected` rows. The panel shows an accurate
-  breakdown of all four states plus the total stored for the selected
+  `failed`) and excludes terminal `rejected` and `blocked` rows. The panel shows an
+  accurate breakdown of all five states plus the total stored for the selected
   organization.
 
 ## 5. Retry jitter
@@ -115,6 +121,31 @@ at 5 minutes. When the queue adapter calls it, the seed is the row's
 to the 5-minute cap. Two devices with different keys no longer retry in lockstep,
 and a replay/test of the same row gets the same delay. Response-policy callers
 that do not pass a seed keep the exact un-jittered schedule.
+
+## 5.1 Retry-After, request timeout, single-tab lock and device blocks
+
+- **`Retry-After` is a floor.** A `429`/`503` hint is passed through
+  `fail(id, reason, minDelayMs)` into `markFailed`, which uses
+  `max(exponential backoff + jitter, hint)`. Hints are capped at one hour
+  (`MAX_RETRY_AFTER_MS`) so a broken header cannot park a scan indefinitely.
+- **Requests time out.** `postBatch` sends an `AbortSignal.timeout(30s)` by default
+  (overridable via `timeoutMs`). A hung request is treated as a network failure:
+  rows go back to `failed` with backoff instead of staying `inflight` until the
+  two-minute lease expires.
+- **One sync per tab.** `syncQueuedScans` keeps an in-flight promise per
+  `organizationId:deviceId`; the online event, retry timer and manual button share
+  it instead of racing the same queue. Cross-tab concurrency is still governed by
+  the row leases and server idempotency.
+- **Device blocks are terminal for auto-sync.** Device-specific rejection codes
+  move every sent row to `blocked`. They remain visible with the server reason,
+  are excluded from `peek`/`size`, and can only be requeued by an explicit retry
+  after registering a valid device key.
+- **Rebind is explicit.** Rows captured under an empty or different `deviceId` are
+  not silently signed by a new key. The queue panel marks them and offers **Use
+  this device**, which updates `deviceId` only after the operator confirms. An
+  explicit **Retry** also adopts the selected rows to the current key before
+  requeueing, so a re-registered device can recover its blocked work in one action.
+  Live `inflight` rows are never rebound; idempotency keys make any re-send safe.
 
 ## 6. At-rest protection decision
 
@@ -197,9 +228,16 @@ device-local key.** Retention-only fallback was not used.
    store a `CryptoKey` in IndexedDB make `enqueue` fail with
    `encryption_unavailable` instead of downgrading to plaintext. Online scanning
    still works; offline capture is refused visibly.
-10. **Capacity counts all stored rows.** Rejected rows count toward the 2,000-row
-    bound until the user retries or clears them. This is intentional: the bound is
-    about device storage, not only syncable work.
+10. **Capacity counts all stored rows.** Rejected and blocked rows count toward the
+    2,000-row bound until the user retries or clears them. This is intentional: the
+    bound is about device storage, not only syncable work.
+11. **Rebinding is an operator assertion.** Moving a row to the current device key
+    says "this scan belongs to this device"; the server still revalidates the pass,
+    session and clock, and idempotency prevents double writes, but the UI requires
+    an explicit confirmation rather than adopting rows automatically.
+12. **Device recovery is manual.** A blocked row stays blocked until the operator
+    registers a new device secret and presses Retry; the queue cannot provision a
+    device itself.
 
 ## 9. Verification
 
@@ -212,5 +250,8 @@ pnpm exec vitest run tests/p6-offline.test.ts tests/offline-ui.test.ts tests/off
 Coverage includes terminal rejection and non-reselection, explicit retry,
 duplicate enqueue returning the existing id, stale-vs-fresh inflight release,
 capacity and quota errors, jitter bounds/determinism, receipt routing through
-`syncQueuedScans`, and AES-GCM round-trip/tamper rejection. The adapter tests use
+`syncQueuedScans`, device-block routing, Retry-After floors, request abort signals,
+explicit rebinding, and AES-GCM round-trip/tamper rejection. The adapter tests use
 a fake Dexie/IndexedDB surface; no browser or live database is required.
+
+Full suite at this revision: **330 tests / 23 files**, typecheck clean.

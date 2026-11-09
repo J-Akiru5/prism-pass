@@ -10,10 +10,11 @@ export async function POST(_req: Request, { params }: { params: Promise<{ orgId:
     const pass = await prisma.pass.findUnique({ where: { id: passId } });
     if (!pass || pass.organizationId !== ctx.organizationId) return fail(404, "NOT_FOUND", "Pass not found in this organization");
     if (pass.status !== "ACTIVE") return fail(409, "CONFLICT", "Only ACTIVE passes can be rotated");
-    const { qrPayload, credentialHash } = newCredentialPair(pass.passPublicId);
+    const nextVersion = pass.version + 1;
+    const { qrPayload, credentialHash } = newCredentialPair(pass.passPublicId, nextVersion);
     const updated = await prisma.pass.update({
       where: { id: pass.id },
-      data: { credentialHash, version: { increment: 1 } },
+      data: { credentialHash, version: nextVersion },
     });
     await prisma.auditLog.create({
       data: { organizationId: ctx.organizationId, actorUserId: ctx.internalUserId, action: "pass.rotate", resource: `pass:${updated.id}`, result: "ok", meta: { version: updated.version } as never },

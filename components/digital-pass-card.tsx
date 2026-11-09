@@ -14,6 +14,8 @@ export type PassInfo = {
   version: number;
   status: string;
   expiresAt: string | null;
+  /** Derived QR payload for on-screen display; null for legacy random-secret passes. */
+  qrPayload?: string | null;
 };
 
 export function DigitalPassCard({ personName, externalId, orgName, pass, qrValue, showPrint }: {
@@ -57,7 +59,9 @@ export function DigitalPassCard({ personName, externalId, orgName, pass, qrValue
             <p className="tnum mt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
               Scan at any checkpoint
             </p>
-            <p className="tnum mt-1 break-all text-center font-mono text-[11px] leading-relaxed text-slate-400">{qrValue}</p>
+            <p className="tnum mt-1 text-center font-mono text-[11px] leading-relaxed text-slate-400">
+              {pass.passPublicId} · v{pass.version}
+            </p>
           </>
         ) : (
           <div className="w-full rounded-2xl border border-dashed border-slate-300 p-6 text-center">

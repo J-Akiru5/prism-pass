@@ -214,8 +214,8 @@ export function PhonePass() {
               <QrArt size={116} />
             </div>
             <div className="mt-2 text-center">
-              <p className="text-[9.5px] font-semibold leading-tight text-slate-900">Maria Santos</p>
-              <p className="mt-0.5 text-[7px] text-slate-500">OJT · Syntaxure Labs</p>
+              <p className="text-[9.5px] font-semibold leading-tight text-slate-900">Sample member</p>
+              <p className="mt-0.5 text-[7px] text-slate-500">Organization pass</p>
             </div>
           </div>
 

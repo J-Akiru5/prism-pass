@@ -6,6 +6,7 @@ import { ConsoleBar } from "@/components/console-bar";
 import { MobileTabBar } from "@/components/mobile-tab-bar";
 import { PageHeader } from "@/components/page-header";
 import { DigitalPassCard, type PassInfo } from "@/components/digital-pass-card";
+import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState, EmptyState } from "@/components/ui-states";
 import { useOrgs } from "@/lib/use-orgs";
 
@@ -26,10 +27,12 @@ export default function MemberHome() {
   const [ids, setIds] = useState<Identity[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reissuing, setReissuing] = useState<string | null>(null);
 
   useEffect(() => {
     if (orgId || orgs.length === 0) return;
-    setOrgId(orgs[0].id);
+    const fromUrl = new URLSearchParams(window.location.search).get("org");
+    setOrgId(fromUrl && orgs.some((org) => org.id === fromUrl) ? fromUrl : orgs[0].id);
   }, [orgs, orgId]);
 
   useEffect(() => {
@@ -59,6 +62,36 @@ export default function MemberHome() {
   }, [orgId]);
 
   const org = orgs.find((o) => o.id === orgId);
+
+  async function reissuePass(passId: string) {
+    if (!orgId) return;
+    setReissuing(passId);
+    setError(null);
+    try {
+      const response = await fetch(`/api/v1/orgs/${orgId}/my-pass/reissue`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ passId }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error?.message ?? "Could not re-issue the pass");
+      const qrPayload = payload.data.qrPayload as string;
+      const version = payload.data.pass.version as number;
+      setIds((current) =>
+        current?.map((identity) => ({
+          ...identity,
+          passes: identity.passes.map((pass) =>
+            pass.id === passId ? { ...pass, version, qrPayload } : pass,
+          ),
+        })) ?? null,
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setReissuing(null);
+    }
+  }
 
   return (
     <div className="min-h-dvh bg-slate-50">
@@ -117,14 +150,34 @@ export default function MemberHome() {
               <EmptyState title="No pass issued" description={`Hi ${idn.displayName} — ask your administrator to issue your digital pass.`} />
             ) : (
               idn.passes.map((p) => (
-                <DigitalPassCard
-                  key={p.id}
-                  personName={idn.displayName}
-                  externalId={idn.externalId}
-                  orgName={org?.name}
-                  pass={p}
-                  showPrint
-                />
+                <div key={p.id}>
+                  <DigitalPassCard
+                    personName={idn.displayName}
+                    externalId={idn.externalId}
+                    orgName={org?.name}
+                    pass={p}
+                    qrValue={p.qrPayload}
+                    showPrint
+                  />
+                  {!p.qrPayload && (
+                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                      <p className="text-[13.5px] leading-relaxed text-amber-900">
+                        This pass was issued with a one-time secret and cannot be redisplayed. Re-issue it once
+                        to show a stable QR here.
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="mt-2"
+                        onClick={() => void reissuePass(p.id)}
+                        disabled={reissuing === p.id}
+                      >
+                        {reissuing === p.id ? "Re-issuing…" : "Re-issue my QR"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
               ))
             )}
 

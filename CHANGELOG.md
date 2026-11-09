@@ -6,7 +6,38 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- Self-serve account creation at `/signup`: Supabase sign-up with email confirmation, an idempotent
+  `POST /api/v1/auth/provision` endpoint that links the auth identity to an internal user, and a
+  clear "no organization access yet" boundary. No schema migration.
+- Password recovery: `/forgot-password` request form, shared `/auth/confirm` callback for `code` and
+  `token_hash` links, and `/reset-password` with a session-gated password update.
+- Show/hide password control on login, signup and reset forms, with accessible labels and no layout
+  shift.
+- Visible "Back to home" links on all public auth pages, plus a pilot Terms of Service page.
+- Offline queue: terminal `blocked` state for revoked/unregistered device keys, explicit rebind for
+  rows captured under another device, a 30-second sync request timeout, and a single-tab sync lock.
+- Member landing: MEMBER accounts skip the console chooser and open their pass; the pass card now
+  displays a stable QR derived from `PASS_QR_SECRET`. Legacy random-secret passes can be re-issued
+  from the member page. No database migration.
+
+### Fixed
+- Login now distinguishes an unconfirmed email from a wrong password, so the user is told to check
+  their inbox instead of seeing a generic credential error.
+- The member pass card no longer prints the full QR secret as text; only the QR and public pass id
+  are shown.
+- Device revocation no longer causes an infinite retry loop; queued scans stay intact until the device
+  is re-registered and retried explicitly.
+- Sync now honours a server `Retry-After` as a floor instead of retrying after the shorter 1-second
+  backoff.
+- A hung sync request can no longer leave rows `inflight` until the lease expires; it fails into the
+  normal backoff path.
+
+### Security
+- Login now validates the `next` parameter with the shared same-origin guard, closing an open-redirect
+  path.
+- Auth callbacks are limited to supported OTP types and safe internal destinations; provisioning is
+  session-gated and requires a confirmed email.
 
 ## [0.3.1] - 2026-11-09
 

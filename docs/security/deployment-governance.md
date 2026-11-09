@@ -94,14 +94,15 @@ task branch ──PR──> develop ──automatic deploy──> verify
    only as part of the release procedure (`docs/ops/release-and-versioning.md`).
 5. Never force-push, rewrite history, or delete `main` or `develop`.
 
-The repository currently allows direct merges into `develop` and has no branch protection. The flow
-above is the target state; the GitHub settings in the next section are required to enforce it.
+The repository allows direct merges into `develop`. Branch protection now requires the CI check and
+blocks force pushes and deletions; requiring a pull request remains the target state for review.
 
-## Required GitHub settings (not enforceable from repository code)
+## GitHub settings (not enforceable from repository code)
 
-These are GitHub settings, not files in the repository. They were verified absent on 2026-11-09:
-`GET /repos/J-Akiru5/prism-pass/branches/main/protection` and the same path for `develop` both returned
-`404 Branch not protected`.
+These are GitHub settings, not files in the repository. They were verified absent earlier on
+2026-11-09 and configured the same day: `main` and `develop` require the check
+**`typecheck / test / build`** (strict), block force pushes and deletions, and require conversation
+resolution. Direct pushes remain allowed because "require a pull request" is not enabled.
 
 Configure branch protection rules or rulesets for **both** `main` and `develop`:
 
@@ -174,8 +175,8 @@ is validated statically; this change does not run or deploy it.
 - [x] CI workflow removes the `staging` trigger and keeps pull requests plus `main`/`develop` pushes.
 - [x] `.nvmrc` pins Node 22.
 - [x] Workflow YAML and `vercel.json` parsed statically.
-- [ ] Branch protection/rulesets configured for `main` and `develop` (GitHub setting, owner action).
-- [ ] Required status check `typecheck / test / build` selected in the ruleset.
+- [x] Branch protection/rulesets configured for `main` and `develop` (2026-11-09).
+- [x] Required status check `typecheck / test / build` selected in the ruleset.
 - [ ] Vercel project settings and absence of deploy hooks verified in the dashboard.
 - [x] `docs/ops/branching-and-deployment.md`, `docs/ops/release-and-versioning.md` and `README.md`
       reconciled with this document (2026-11-09).

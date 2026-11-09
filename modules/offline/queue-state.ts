@@ -8,8 +8,11 @@
 //   failed   -> transient failure; retry after exponential backoff + jitter
 //   rejected -> terminal server rejection; never re-peeked automatically, but
 //               the user can explicitly retry or clear it
+//   blocked  -> the device key itself is revoked/unregistered; retrying the
+//               same key cannot work, so auto-sync stops until the user
+//               re-registers the device and explicitly retries
 
-export type QueueState = "pending" | "inflight" | "failed" | "rejected";
+export type QueueState = "pending" | "inflight" | "failed" | "rejected" | "blocked";
 
 export type QueueRecord = {
   idempotencyKey: string;
@@ -28,6 +31,8 @@ export type QueueRecord = {
 
 export const BASE_BACKOFF_MS = 1_000;
 export const MAX_BACKOFF_MS = 5 * 60_000;
+/** A server `Retry-After` may exceed our exponential cap; honour it, but not absurdly. */
+export const MAX_RETRY_AFTER_MS = 60 * 60_000;
 /** Bound on how long a row may stay `inflight` before another tab may reclaim it. */
 export const INFLIGHT_LEASE_MS = 2 * 60_000;
 /** Hard bound on queued rows. Reaching it refuses new scans; nothing is dropped. */
@@ -147,15 +152,29 @@ export function migrateLegacyQueueRecord(record: QueueRecord): QueueRecord {
   return { ...record, inflightAt: record.state === "inflight" ? 0 : null };
 }
 
-/** A transient failure goes back to `failed` with backoff metadata + jitter. */
-export function markFailed(record: QueueRecord, reason: string, now: number): QueueRecord {
+/**
+ * A transient failure goes back to `failed` with backoff metadata + jitter.
+ * `minDelayMs` carries a server `Retry-After` hint; it is a floor, never a cap,
+ * and is itself bounded to one hour so a hostile/broken header cannot park a
+ * scan forever.
+ */
+export function markFailed(
+  record: QueueRecord,
+  reason: string,
+  now: number,
+  minDelayMs = 0,
+): QueueRecord {
+  const backoff = backoffDelayMs(record.attempts, record.idempotencyKey);
+  const hinted = Number.isFinite(minDelayMs)
+    ? Math.min(MAX_RETRY_AFTER_MS, Math.max(0, minDelayMs))
+    : 0;
   return {
     ...record,
     state: "failed",
     attempts: record.attempts + 1,
     // First retry waits 1s, then 2s, 4s ... based on attempts already made,
     // spread deterministically by this row's idempotency key.
-    nextAttemptAt: now + backoffDelayMs(record.attempts, record.idempotencyKey),
+    nextAttemptAt: now + Math.max(backoff, hinted),
     lastError: reason,
     inflightAt: null,
   };
@@ -177,7 +196,22 @@ export function markRejected(record: QueueRecord, reason: string): QueueRecord {
   };
 }
 
-/** Explicit user retry: requeue a rejected/failed row and reset its attempt budget. */
+/**
+ * Terminal until the user fixes the cause (device key re-registered, then an
+ * explicit retry). Auto-sync and `fail` must never downgrade it.
+ */
+export function markBlocked(record: QueueRecord, reason: string): QueueRecord {
+  return {
+    ...record,
+    state: "blocked",
+    attempts: record.attempts + 1,
+    nextAttemptAt: 0,
+    lastError: reason,
+    inflightAt: null,
+  };
+}
+
+/** Explicit user retry: requeue a rejected/failed/blocked row and reset attempts. */
 export function markRetry(record: QueueRecord, now: number): QueueRecord {
   return {
     ...record,
@@ -194,7 +228,7 @@ export function markAcked(record: QueueRecord): QueueRecord {
   return { ...record, state: "pending", attempts: 0, nextAttemptAt: 0, lastError: null, inflightAt: null };
 }
 
-/** Only pending/failed rows can become due. Rejected is terminal. */
+/** Only pending/failed rows can become due. Rejected/blocked are terminal. */
 export function isDue(record: QueueRecord, now: number): boolean {
   return (record.state === "pending" || record.state === "failed") && record.nextAttemptAt <= now;
 }
@@ -225,12 +259,20 @@ export type QueueCounts = {
   inflight: number;
   failed: number;
   rejected: number;
+  blocked: number;
   total: number;
 };
 
-/** Accurate per-state counts for the queue panel; total includes rejected rows. */
+/** Accurate per-state counts for the queue panel; total includes terminal rows. */
 export function queueCounts(records: readonly Pick<QueueRecord, "state">[]): QueueCounts {
-  const counts: QueueCounts = { pending: 0, inflight: 0, failed: 0, rejected: 0, total: records.length };
+  const counts: QueueCounts = {
+    pending: 0,
+    inflight: 0,
+    failed: 0,
+    rejected: 0,
+    blocked: 0,
+    total: records.length,
+  };
   for (const record of records) counts[record.state] += 1;
   return counts;
 }

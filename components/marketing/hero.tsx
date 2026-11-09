@@ -23,24 +23,24 @@ export function Hero() {
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
         {/* floating artefacts: what the record looks like at the gate */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden lg:block">
-          <div className="absolute left-0 top-[188px] w-[196px] -rotate-[5deg] rounded-xl border border-slate-200 bg-white/95 p-2.5 shadow-[0_20px_45px_-20px_rgba(15,23,42,0.35)] backdrop-blur-sm">
+          <div className="pp-breathe pp-breathe-delay-1 absolute left-0 top-[188px] w-[196px] -rotate-[5deg] rounded-xl border border-slate-200 bg-white/95 p-2.5 shadow-[0_20px_45px_-20px_rgba(15,23,42,0.35)] backdrop-blur-sm">
             <div className="flex items-center gap-2">
               <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
                 <BadgeCheck className="size-3.5" />
               </span>
               <div className="min-w-0">
                 <p className="truncate text-[10.5px] font-semibold leading-tight text-slate-900">Check-in saved</p>
-                <p className="truncate text-[9.5px] text-slate-500">Maria Santos · 8:02 AM</p>
+                <p className="truncate text-[9.5px] text-slate-500">Member pass · 8:02 AM</p>
               </div>
             </div>
           </div>
 
-          <div className="absolute left-1 top-[338px] rotate-[4deg] rounded-xl border border-slate-200 bg-white p-2 shadow-[0_18px_40px_-18px_rgba(15,23,42,0.3)]">
+          <div className="pp-breathe pp-breathe-delay-2 absolute left-1 top-[338px] rotate-[4deg] rounded-xl border border-slate-200 bg-white p-2 shadow-[0_18px_40px_-18px_rgba(15,23,42,0.3)]">
             <QrArt size={70} />
             <p className="mt-1 text-center text-[8px] font-semibold uppercase tracking-[0.1em] text-slate-400">Pass</p>
           </div>
 
-          <div className="absolute right-0 top-[238px] w-[172px] rotate-[4deg] rounded-xl border border-amber-200 bg-amber-50/95 p-2.5 shadow-[0_20px_45px_-20px_rgba(120,53,15,0.3)] backdrop-blur-sm">
+          <div className="pp-breathe absolute right-0 top-[238px] w-[172px] rotate-[4deg] rounded-xl border border-amber-200 bg-amber-50/95 p-2.5 shadow-[0_20px_45px_-20px_rgba(120,53,15,0.3)] backdrop-blur-sm">
             <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-amber-700">Late · 08:42</p>
             <p className="mt-0.5 text-[9.5px] leading-tight text-amber-900/70">10-minute grace. Marked late, not blocked.</p>
           </div>

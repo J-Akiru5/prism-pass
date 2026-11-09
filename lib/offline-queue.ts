@@ -6,6 +6,7 @@ import {
   isConstraintError,
   isPeekable,
   isQuotaExceededError,
+  markBlocked,
   markFailed,
   markRejected,
   markRetry,
@@ -254,13 +255,17 @@ export async function ack(ids: number[]): Promise<void> {
   await getDatabase().queue.bulkDelete(ids);
 }
 
-/** Record a transient failed send; the item returns after backoff + jitter. */
-export async function fail(id: number, reason: string): Promise<void> {
+/**
+ * Record a transient failed send; the item returns after backoff + jitter.
+ * `minDelayMs` is a server `Retry-After` floor. Terminal rows are never
+ * downgraded back to retryable.
+ */
+export async function fail(id: number, reason: string, minDelayMs = 0): Promise<void> {
   const db = getDatabase();
   await db.transaction("rw", db.queue, async () => {
     const item = await db.queue.get(id);
-    if (!item || item.state === "rejected") return;
-    const next = markFailed(item, reason, Date.now());
+    if (!item || item.state === "rejected" || item.state === "blocked") return;
+    const next = markFailed(item, reason, Date.now(), minDelayMs);
     await db.queue.update(id, {
       state: next.state,
       attempts: next.attempts,
@@ -279,7 +284,7 @@ export async function reject(id: number, reason: string): Promise<void> {
   const db = getDatabase();
   await db.transaction("rw", db.queue, async () => {
     const item = await db.queue.get(id);
-    if (!item || item.state === "rejected") return;
+    if (!item || item.state === "rejected" || item.state === "blocked") return;
     const next = markRejected(item, reason);
     await db.queue.update(id, {
       state: next.state,
@@ -292,8 +297,50 @@ export async function reject(id: number, reason: string): Promise<void> {
 }
 
 /**
- * Explicit user retry for a rejected or failed row: back to pending, attempt
- * count reset, due immediately. A live `inflight` row is left alone.
+ * A device-level rejection: the signing key is revoked or unregistered, so
+ * retrying the same key cannot succeed. Keep every row intact but stop auto-sync
+ * until the user registers a valid key and explicitly retries.
+ */
+export async function block(id: number, reason: string): Promise<void> {
+  const db = getDatabase();
+  await db.transaction("rw", db.queue, async () => {
+    const item = await db.queue.get(id);
+    if (!item || item.state === "rejected" || item.state === "blocked") return;
+    const next = markBlocked(item, reason);
+    await db.queue.update(id, {
+      state: next.state,
+      attempts: next.attempts,
+      nextAttemptAt: next.nextAttemptAt,
+      lastError: next.lastError,
+      inflightAt: next.inflightAt,
+    });
+  });
+}
+
+/**
+ * Adopt rows captured under another (or an empty) device key after the user
+ * explicitly confirms they belong to the current device. Live inflight rows are
+ * never moved; the idempotency keys still make any re-send safe.
+ */
+export async function rebindDevice(ids: number[], deviceId: string): Promise<number> {
+  const target = deviceId.trim();
+  if (!target || ids.length === 0) return 0;
+  const db = getDatabase();
+  return db.transaction("rw", db.queue, async () => {
+    let moved = 0;
+    for (const id of ids) {
+      const item = await db.queue.get(id);
+      if (!item || item.state === "inflight") continue;
+      await db.queue.update(id, { deviceId: target });
+      moved += 1;
+    }
+    return moved;
+  });
+}
+
+/**
+ * Explicit user retry for a rejected, blocked or failed row: back to pending,
+ * attempt count reset, due immediately. A live `inflight` row is left alone.
  */
 export async function retry(id: number): Promise<void> {
   const db = getDatabase();
@@ -331,7 +378,7 @@ export async function clear(ids: number[]): Promise<void> {
 
 /**
  * Rows still awaiting a server decision (pending, inflight or failed).
- * Rejected rows stay stored but are not "remaining" sync work.
+ * Rejected and device-blocked rows stay stored but are not "remaining" sync work.
  */
 export async function size(): Promise<number> {
   return getDatabase().queue.where("state").anyOf("pending", "inflight", "failed").count();

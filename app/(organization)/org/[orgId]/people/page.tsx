@@ -124,7 +124,7 @@ export default function PeoplePage({ params }: { params: Promise<{ orgId: string
           </CardHeader>
           <CardContent>
             <form onSubmit={create} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-              <FormField label="Full name" htmlFor="p-name"><Input id="p-name" value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. Maria Santos" autoComplete="off" /></FormField>
+              <FormField label="Full name" htmlFor="p-name"><Input id="p-name" value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. Alex Cruz" autoComplete="off" /></FormField>
               <FormField label="External ID (optional)" htmlFor="p-ext"><Input id="p-ext" value={extId} onChange={(e) => setExtId(e.target.value)} placeholder="e.g. EMP-1042" /></FormField>
               <Button disabled={busy} type="submit" className="h-12 sm:mb-0">{busy ? "Adding…" : "Add person"}</Button>
             </form>

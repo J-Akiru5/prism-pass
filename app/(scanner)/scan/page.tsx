@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { Input } from "@/components/ui/input";
 import { useOrgs } from "@/lib/use-orgs";
-import { enqueue, list, releaseInflight, retry as retryQueuedScans, clear as clearQueuedScans, type OfflineQueueItem } from "@/lib/offline-queue";
+import { enqueue, list, rebindDevice, releaseInflight, retry as retryQueuedScans, clear as clearQueuedScans, type OfflineQueueItem } from "@/lib/offline-queue";
 import { OfflineQueueError, INFLIGHT_LEASE_MS } from "@/modules/offline/queue-state";
 import { newUuid, syncQueuedScans } from "@/lib/sync-client";
 import {
@@ -491,9 +491,12 @@ export default function ScanPage() {
     async (ids: number[]) => {
       if (ids.length === 0) return;
       try {
+        // A row can only be retried under a usable key. If the device was
+        // re-registered, adopt the explicitly retried rows first.
+        if (device) await rebindDevice(ids, device.deviceId);
         for (const id of ids) await retryQueuedScans(id);
         const refreshed = await refreshQueue();
-        const waiting = refreshed.filter((item) => item.state !== "rejected").length;
+        const waiting = refreshed.filter((item) => item.state !== "rejected" && item.state !== "blocked").length;
         setQueueNotice(
           `Requeued ${ids.length} ${ids.length === 1 ? "scan" : "scans"} for another attempt. ` +
             `${waiting} ${waiting === 1 ? "scan is" : "scans are"} waiting; nothing is recorded until the server accepts it.`
@@ -502,7 +505,28 @@ export default function ScanPage() {
         setQueueNotice(`Could not retry queued scans: ${(e as Error).message}`);
       }
     },
-    [refreshQueue]
+    [device, refreshQueue]
+  );
+
+  const handleRebindQueue = useCallback(
+    async (ids: number[]) => {
+      if (ids.length === 0) return;
+      if (!orgId || !device) {
+        setQueueNotice("Set the device signing key before rebinding queued scans.");
+        return;
+      }
+      try {
+        const moved = await rebindDevice(ids, device.deviceId);
+        const refreshed = await refreshQueue();
+        setQueueNotice(
+          `Moved ${moved} ${moved === 1 ? "scan" : "scans"} to this device key. ` +
+            `${refreshed.filter((item) => item.state === "pending" || item.state === "failed").length} ready to sync.`
+        );
+      } catch (e) {
+        setQueueNotice(`Could not rebind queued scans: ${(e as Error).message}`);
+      }
+    },
+    [orgId, device, refreshQueue]
   );
 
   const sessionLabel = useCallback(
@@ -632,6 +656,7 @@ export default function ScanPage() {
               onSync={() => void syncNow("manual")}
               onClear={(ids) => void handleClearQueue(ids)}
               onRetry={(ids) => void handleRetryQueue(ids)}
+              onRebind={(ids) => void handleRebindQueue(ids)}
               onSaveKey={handleSaveKey}
               onForgetKey={handleForgetKey}
             />

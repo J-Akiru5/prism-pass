@@ -1,6 +1,18 @@
 import { ok, fail, handleRouteError } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
+import { credentialHashForPass, qrPayloadForPass } from "@/modules/passes/service";
+
+/** A pass issued with a random secret cannot be redisplayed; only derived passes can. */
+function derivedQrPayload(pass: { passPublicId: string; version: number; credentialHash: string }): string | null {
+  try {
+    if (credentialHashForPass(pass.passPublicId, pass.version) !== pass.credentialHash) return null;
+    return qrPayloadForPass(pass.passPublicId, pass.version);
+  } catch {
+    // PASS_QR_SECRET not configured: QR display is unavailable, not a crash.
+    return null;
+  }
+}
 
 // Digital identity: the signed-in member's own pass(es). Any active membership
 // may read ONLY its own records — people linked via users.id. No PII beyond own.
@@ -23,7 +35,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ orgId: 
     // Never expose credentialHash
     const safe = people.map((p) => ({
       ...p,
-      passes: p.passes.map(({ credentialHash: _h, ...rest }) => rest),
+      passes: p.passes.map(({ credentialHash, ...rest }) => ({
+        ...rest,
+        qrPayload: derivedQrPayload({ ...rest, credentialHash }),
+      })),
     }));
     return ok(safe);
   } catch (e) { return handleRouteError(e); }

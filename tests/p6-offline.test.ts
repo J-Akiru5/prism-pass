@@ -355,6 +355,7 @@ describe("P6 inflight lease", () => {
       inflight: 1,
       failed: 1,
       rejected: 1,
+      blocked: 0,
       total: 4,
     });
   });

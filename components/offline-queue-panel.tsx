@@ -22,6 +22,7 @@ export type OfflineQueuePanelProps = {
   onSync: () => void;
   onClear: (ids: number[]) => void;
   onRetry: (ids: number[]) => void;
+  onRebind: (ids: number[]) => void;
   onSaveKey: (deviceId: string, secret: string) => string | null;
   onForgetKey: () => void;
 };
@@ -29,6 +30,7 @@ export type OfflineQueuePanelProps = {
 function stateLabel(item: OfflineQueueItem): string {
   if (item.state === "inflight") return "Sending";
   if (item.state === "rejected") return item.credentialUnreadable ? "Rejected · unreadable" : "Rejected — not recorded";
+  if (item.state === "blocked") return "Device blocked — re-register";
   if (item.state === "failed") return item.attempts > 0 ? `Failed · attempt ${item.attempts}` : "Failed";
   return "Waiting";
 }
@@ -50,6 +52,7 @@ export function OfflineQueuePanel({
   onSync,
   onClear,
   onRetry,
+  onRebind,
   onSaveKey,
   onForgetKey,
 }: OfflineQueuePanelProps) {
@@ -78,7 +81,9 @@ export function OfflineQueuePanel({
 
   const summary = !hasItems
     ? "No scans queued for this organization. Online scans are recorded immediately."
-    : `${waiting} waiting · ${counts.inflight} sending · ${counts.failed} failed · ${counts.rejected} rejected · ${counts.total} total for this organization.`;
+    : `${waiting} waiting · ${counts.inflight} sending · ${counts.failed} failed · ${counts.rejected} rejected${
+        counts.blocked > 0 ? ` · ${counts.blocked} blocked` : ""
+      } · ${counts.total} total for this organization.`;
 
   const submitKey = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -138,6 +143,12 @@ export function OfflineQueuePanel({
             Rejected scans are not recorded. Retry after fixing the cause, or remove them from this device.
           </p>
         )}
+        {counts.blocked > 0 && (
+          <p className="mt-1 text-xs text-destructive">
+            The device signing key was rejected. Re-register this device, then retry the blocked scans
+            (or use “Use this device” on a row captured under the old key).
+          </p>
+        )}
       </div>
 
       {confirming && (
@@ -173,6 +184,7 @@ export function OfflineQueuePanel({
             .sort((a, b) => b.createdAt - a.createdAt)
             .map((item) => {
               const short = item.event.idempotencyKey.slice(0, 8);
+              const mismatched = Boolean(device && item.deviceId && item.deviceId !== device.deviceId);
               return (
                 <li key={item.id ?? item.idempotencyKey} className="border-b py-2 text-sm last:border-b-0">
                   <div className="flex items-start justify-between gap-4">
@@ -183,7 +195,12 @@ export function OfflineQueuePanel({
                       </p>
                       {item.lastError && (
                         <p className="mt-1 break-words text-xs text-destructive">
-                          {item.state === "rejected" ? "Server reason" : "Last failure"}: {item.lastError}
+                          {item.state === "rejected"
+                            ? "Server reason"
+                            : item.state === "blocked"
+                              ? "Device key rejected"
+                              : "Last failure"}
+                          : {item.lastError}
                         </p>
                       )}
                       {item.credentialUnreadable && item.state !== "rejected" && (
@@ -195,7 +212,26 @@ export function OfflineQueuePanel({
                     </div>
                     <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{short}</span>
                   </div>
-                  {item.state === "rejected" && item.id !== undefined && (
+                  {mismatched && item.id !== undefined && item.state !== "rejected" && (
+                    <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2">
+                      <p className="text-xs text-amber-900">
+                        Captured with a different device key ({item.deviceId}). Rebind it only if you are sure this
+                        scan belongs to this device.
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="mt-2"
+                        onClick={() => onRebind([item.id as number])}
+                        disabled={syncing}
+                        aria-label={`Use this device for scan ${short}`}
+                      >
+                        Use this device
+                      </Button>
+                    </div>
+                  )}
+                  {(item.state === "rejected" || item.state === "blocked") && item.id !== undefined && (
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Button
                         type="button"
@@ -203,7 +239,7 @@ export function OfflineQueuePanel({
                         variant="outline"
                         onClick={() => onRetry([item.id as number])}
                         disabled={syncing}
-                        aria-label={`Retry rejected scan ${short}`}
+                        aria-label={`Retry ${item.state} scan ${short}`}
                       >
                         <RotateCcw aria-hidden="true" /> Retry
                       </Button>
@@ -213,7 +249,7 @@ export function OfflineQueuePanel({
                         variant="ghost"
                         onClick={() => onClear([item.id as number])}
                         disabled={syncing}
-                        aria-label={`Remove rejected scan ${short}`}
+                        aria-label={`Remove ${item.state} scan ${short}`}
                       >
                         Remove
                       </Button>

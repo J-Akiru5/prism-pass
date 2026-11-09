@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   INFLIGHT_LEASE_MS,
   MAX_QUEUE_ITEMS,
+  isPeekable,
   isQuotaExceededError,
+  markBlocked,
+  markFailed,
+  queueCounts,
+  type QueueRecord,
 } from "../modules/offline/queue-state";
 
 // The Dexie adapter is exercised against a small in-memory fake. It implements
@@ -170,18 +175,20 @@ vi.mock("@/modules/offline/at-rest", async (importOriginal) => {
 });
 
 import {
+  block,
   clear,
   enqueue,
   fail,
   list,
   peek,
+  rebindDevice,
   reject,
   release,
   releaseInflight,
   retry,
   size,
 } from "../lib/offline-queue";
-import { syncQueuedScans } from "../lib/sync-client";
+import { decideBatchResponse, isDeviceBlockCode, postBatch, syncQueuedScans } from "../lib/sync-client";
 import { loadQueueKey } from "../modules/offline/at-rest";
 
 const ORG = "org-hardening";
@@ -529,5 +536,135 @@ describe("offline queue at-rest encryption", () => {
     expect(first).not.toBe(second);
     expect(await actual.openCredential(first, key)).toBe("same-credential-value");
     expect(await actual.openCredential(second, key)).toBe("same-credential-value");
+  });
+});
+
+function baseRecord(overrides: Partial<QueueRecord> = {}): QueueRecord {
+  return {
+    idempotencyKey: "key-base",
+    state: "pending",
+    attempts: 0,
+    nextAttemptAt: 0,
+    lastError: null,
+    createdAt: 0,
+    inflightAt: null,
+    ...overrides,
+  };
+}
+
+describe("offline queue: device blocks and retry hints", () => {
+  it("treats a device rejection as terminal and requeues only on explicit retry", async () => {
+    const id = await seed();
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({ error: { code: "DEVICE_REVOKED", message: "Device is revoked" } }),
+        { status: 403, headers: { "content-type": "application/json" } },
+      ),
+    );
+
+    const summary = await syncQueuedScans(
+      {
+        organizationId: ORG,
+        deviceId: DEVICE,
+        deviceSecret: "a".repeat(64),
+        endpoint: "/api/v1/sync/batches",
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      },
+      { includeDeferred: true, batchId: () => randomUUID(), limit: 10 },
+    );
+
+    expect(summary).toMatchObject({ outcome: "blocked", attempted: 1, rejected: 0, remaining: 0 });
+    expect(summary.message).toMatch(/re-register/i);
+    expect((await table()).rows.get(id)?.state).toBe("blocked");
+    expect(await peek(10)).toHaveLength(0);
+    expect(await size()).toBe(0);
+
+    await retry(id);
+    expect((await table()).rows.get(id)?.state).toBe("pending");
+  });
+
+  it("honours a server Retry-After as a floor instead of the 1s backoff", async () => {
+    const id = await seed();
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({ error: { code: "RATE_LIMITED", message: "Too many batches" } }),
+        {
+          status: 429,
+          headers: { "content-type": "application/json", "retry-after": "120" },
+        },
+      ),
+    );
+
+    const before = Date.now();
+    const summary = await syncQueuedScans(
+      {
+        organizationId: ORG,
+        deviceId: DEVICE,
+        deviceSecret: "a".repeat(64),
+        endpoint: "/api/v1/sync/batches",
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      },
+      { includeDeferred: true, batchId: () => randomUUID(), limit: 10 },
+    );
+
+    expect(summary).toMatchObject({ outcome: "retry", attempted: 1, rejected: 0 });
+    const row = (await table()).rows.get(id);
+    expect(row?.state).toBe("failed");
+    expect(row?.nextAttemptAt).toBeGreaterThanOrEqual(before + 119_000);
+  });
+
+  it("rebinds rows captured under another device key only when explicitly asked", async () => {
+    const id = await seed({ deviceId: "dev_old" });
+    expect(await rebindDevice([id], DEVICE)).toBe(1);
+    expect((await table()).rows.get(id)?.deviceId).toBe(DEVICE);
+    expect(await rebindDevice([id], "   ")).toBe(0);
+  });
+
+  it("caps absurd Retry-After hints and keeps reject/blocked rows out of counts", () => {
+    const failed = markFailed(baseRecord(), "network", 1_000, 24 * 60 * 60_000);
+    expect(failed.nextAttemptAt).toBeLessThanOrEqual(1_000 + 60 * 60_000);
+
+    const blocked = markBlocked(baseRecord(), "DEVICE_REVOKED");
+    expect(blocked.state).toBe("blocked");
+    expect(isPeekable(blocked, 10_000)).toBe(false);
+    expect(queueCounts([blocked, baseRecord({ state: "rejected" })])).toMatchObject({
+      blocked: 1,
+      rejected: 1,
+      total: 2,
+    });
+  });
+
+  it("maps device codes and sends an abort signal for a hung request", async () => {
+    expect(isDeviceBlockCode("DEVICE_REVOKED")).toBe(true);
+    expect(isDeviceBlockCode("DEVICE_UNREGISTERED")).toBe(true);
+    expect(isDeviceBlockCode("FORBIDDEN")).toBe(false);
+    expect(decideBatchResponse({ status: 403, body: { error: { code: "DEVICE_REVOKED" } } })).toMatchObject({
+      kind: "fatal",
+      code: "DEVICE_REVOKED",
+    });
+
+    let captured: RequestInit | undefined;
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      captured = init;
+      return new Response(JSON.stringify({ data: { receipts: [] } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    await postBatch(
+      {
+        organizationId: ORG,
+        deviceId: DEVICE,
+        batchId: randomUUID(),
+        clientVersion: "1.0.0",
+        sentAt: new Date().toISOString(),
+        events: [],
+        signature: "a".repeat(64),
+      },
+      { fetchImpl: fetchImpl as unknown as typeof fetch, timeoutMs: 50 },
+    );
+
+    expect(captured?.signal).toBeInstanceOf(AbortSignal);
   });
 });
