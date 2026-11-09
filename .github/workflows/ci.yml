@@ -2,49 +2,75 @@ name: CI
 
 on:
   push:
-    branches: [main, staging, develop]
+    branches: [main, develop]
   pull_request:
+    branches: [main, develop]
 
+# Least privilege: this workflow only reads the repository.
 permissions:
   contents: read
 
+# One run per ref; a new push cancels the previous run.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   NEXT_TELEMETRY_DISABLED: "1"
-  # Build-time placeholder only. Nothing in CI connects to a real database.
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+  # Build-time placeholders only. CI never connects to Supabase or a database.
+  # Real values live in Vercel/local environment files and are never committed.
+  NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: anon-key-placeholder
+  APP_URL: http://localhost:3000
   DATABASE_URL: postgresql://postgres:postgres@localhost:5432/prism_pass
 
 jobs:
   verify:
+    # This job name is the required status check. If it changes, update the
+    # branch protection / ruleset entry for main and develop.
     name: typecheck / test / build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v6
         with:
-          # Keep in sync with "packageManager" in package.json.
-          version: 10.33.3
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: pnpm
+
+      # packageManager in package.json pins pnpm 10.33.3; Corepack resolves it.
+      - name: Enable Corepack and pnpm
+        run: |
+          corepack enable
+          corepack install --global pnpm@10.33.3
+          pnpm --version
+
+      - name: Resolve pnpm store path
+        id: pnpm-store
+        run: |
+          store_path="$(pnpm store path --silent)"
+          mkdir -p "$store_path"
+          echo "path=$store_path" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-pnpm-10.33.3-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-10.33.3-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       # Non-blocking while the dependency tree is stabilised: a production
-      # advisory is printed loudly but does not fail this slice. `|| true` keeps
-      # the step green (continue-on-error still raises a red annotation), and the
-      # audit output stays in the job log. Promote to blocking once triaged.
+      # advisory is printed loudly but does not fail this slice. Promote to
+      # blocking once the report is triaged and clean.
       - name: Dependency audit (production, non-blocking)
         run: pnpm audit --prod || true
 
@@ -64,5 +90,7 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # Succeeds without a live database: DB-backed pages are force-dynamic or
+      # request-scoped, and DATABASE_URL above is a localhost placeholder.
       - name: Build
         run: pnpm build
