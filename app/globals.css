@@ -274,6 +274,20 @@ body {
   color: hsl(var(--muted-foreground));
 }
 
+/* Hero artefact breathing — a slow vertical float. `translate` is used instead
+   of `transform` so each card's rotate utility is preserved, and the global
+   prefers-reduced-motion rule disables it. */
+@keyframes pp-breathe {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -8px; }
+}
+.pp-breathe {
+  animation: pp-breathe 6.5s ease-in-out infinite;
+  will-change: translate;
+}
+.pp-breathe-delay-1 { animation-delay: -2.2s; }
+.pp-breathe-delay-2 { animation-delay: -4.4s; }
+
 /* Skeleton shimmer — the missing loading language. */
 @keyframes pp-shimmer {
   0% { background-position: -400px 0; }
