@@ -19,6 +19,28 @@ type Identity = {
   assignments: { id: string; programId: string | null; role: string }[];
 };
 
+type CertificateSummary = {
+  id: string;
+  title: string | null;
+  eventTitle: string | null;
+  eventDateLabel: string | null;
+  sealedAt: string;
+  verifyToken: string | null;
+  verifyPath: string | null;
+};
+
+type CertificateListPayload = {
+  data?: CertificateSummary[];
+  error?: { message?: string };
+};
+
+function certificateDate(value: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
 // Member portal: personal identity + own passes + assignment summary. The
 // organization is resolved from membership, never typed in as a UUID.
 export default function MemberHome() {
@@ -28,6 +50,9 @@ export default function MemberHome() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reissuing, setReissuing] = useState<string | null>(null);
+  const [certificates, setCertificates] = useState<CertificateSummary[]>([]);
+  const [certificatesLoading, setCertificatesLoading] = useState(false);
+  const [certificatesError, setCertificatesError] = useState<string | null>(null);
 
   useEffect(() => {
     if (orgId || orgs.length === 0) return;
@@ -62,6 +87,38 @@ export default function MemberHome() {
   }, [orgId]);
 
   const org = orgs.find((o) => o.id === orgId);
+
+  // Certificates are per person, not per pass, and the server returns only the
+  // caller's own sealed documents. A failure here never blocks the pass view.
+  useEffect(() => {
+    if (!orgId) return;
+    let alive = true;
+    setCertificatesLoading(true);
+    setCertificatesError(null);
+    fetch(`/api/v1/orgs/${orgId}/my-certificates`, { credentials: "include" })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as CertificateListPayload | null;
+        if (!response.ok) {
+          throw new Error(payload?.error?.message ?? `Could not load certificates (${response.status})`);
+        }
+        return Array.isArray(payload?.data) ? payload.data : [];
+      })
+      .then((rows) => {
+        if (alive) setCertificates(rows);
+      })
+      .catch((e) => {
+        if (alive) {
+          setCertificates([]);
+          setCertificatesError((e as Error).message);
+        }
+      })
+      .finally(() => {
+        if (alive) setCertificatesLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [orgId]);
 
   async function reissuePass(passId: string) {
     if (!orgId) return;
@@ -200,6 +257,62 @@ export default function MemberHome() {
             </section>
           </div>
         ))}
+
+        {!loading && !error && orgId ? (
+          <section className="mt-10" aria-labelledby="member-certificates">
+            <h2 id="member-certificates" className="text-[17px] font-bold text-slate-900">
+              Your certificates
+            </h2>
+            <p className="mt-1 text-[14px] leading-relaxed text-slate-600">
+              Signed certificates issued to you. The verification link confirms the sealed record without
+              showing your attendance history.
+            </p>
+
+            {certificatesLoading ? (
+              <div className="mt-3">
+                <LoadingState label="Loading your certificates…" />
+              </div>
+            ) : certificatesError ? (
+              <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[14.5px] text-red-800">
+                {certificatesError}
+              </p>
+            ) : certificates.length === 0 ? (
+              <div className="mt-3">
+                <EmptyState
+                  title="No certificates yet"
+                  description="A certificate appears here after your organizer issues it and the signatory signs it."
+                />
+              </div>
+            ) : (
+              <ul className="mt-3 space-y-2">
+                {certificates.map((certificate) => (
+                  <li
+                    key={certificate.id}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-3"
+                  >
+                    <p className="text-[15.5px] font-semibold leading-snug text-slate-900">
+                      {certificate.eventTitle ?? certificate.title ?? "Certificate of Attendance"}
+                    </p>
+                    <p className="mt-0.5 text-[13.5px] text-slate-600">
+                      {certificate.eventDateLabel ? `${certificate.eventDateLabel} · ` : ""}
+                      Signed {certificateDate(certificate.sealedAt)}
+                    </p>
+                    {certificate.verifyPath ? (
+                      <a
+                        href={certificate.verifyPath}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex min-h-[44px] items-center text-[14px] font-semibold text-blue-700 underline decoration-blue-300 underline-offset-4"
+                      >
+                        Open verification record
+                      </a>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        ) : null}
       </main>
       <MobileTabBar base={orgId ? `/org/${orgId}` : undefined} breakpoint="lg" />
     </div>
