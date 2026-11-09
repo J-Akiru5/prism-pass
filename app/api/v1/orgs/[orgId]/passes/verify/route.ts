@@ -2,8 +2,8 @@ import { z } from "zod";
 import { ok, fail, handleRouteError, readJson, BODY_LIMITS } from "@/lib/api";
 import { requireOrganizationPermission } from "@/lib/tenant";
 import { prisma } from "@/lib/db";
-import { parseQrPayload, verifyPassStatus } from "@/modules/passes/verify";
-import { hashCredential } from "@/modules/passes/service";
+import { parseQrPayload, passStatusHttpStatus, verifyPassStatus } from "@/modules/passes/verify";
+import { verifyCredentialHash } from "@/modules/passes/credential";
 import { enforceRateLimits, ipCheck, limiters, orgCheck } from "@/lib/rate-limit-http";
 
 const body = z.object({ credential: z.string().min(8).max(512) });
@@ -44,7 +44,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ orgId: 
       });
       return fail(403, "FORBIDDEN", "Pass person belongs to a different organization");
     }
-    if (pass.credentialHash !== hashCredential(parsed.passPublicId, parsed.secret)) {
+    if (!verifyCredentialHash(parsed.passPublicId, parsed.secret, pass.credentialHash)) {
       await prisma.auditLog.create({
         data: { organizationId: ctx.organizationId, actorUserId: ctx.internalUserId, action: "pass.verify", resource: `pass:${pass.id}`, result: "credential_mismatch" },
       });
@@ -55,8 +55,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ orgId: 
       await prisma.auditLog.create({
         data: { organizationId: ctx.organizationId, actorUserId: ctx.internalUserId, action: "pass.verify", resource: `pass:${pass.id}`, result: v.reason.toLowerCase() },
       });
-      const code = v.reason === "REVOKED" ? 403 : 410;
-      return fail(code, v.reason, `Pass ${v.reason.toLowerCase()}`);
+      return fail(passStatusHttpStatus(v.reason), v.reason, `Pass ${v.reason.toLowerCase()}`);
     }
     // Duplicate: same pass verified within window
     const since = new Date(Date.now() - DUPLICATE_WINDOW_MS);

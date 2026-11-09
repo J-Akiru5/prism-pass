@@ -1,8 +1,8 @@
 import { randomUUID } from "crypto";
 import type { AttendanceEvent, AttendanceRecord } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { parseQrPayload, verifyPassStatus } from "@/modules/passes/verify";
-import { hashCredential } from "@/modules/passes/service";
+import { parseQrPayload, passStatusHttpStatus, verifyPassStatus } from "@/modules/passes/verify";
+import { verifyCredentialHash } from "@/modules/passes/credential";
 import { reconcileRecord, resolveDirection, type ScanInput } from "@/modules/attendance/engine";
 import { evaluateGeo } from "@/modules/geo/evaluate";
 
@@ -45,7 +45,11 @@ export async function performScan(actor: ScanActor, sessionId: string, input: Sc
 
   // 1. Verify pass (same checks as verify endpoint — no divergence)
   const parsed = parseQrPayload(input.credential);
-  if (!parsed) return { ok: false, status: 400, code: "INVALID_INPUT", message: "Unrecognized QR payload" };
+  if (!parsed) {
+    // Record the malformed attempt without echoing the credential or secret.
+    await prisma.auditLog.create({ data: { organizationId, actorUserId, action: "attendance.scan", resource: `session:${sessionId}`, result: "invalid_format" } });
+    return { ok: false, status: 400, code: "INVALID_INPUT", message: "Unrecognized QR payload" };
+  }
   const pass = await prisma.pass.findUnique({
     where: { organizationId_passPublicId: { organizationId, passPublicId: parsed.passPublicId } },
     include: { person: true },
@@ -58,7 +62,7 @@ export async function performScan(actor: ScanActor, sessionId: string, input: Sc
     await prisma.auditLog.create({ data: { organizationId, actorUserId, action: "attendance.scan", resource: `pass:${pass.id}`, result: "person_inactive" } });
     return { ok: false, status: 403, code: "FORBIDDEN", message: "Pass holder is not active in this organization" };
   }
-  if (pass.credentialHash !== hashCredential(parsed.passPublicId, parsed.secret)) {
+  if (!verifyCredentialHash(parsed.passPublicId, parsed.secret, pass.credentialHash)) {
     await prisma.auditLog.create({ data: { organizationId, actorUserId, action: "attendance.scan", resource: `pass:${pass.id}`, result: "credential_mismatch" } });
     return { ok: false, status: 403, code: "FORBIDDEN", message: "Credential mismatch" };
   }
@@ -67,7 +71,7 @@ export async function performScan(actor: ScanActor, sessionId: string, input: Sc
     await prisma.auditLog.create({ data: { organizationId, actorUserId, action: "attendance.scan", resource: `pass:${pass.id}`, result: v.reason.toLowerCase() } });
     return {
       ok: false,
-      status: v.reason === "REVOKED" ? 403 : 410,
+      status: passStatusHttpStatus(v.reason),
       code: v.reason,
       message: `Pass ${v.reason.toLowerCase()}`,
     };
