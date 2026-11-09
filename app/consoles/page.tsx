@@ -8,13 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { getSessionUser } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db";
 import { roleGrants, type Role } from "@/packages/authorization/permissions";
+import { presetForRole, presetLabel } from "@/packages/authorization/presets";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Consoles" };
 
 type Membership = {
   status: string;
-  role: string;
+  role: Role;
   organization: { id: string; name: string; slug: string; status: string };
 };
 
@@ -64,7 +65,7 @@ export default async function ConsolesPage() {
       isPlatformAdmin = false;
     }
   }
-  const canScan = memberships.some((m) => roleGrants(m.role as Role, "attendance.scan"));
+  const canScan = memberships.some((m) => roleGrants(m.role, "attendance.scan"));
 
   // A plain member has no console to choose: land on the pass they actually use.
   if (memberships.length > 0 && !isPlatformAdmin && !canScan) {
@@ -121,7 +122,12 @@ export default async function ConsolesPage() {
                         {m.organization.name}
                       </span>
                       <span className="mt-1 flex flex-wrap items-center gap-2">
-                        <Badge variant="info">{m.role}</Badge>
+                        <Badge variant="info" title={`Raw role: ${m.role}`}>
+                          {presetLabel(presetForRole(m.role))}
+                        </Badge>
+                        <span className="font-mono text-[12px] text-slate-500 dark:text-slate-400" title="Raw role">
+                          {m.role}
+                        </span>
                         <span className="font-mono text-[13px] text-slate-500 dark:text-slate-400">{m.organization.slug}</span>
                       </span>
                     </span>
