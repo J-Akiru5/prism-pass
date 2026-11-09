@@ -3,14 +3,34 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, BadgeCheck, IdCard, ScanLine, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeCheck, IdCard, ScanLine, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { PasswordInput } from "@/components/auth/password-input";
 import { BrandLogo } from "@/components/brand/logo";
 import { SyntaxureCredit } from "@/components/brand/syntaxure-credit";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type FieldErrors = { email?: string; password?: string };
+
+/**
+ * Auth errors are intentionally mapped to fixed copy: the login form must not
+ * reveal whether an email address has an account.
+ */
+function loginErrorMessage(error: { message?: string; status?: number }): string {
+  const message = error.message ?? "";
+  if (error.status === 429 || /rate limit|too many/i.test(message)) {
+    return "Too many sign-in attempts. Wait a moment, then try again.";
+  }
+  if (error.status === 0 || /fetch|network/i.test(message)) {
+    return "We could not reach the sign-in service. Check your connection and try again.";
+  }
+  return "Email or password is incorrect.";
+}
 
 const PANEL_POINTS = [
   { Icon: IdCard, text: "One directory, one QR identity pass per member." },
@@ -20,11 +40,13 @@ const PANEL_POINTS = [
 
 /**
  * Modern split-view sign-in: brand + value panel on the left (desktop),
- * form card on the right. Auth logic unchanged — Supabase only.
+ * form card on the right. Authentication remains Supabase-only; the
+ * post-sign-in provisioning call is best-effort.
  */
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const router = useRouter();
@@ -32,13 +54,41 @@ export default function LoginPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
+    if (busy) return;
+
+    const trimmedEmail = email.trim();
+    const nextErrors: FieldErrors = {};
+    if (!trimmedEmail) nextErrors.email = "Enter your email address.";
+    else if (!EMAIL_PATTERN.test(trimmedEmail)) nextErrors.email = "Enter a valid email address.";
+    if (!password) nextErrors.password = "Enter your password.";
+
+    setFieldErrors(nextErrors);
     setErr(null);
-    const sb = createClient();
-    const { error } = await sb.auth.signInWithPassword({ email, password });
-    setBusy(false);
-    if (error) { setErr(error.message); return; }
-    router.push(next);
+    if (nextErrors.email || nextErrors.password) return;
+
+    setBusy(true);
+    try {
+      const sb = createClient();
+      const { error } = await sb.auth.signInWithPassword({ email: trimmedEmail, password });
+      if (error) {
+        setErr(loginErrorMessage(error));
+        return;
+      }
+
+      // Provisioning is owned by a separate route. It is best-effort: a missing
+      // route, a 4xx/5xx or a network failure must never block a valid sign-in.
+      try {
+        await fetch("/api/v1/auth/provision", { method: "POST", credentials: "include" });
+      } catch {
+        // Intentionally ignored.
+      }
+
+      router.push(next);
+    } catch {
+      setErr("We could not sign you in right now. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -85,14 +135,21 @@ export default function LoginPage() {
       {/* form panel */}
       <div className="relative flex flex-col">
         <div aria-hidden="true" className="pp-dots pointer-events-none absolute inset-0 opacity-60 [mask-image:radial-gradient(70%_60%_at_50%_20%,#000,transparent)]" />
-        <div className="flex h-16 items-center justify-between px-4 sm:px-8">
+        <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-8">
+          <Link
+            href="/"
+            aria-label="Back to home"
+            className="inline-flex shrink-0 items-center gap-2 rounded-md text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/50 focus-visible:ring-offset-2"
+          >
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            Back to home
+          </Link>
           <span className="hidden text-sm text-slate-500 lg:inline">
             New to Prism Pass?{" "}
             <Link href="/demo" className="font-semibold text-blue-700 underline-offset-2 hover:underline">
               Book a demo
             </Link>
           </span>
-          
         </div>
         <main className="flex flex-1 items-center justify-center px-4 py-10 sm:px-8">
           <div className="w-full max-w-sm">
@@ -118,15 +175,37 @@ export default function LoginPage() {
                   noValidate
                   aria-describedby={err ? "login-error" : undefined}
                 >
-                  <FormField label="Email" htmlFor="login-email" required error={err && !email ? "Enter your email address." : null}>
-                    <Input id="login-email" placeholder="you@org.edu" value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="username" required autoFocus />
+                  <FormField label="Email" htmlFor="login-email" required error={fieldErrors.email ?? null}>
+                    <Input
+                      id="login-email"
+                      placeholder="you@org.edu"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (fieldErrors.email) setFieldErrors((current) => ({ ...current, email: undefined }));
+                      }}
+                      type="email"
+                      autoComplete="username"
+                      required
+                      autoFocus
+                    />
                   </FormField>
-                  <FormField label="Password" htmlFor="login-password" required error={err && !password ? "Password is required." : null}>
-                    <Input id="login-password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} type="password" autoComplete="current-password" required />
+                  <FormField label="Password" htmlFor="login-password" required error={fieldErrors.password ?? null}>
+                    <PasswordInput
+                      id="login-password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (fieldErrors.password) setFieldErrors((current) => ({ ...current, password: undefined }));
+                      }}
+                      autoComplete="current-password"
+                      required
+                    />
                   </FormField>
                   {err && (
                     <p id="login-error" role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[14.5px] text-red-700">
-                      Sign in failed — {err}
+                      {err}
                     </p>
                   )}
                   <Button type="submit" size="lg" disabled={busy} className="w-full">
@@ -135,8 +214,14 @@ export default function LoginPage() {
                 </form>
                 <p className="mt-4 text-center text-sm text-slate-500">
                   Forgot your password?{" "}
-                  <Link href="/reset-password" className="font-medium text-blue-700 underline underline-offset-2">
+                  <Link href="/forgot-password" className="font-medium text-blue-700 underline underline-offset-2">
                     Reset it
+                  </Link>
+                </p>
+                <p className="mt-4 border-t border-slate-100 pt-4 text-center text-sm text-slate-500">
+                  Don&apos;t have an account?{" "}
+                  <Link href="/signup" className="font-semibold text-blue-700 underline underline-offset-2">
+                    Create account
                   </Link>
                 </p>
               </CardContent>
