@@ -9,17 +9,23 @@ export type AgendaSession = {
   type: string;
   startsAt: string;
   endsAt: string;
+  /** M1 lifecycle; undefined behaves as OPEN for pre-M1 payloads. */
+  status?: "OPEN" | "CLOSED";
 };
 
-type State = "live" | "upcoming" | "past";
+type State = "closed" | "live" | "upcoming" | "past";
 
 const TONE: Record<State, { dot: string; label: string; text: string }> = {
+  closed: { dot: "bg-red-500", label: "Closed", text: "text-red-700" },
   live: { dot: "bg-emerald-500", label: "Live now", text: "text-emerald-700" },
   upcoming: { dot: "bg-blue-500", label: "Upcoming", text: "text-blue-700" },
-  past: { dot: "bg-slate-400", label: "Finished", text: "text-slate-500" },
+  // An event nobody closed keeps accepting until it is closed; past its end it
+  // is late, not finished.
+  past: { dot: "bg-amber-500", label: "Open · past schedule", text: "text-amber-700" },
 };
 
 function stateOf(s: AgendaSession, now: number): State {
+  if (s.status === "CLOSED") return "closed";
   const start = new Date(s.startsAt).getTime();
   const end = new Date(s.endsAt).getTime();
   if (now >= start && now <= end) return "live";

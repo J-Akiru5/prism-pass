@@ -23,8 +23,48 @@ export const createSessionInput = z.object({
   startsAt: z.string().datetime(),
   endsAt: z.string().datetime(),
   timezone: z.string().min(1).max(60).default("Asia/Manila"),
+  // Omitted = derive from type in the route (EVENT enforces the roster).
+  rosterEnforced: z.boolean().optional(),
+  walkInAllowed: z.boolean().default(false),
 }).refine((v) => new Date(v.endsAt) > new Date(v.startsAt), { message: "endsAt must be after startsAt" });
 export type CreateSessionInput = z.infer<typeof createSessionInput>;
+
+export const updateSessionStatusInput = z.object({
+  status: z.enum(["OPEN", "CLOSED"]),
+});
+export type UpdateSessionStatusInput = z.infer<typeof updateSessionStatusInput>;
+
+export const addSessionRosterInput = z.object({
+  personIds: z.array(z.string().min(1).max(128)).min(1).max(500),
+});
+export type AddSessionRosterInput = z.infer<typeof addSessionRosterInput>;
+
+export type SessionAdmissionInput = {
+  status: "OPEN" | "CLOSED";
+  rosterEnforced: boolean;
+  walkInAllowed: boolean;
+  onRoster: boolean;
+};
+
+export type SessionAdmission =
+  | { allowed: true }
+  | { allowed: false; code: "EVENT_CLOSED" | "NOT_ON_ROSTER" };
+
+/**
+ * Pure admission gate for a scan against an event session.
+ *
+ * Order matters: a closed event refuses everyone, including a listed person, so
+ * a stale roster can never override the lifecycle. A roster-enforced session
+ * refuses an unlisted person unless walk-ins are allowed. The refusal never
+ * carries the person's name (D-03: a refused scan reveals nothing).
+ */
+export function evaluateSessionAdmission(input: SessionAdmissionInput): SessionAdmission {
+  if (input.status === "CLOSED") return { allowed: false, code: "EVENT_CLOSED" };
+  if (input.rosterEnforced && !input.onRoster && !input.walkInAllowed) {
+    return { allowed: false, code: "NOT_ON_ROSTER" };
+  }
+  return { allowed: true };
+}
 
 export const scanInput = z.object({
   credential: z.string().min(8).max(512),

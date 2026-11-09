@@ -3,7 +3,12 @@ import type { AttendanceEvent, AttendanceRecord } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { parseQrPayload, passStatusHttpStatus, verifyPassStatus } from "@/modules/passes/verify";
 import { verifyCredentialHash } from "@/modules/passes/credential";
-import { reconcileRecord, resolveDirection, type ScanInput } from "@/modules/attendance/engine";
+import { reconcileRecord, evaluateSessionAdmission, type ScanInput } from "@/modules/attendance/engine";
+import {
+  decideScanTransition,
+  EMPTY_RECORD_SNAPSHOT,
+  type RecordSnapshot,
+} from "@/modules/attendance/scan-policy";
 import { evaluateGeo } from "@/modules/geo/evaluate";
 
 // Canonical attendance write path, extracted from the scan route so offline
@@ -20,6 +25,8 @@ export type ScanSuccessData = {
   geoResult: string;
   dedupe?: true;
   key?: "idempotencyKey";
+  /** Always present on an accepted/deduped/duplicate scan (M1-7). */
+  personName: string;
 };
 
 export type ScanFailure = {
@@ -83,7 +90,43 @@ export async function performScan(actor: ScanActor, sessionId: string, input: Sc
     where: { organizationId_idempotencyKey: { organizationId, idempotencyKey } },
   });
   if (existingKey) {
-    return { ok: true, data: { event: existingKey, dedupe: true, key: "idempotencyKey", geoResult: existingKey.geoResult } };
+    return { ok: true, data: { event: existingKey, dedupe: true, key: "idempotencyKey", geoResult: existingKey.geoResult, personName: pass.person.displayName } };
+  }
+
+  // 2a. Event gates, in this order and before the duplicate window:
+  //   1. CLOSED refuses every new scan (409).
+  //   2. A roster-enforced session refuses an unlisted person unless walk-ins
+  //      are allowed (403).
+  // Idempotency ran first on purpose: a scan accepted before the event closed
+  // replays as accepted instead of turning into a refusal. The refusal carries
+  // no person name (D-03); the audit row is internal.
+  const rosterGateApplies = session.rosterEnforced && !session.walkInAllowed;
+  const onRoster = rosterGateApplies
+    ? Boolean(
+        await prisma.sessionRoster.findUnique({
+          where: { organizationId_sessionId_personId: { organizationId, sessionId: session.id, personId: pass.personId } },
+          select: { id: true },
+        }),
+      )
+    : true;
+  const admission = evaluateSessionAdmission({
+    status: session.status,
+    rosterEnforced: session.rosterEnforced,
+    walkInAllowed: session.walkInAllowed,
+    onRoster,
+  });
+  if (!admission.allowed) {
+    const closed = admission.code === "EVENT_CLOSED";
+    await prisma.auditLog.create({
+      data: {
+        organizationId, actorUserId, action: "attendance.scan", resource: `session:${session.id}`,
+        result: closed ? "event_closed" : "not_on_roster",
+        meta: { sessionId, personId: pass.personId, gate: admission.code } as never,
+      },
+    });
+    return closed
+      ? { ok: false, status: 409, code: "EVENT_CLOSED", message: "This event is closed" }
+      : { ok: false, status: 403, code: "NOT_ON_ROSTER", message: "Pass holder is not on this event's roster" };
   }
 
   const clientTs = new Date(input.clientTs);
@@ -113,13 +156,41 @@ export async function performScan(actor: ScanActor, sessionId: string, input: Sc
     geofenceId: geo.matchedGeofenceId,
   };
 
-  // 3. Duplicate window: same pass re-scan → DUPLICATE_DETECTED, record untouched
+  // 3. Duplicate window + direction: one pure decision, no writes. The record
+  // is loaded first so the helper can resolve `auto`; the check-in timestamp is
+  // the same event row step 5 used to load.
+  const record0 = await prisma.attendanceRecord.findUnique({
+    where: { organizationId_sessionId_personId: { organizationId, sessionId: session.id, personId: pass.personId } },
+  });
+  const checkInEvent = record0?.checkInEventId
+    ? await prisma.attendanceEvent.findUnique({
+        where: { id: record0.checkInEventId },
+        select: { serverTs: true, passId: true },
+      })
+    : null;
+  const recordSnapshot: RecordSnapshot = record0
+    ? {
+        checkInAtMs: checkInEvent ? checkInEvent.serverTs.getTime() : null,
+        checkOutAtMs: null,
+        checkInPassId: checkInEvent?.passId ?? null,
+      }
+    : EMPTY_RECORD_SNAPSHOT;
+
   const windowSince = new Date(serverTs.getTime() - session.policy.duplicateWindowSec * 1000);
   const recentScan = await prisma.attendanceEvent.findFirst({
     where: { organizationId, sessionId: session.id, personId: pass.personId, serverTs: { gte: windowSince }, status: "accepted" },
     orderBy: { serverTs: "desc" },
   });
-  if (recentScan && recentScan.passId === pass.id) {
+  const transition = decideScanTransition({
+    record: recordSnapshot,
+    recentSamePassScan: recentScan ? { passId: recentScan.passId, serverTsMs: recentScan.serverTs.getTime() } : null,
+    passId: pass.id,
+    requestedDirection: input.direction,
+    serverTsMs: serverTs.getTime(),
+    duplicateWindowMs: session.policy.duplicateWindowSec * 1000,
+  });
+
+  if (transition.eventType === "DUPLICATE_DETECTED") {
     const dup = await prisma.attendanceEvent.create({
       data: {
         organizationId, sessionId: session.id, personId: pass.personId,
@@ -130,8 +201,7 @@ export async function performScan(actor: ScanActor, sessionId: string, input: Sc
       },
     });
     await prisma.auditLog.create({ data: { organizationId, actorUserId, action: "attendance.scan", resource: `event:${dup.id}`, result: "valid_duplicate", meta: { sessionId, personId: pass.personId, geoResult: geo.geoResult } as never } });
-    const record = await prisma.attendanceRecord.findUnique({ where: { organizationId_sessionId_personId: { organizationId, sessionId: session.id, personId: pass.personId } } });
-    return { ok: true, data: { event: dup, record, duplicate: true, geoResult: geo.geoResult } };
+    return { ok: true, data: { event: dup, record: record0, duplicate: true, geoResult: geo.geoResult, personName: pass.person.displayName } };
   }
 
   // 3b. Enforce mode: a reliable out-of-fence scan is rejected, audited and never
@@ -163,11 +233,8 @@ export async function performScan(actor: ScanActor, sessionId: string, input: Sc
     };
   }
 
-  // 4. Resolve direction + append event
-  const record0 = await prisma.attendanceRecord.findUnique({
-    where: { organizationId_sessionId_personId: { organizationId, sessionId: session.id, personId: pass.personId } },
-  });
-  const eventType = resolveDirection(input.direction, !!record0?.checkInEventId);
+  // 4. Append the event selected by the pure transition decision
+  const eventType = transition.eventType;
   const event = await prisma.attendanceEvent.create({
     data: {
       organizationId, sessionId: session.id, personId: pass.personId,
@@ -179,13 +246,7 @@ export async function performScan(actor: ScanActor, sessionId: string, input: Sc
   });
 
   // 5. Reconcile single record per (org, session, person)
-  let checkInAt: Date | null = null;
-  if (eventType === "CHECK_IN") {
-    checkInAt = serverTs;
-  } else if (record0?.checkInEventId) {
-    const inEv = await prisma.attendanceEvent.findUnique({ where: { id: record0.checkInEventId } });
-    checkInAt = inEv ? new Date(inEv.serverTs) : null;
-  }
+  const checkInAt = transition.record.checkInAtMs === null ? null : new Date(transition.record.checkInAtMs);
   const r = reconcileRecord(
     { checkInAt, checkOutAt: null },
     eventType, serverTs, new Date(session.startsAt), session.policy.graceMin, session.policy.lateThresholdMin,
@@ -206,5 +267,5 @@ export async function performScan(actor: ScanActor, sessionId: string, input: Sc
   await prisma.auditLog.create({
     data: { organizationId, actorUserId, action: "attendance.scan", resource: `event:${event.id}`, result: "accepted", meta: { sessionId, personId: pass.personId, direction: eventType, geoResult: geo.geoResult } as never },
   });
-  return { ok: true, data: { event, record, duplicate: false, geoResult: geo.geoResult } };
+  return { ok: true, data: { event, record, duplicate: false, geoResult: geo.geoResult, personName: pass.person.displayName } };
 }

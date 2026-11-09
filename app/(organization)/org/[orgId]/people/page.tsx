@@ -1,7 +1,7 @@
 "use client";
 
-import { use, useCallback, useEffect, useState } from "react";
-import { Plus, Search, X } from "lucide-react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
+import { Plus, Search, Upload, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
@@ -16,6 +16,7 @@ type Person = { id: string; displayName: string; externalId: string | null; stat
 type Assignment = { id: string; personId: string; programId: string | null; role: string };
 type Program = { id: string; name: string; kind: string };
 type PassRow = { id: string; passPublicId: string; version: number; status: string; expiresAt: string | null };
+type ImportResult = { demo?: boolean; created: number; skipped: number; invalid: number; errors: { row: number; message: string }[] };
 
 async function api(path: string, init?: RequestInit) {
   const r = await fetch(path, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
@@ -33,6 +34,9 @@ export default function PeoplePage({ params }: { params: Promise<{ orgId: string
   const [extId, setExtId] = useState("");
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<(Person & { passes: PassRow[]; assignments: Assignment[] }) | null>(null);
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -61,6 +65,21 @@ export default function PeoplePage({ params }: { params: Promise<{ orgId: string
       await api(`/api/v1/orgs/${orgId}/people`, { method: "POST", body: JSON.stringify({ displayName: name, externalId: extId || undefined }) });
       setName(""); setExtId(""); setAdding(false); await load();
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  }
+
+  async function importCsv(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setImporting(true); setError(null); setImportResult(null);
+    try {
+      const result = await api(`/api/v1/orgs/${orgId}/people/import`, {
+        method: "POST",
+        body: JSON.stringify({ csv: await file.text() }),
+      }) as ImportResult;
+      setImportResult(result);
+      if (result.created > 0) await load();
+    } catch (err) { setError((err as Error).message); } finally { setImporting(false); }
   }
 
   async function open(id: string) {
@@ -109,12 +128,48 @@ export default function PeoplePage({ params }: { params: Promise<{ orgId: string
         title="People"
         description={loading ? "Loading your people directory…" : `${people.length} ${people.length === 1 ? "person" : "people"} in your directory. Everyone here can be issued a pass.`}
         actions={
-          <Button variant="default" size="lg" className="h-12 w-full sm:w-auto" onClick={() => setAdding((v) => !v)}>
-            <Plus aria-hidden="true" /> {adding ? "Close form" : "Add a person"}
-          </Button>
+          <>
+            <Button type="button" variant="default" size="lg" className="h-12 w-full sm:w-auto" onClick={() => setAdding((v) => !v)}>
+              <Plus aria-hidden="true" /> {adding ? "Close form" : "Add a person"}
+            </Button>
+            <Button type="button" variant="outline" size="lg" className="h-12 w-full sm:w-auto" disabled={importing} onClick={() => fileInputRef.current?.click()}>
+              <Upload aria-hidden="true" /> {importing ? "Importing…" : "Import CSV"}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="sr-only"
+              aria-label="Choose a CSV file of people"
+              onChange={importCsv}
+            />
+          </>
         }
       />
       {error && <div className="mt-4"><ErrorState message={error} retry={load} /></div>}
+
+      {importResult && (
+        <div role="status" aria-live="polite" className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3.5">
+          <p className="text-[15px] font-semibold text-slate-900">
+            {importResult.demo ? "CSV checked in demo mode — nothing was saved." : `Imported ${importResult.created} ${importResult.created === 1 ? "person" : "people"}.`}
+            {importResult.skipped > 0 && ` Skipped ${importResult.skipped} duplicate ${importResult.skipped === 1 ? "row" : "rows"}.`}
+            {importResult.invalid > 0 && ` ${importResult.invalid} ${importResult.invalid === 1 ? "row needs" : "rows need"} attention.`}
+          </p>
+          {importResult.errors.length > 0 && (
+            <ul className="mt-2 space-y-1 text-[14px] text-red-700">
+              {importResult.errors.slice(0, 5).map((rowError) => (
+                <li key={`${rowError.row}:${rowError.message}`}>Row {rowError.row}: {rowError.message}</li>
+              ))}
+            </ul>
+          )}
+          {importResult.errors.length > 5 && (
+            <p className="mt-1 text-[14px] text-slate-600">…and {importResult.errors.length - 5} more row errors.</p>
+          )}
+          <p className="mt-2 text-[13.5px] text-slate-500">
+            CSV headers: name (or display_name / full_name), plus optional external_id (or staff_id / id).
+          </p>
+        </div>
+      )}
 
       {adding && (
         <Card className="mt-5">
@@ -150,7 +205,7 @@ export default function PeoplePage({ params }: { params: Promise<{ orgId: string
           {loading ? <LoadingState label="Loading people…" /> : filtered.length === 0 ? (
             <EmptyState
               title={q ? "No one matches" : "No people yet"}
-              description={q ? "Try a shorter search." : "Tap Add a person to get started."}
+              description={q ? "Try a shorter search." : "Import a CSV or tap Add a person to get started."}
               action={q ? <Button variant="outline" onClick={() => setQ("")}>Clear search</Button> : undefined}
             />
           ) : (

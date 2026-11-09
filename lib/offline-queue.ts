@@ -23,6 +23,7 @@ import {
   openCredential,
   sealCredential,
 } from "@/modules/offline/at-rest";
+import type { CachedBundleRecord } from "@/modules/offline/bundle-schema";
 import type { OfflineEventInput } from "@/modules/offline/schema";
 
 // P6 offline capture queue (client-side). Dexie/IndexedDB is only touched when a
@@ -44,6 +45,8 @@ export type OfflineQueueItem = QueueRecord & {
 
 class OfflineQueueDatabase extends Dexie {
   queue!: Table<OfflineQueueItem, number>;
+  /** Sealed offline bundles, one per organization (Dexie schema v3). */
+  bundles!: Table<CachedBundleRecord, string>;
 
   constructor() {
     super("prism-pass-offline");
@@ -65,6 +68,12 @@ class OfflineQueueDatabase extends Dexie {
             row.inflightAt = migrateLegacyQueueRecord(row).inflightAt;
           });
       });
+    // v3 adds the sealed event-bundle cache. Both stores are declared so Dexie
+    // keeps the queue untouched; upgrading never rewrites or deletes a scan.
+    this.version(3).stores({
+      queue: "++id,&idempotencyKey,state,nextAttemptAt,createdAt,inflightAt",
+      bundles: "organizationId,receivedAt,generatedAt",
+    });
   }
 }
 
@@ -382,6 +391,26 @@ export async function clear(ids: number[]): Promise<void> {
  */
 export async function size(): Promise<number> {
   return getDatabase().queue.where("state").anyOf("pending", "inflight", "failed").count();
+}
+
+/**
+ * Store one sealed bundle per organization. `put` overwrites the previous
+ * snapshot for that org and never touches the scan queue. Quota failures are
+ * surfaced to the caller by the Dexie operation.
+ */
+export async function putBundle(record: CachedBundleRecord): Promise<void> {
+  await getDatabase().bundles.put(record);
+}
+
+/** Read the cached bundle record for an organization, or null when absent. */
+export async function getBundle(organizationId: string): Promise<CachedBundleRecord | null> {
+  const record = await getDatabase().bundles.get(organizationId);
+  return record ?? null;
+}
+
+/** Remove the cached bundle for one organization. The scan queue is untouched. */
+export async function deleteBundle(organizationId: string): Promise<void> {
+  await getDatabase().bundles.delete(organizationId);
 }
 
 /** Put interrupted `inflight` items back without incrementing their attempt count. */

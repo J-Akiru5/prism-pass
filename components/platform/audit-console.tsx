@@ -282,9 +282,11 @@ export function AuditConsole({ initialOrganizationId = "" }: { initialOrganizati
         <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-2">
           <h2 className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Ledger</h2>
           <span aria-live="polite" className="font-mono text-[11px] tabular-nums text-muted-foreground">
-            {meta.total === 0
-              ? "No entries"
-              : `${meta.total.toLocaleString()} ${meta.total === 1 ? "entry" : "entries"} · page ${meta.page} of ${meta.totalPages || 1}`}
+            {loading
+              ? "—"
+              : meta.total === 0
+                ? "No entries"
+                : `${meta.total.toLocaleString()} ${meta.total === 1 ? "entry" : "entries"} · page ${meta.page} of ${meta.totalPages || 1}`}
           </span>
         </div>
 
