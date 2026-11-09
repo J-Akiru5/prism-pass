@@ -6,7 +6,21 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- Self-serve account creation at `/signup`: Supabase sign-up with email confirmation, an idempotent
+  `POST /api/v1/auth/provision` endpoint that links the auth identity to an internal user, and a
+  clear "no organization access yet" boundary. No schema migration.
+- Password recovery: `/forgot-password` request form, shared `/auth/confirm` callback for `code` and
+  `token_hash` links, and `/reset-password` with a session-gated password update.
+- Show/hide password control on login, signup and reset forms, with accessible labels and no layout
+  shift.
+- Visible "Back to home" links on all public auth pages, plus a pilot Terms of Service page.
+
+### Security
+- Login now validates the `next` parameter with the shared same-origin guard, closing an open-redirect
+  path.
+- Auth callbacks are limited to supported OTP types and safe internal destinations; provisioning is
+  session-gated and requires a confirmed email.
 
 ## [0.3.1] - 2026-11-09
 

@@ -26,6 +26,7 @@ const COLS = [
     links: [
       { href: "/demo", label: "Book a demo" },
       { href: "/privacy", label: "Privacy & your rights" },
+      { href: "/terms", label: "Terms of Service" },
       { href: "/login", label: "Support" },
     ],
   },

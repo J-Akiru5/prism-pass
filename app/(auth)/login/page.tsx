@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, BadgeCheck, IdCard, ScanLine, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { resolveNext } from "@/lib/auth/redirect";
 import { PasswordInput } from "@/components/auth/password-input";
 import { BrandLogo } from "@/components/brand/logo";
 import { SyntaxureCredit } from "@/components/brand/syntaxure-credit";
@@ -50,7 +51,7 @@ export default function LoginPage() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const router = useRouter();
-  const next = useSearchParams().get("next") || "/consoles";
+  const next = resolveNext(useSearchParams().get("next"));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -78,7 +79,11 @@ export default function LoginPage() {
       // Provisioning is owned by a separate route. It is best-effort: a missing
       // route, a 4xx/5xx or a network failure must never block a valid sign-in.
       try {
-        await fetch("/api/v1/auth/provision", { method: "POST", credentials: "include" });
+        await fetch("/api/v1/auth/provision", {
+          method: "POST",
+          credentials: "include",
+          signal: AbortSignal.timeout(5_000),
+        });
       } catch {
         // Intentionally ignored.
       }

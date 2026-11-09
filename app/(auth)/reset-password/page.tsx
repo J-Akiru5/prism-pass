@@ -15,7 +15,7 @@ import { SyntaxureCredit } from "@/components/brand/syntaxure-credit";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/auth/password-input";
 import { createClient } from "@/lib/supabase/client";
 
 type Status = "checking" | "ready" | "expired" | "done";
@@ -215,9 +215,8 @@ export default function ResetPasswordPage() {
                       error={passwordError}
                       hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}
                     >
-                      <Input
+                      <PasswordInput
                         id="reset-password"
-                        type="password"
                         placeholder="••••••••"
                         value={password}
                         onChange={(event) => {
@@ -236,9 +235,8 @@ export default function ResetPasswordPage() {
                       required
                       error={confirmError}
                     >
-                      <Input
+                      <PasswordInput
                         id="reset-password-confirm"
-                        type="password"
                         placeholder="••••••••"
                         value={confirmPassword}
                         onChange={(event) => {

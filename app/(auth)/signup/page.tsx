@@ -10,6 +10,7 @@ import { SyntaxureCredit } from "@/components/brand/syntaxure-credit";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
+import { PasswordInput } from "@/components/auth/password-input";
 import { Input } from "@/components/ui/input";
 
 const PANEL_POINTS = [
@@ -269,24 +270,22 @@ export default function SignupPage() {
                         />
                       </FormField>
                       <FormField label="Password" htmlFor="signup-password" required hint="At least 8 characters." error={errors.password}>
-                        <Input
+                        <PasswordInput
                           id="signup-password"
                           placeholder="At least 8 characters"
                           value={password}
                           onChange={(e) => { setPassword(e.target.value); clearError("password"); }}
-                          type="password"
                           autoComplete="new-password"
                           minLength={8}
                           required
                         />
                       </FormField>
                       <FormField label="Confirm password" htmlFor="signup-confirm-password" required error={errors.confirmPassword}>
-                        <Input
+                        <PasswordInput
                           id="signup-confirm-password"
                           placeholder="Re-enter your password"
                           value={confirmPassword}
                           onChange={(e) => { setConfirmPassword(e.target.value); clearError("confirmPassword"); }}
-                          type="password"
                           autoComplete="new-password"
                           minLength={8}
                           required
