@@ -23,6 +23,18 @@ All notable changes to this project are documented here. Format follows
 - Planning: adopted the events-first MVP plan (`docs/roadmap/prism-pass-portal.html`,
   `docs/roadmap/PLAN.md` §14) and the RBAC/Access SSOT (`docs/security/rbac-ssot.md`). The SSOT is
   the M6 target; the pilot uses four UI presets on the existing seven roles.
+- Events core: session open/close, per-event roster with walk-in policy, roster-aware scan refusal,
+  attendee name on accepted scans, CSV people import, per-event attendance report with CSV, and four
+  UI role presets (Owner, Admin, Staff, Attendee) over the existing seven roles. Additive migrations
+  `0009_m1_events.sql` and `0010_m1_certificates.sql` applied.
+- Offline verification: signed v2 event bundle with roster/revocations, sealed bundle cache, a
+  browser-safe on-device verifier, bundle-age bands, clock-drift warnings, and a pure two-device /
+  one-record proof. Offline refusals show no attendee name.
+- Certificates: pure certificate domain (eligibility, payload, payload hash, public projection),
+  idempotent batch generation, organizer certificates page, all-or-nothing batch signing, signing
+  screen, and own-certificate member list.
+- PDF/QR: added `pdf-lib` and `qrcode` for server-rendered certificate PDFs; certificate PDF route
+  and public verify page are in progress.
 - Demo seed: `DEMO_SEED_PASSWORD` is now required (12+ characters, no committed default) and the
   seed no longer prints a password.
 
